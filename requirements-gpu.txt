@@ -1,0 +1,49 @@
+# Core dependencies - same as requirements.txt
+numpy>=1.20.0
+pandas>=1.3.0
+scipy>=1.7.0
+scikit-learn>=1.0.0
+tqdm>=4.62.0
+pydantic>=1.8.2
+python-dotenv>=0.19.0
+networkx>=2.6.3
+jinja2>=3.0.1
+requests>=2.26.0
+loguru>=0.5.3
+typer>=0.4.0
+rich>=10.12.0
+
+# NLP dependencies
+spacy>=3.2.0
+transformers>=4.16.0
+sentence-transformers>=2.2.0
+
+# GPU-accelerated dependencies
+faiss-gpu>=1.7.2  # Instead of faiss-cpu
+torch>=1.10.0+cu113  # CUDA 11.3 version
+# Note: For different CUDA versions, adjust accordingly:
+# - For CUDA 11.7: torch>=1.13.0+cu117
+# - For CUDA 11.8: torch>=2.0.0+cu118
+# - For CUDA 12.1: torch>=2.1.0+cu121
+
+# Vector database dependencies
+weaviate-client>=3.15.0
+pymongo>=4.1.0
+qdrant-client>=1.1.0
+
+# FastAPI for API server
+fastapi>=0.88.0
+uvicorn>=0.18.0
+pydantic>=1.10.2
+
+# Optional: Visualization dependencies
+matplotlib>=3.5.0
+seaborn>=0.11.2
+plotly>=5.6.0
+networkx>=2.6.3
+pyvis>=0.2.1  # For interactive network visualization
+
+# For memory profiling and optimization
+line-profiler>=3.4.0
+memory-profiler>=0.60.0
+py-spy>=0.3.12 

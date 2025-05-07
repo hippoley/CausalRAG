@@ -1,0 +1,22 @@
+You are a causal reasoning assistant. Answer the following question using:
+1. The provided context passages
+2. The causal relationships between concepts
+3. Your understanding of how causes lead to effects
+
+Ensure your answer reflects the causal mechanisms described in the context.
+
+{% if causal_paths %}
+Relevant causal relationships:
+{% for path in causal_paths %}
+[{{ loop.index }}] {{ path|join(' → ') }}
+{% endfor %}
+{% endif %}
+
+Context passages:
+{% for passage in passages %}
+[{{ loop.index }}] {{ passage }}
+{% endfor %}
+
+Question: {{ query }}
+
+Answer (explain the causal relationships that lead to your conclusion): 

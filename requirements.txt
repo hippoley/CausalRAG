@@ -1,0 +1,37 @@
+# Core dependencies
+numpy>=1.20.0
+networkx>=2.6.0
+sentence-transformers>=2.2.0
+torch>=1.10.0
+faiss-cpu>=1.7.0  # Use faiss-gpu for GPU acceleration
+openai>=0.27.0
+pydantic>=1.8.0
+fastapi>=0.68.0
+uvicorn>=0.15.0
+python-dotenv>=0.19.0
+tqdm>=4.62.0
+matplotlib>=3.4.0
+pyyaml>=6.0.0
+
+# Optional dependencies (uncomment as needed)
+# weaviate-client>=3.0.0  # For Weaviate vector store
+# anthropic>=0.2.0        # For Claude models
+# plotly>=5.3.0           # For interactive visualizations
+# pyvis>=0.2.0            # For network visualizations
+
+# Development dependencies
+pytest>=6.2.5
+pytest-cov>=2.12.1
+black>=21.6b0
+isort>=5.9.2
+flake8>=3.9.2
+mypy>=0.910
+
+# CLI and utilities
+click>=8.0.0
+rich>=10.9.0
+
+# Documentation
+sphinx>=4.1.1
+sphinx-rtd-theme>=0.5.2
+jupyter>=1.0.0
