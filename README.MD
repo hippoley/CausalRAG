@@ -72,6 +72,3 @@ causalrag/
 3. Modularize `reranker` to support fallback strategies (semantic, causal, hybrid)
 4. Optional: Add Streamlit/FastAPI demo for hosting plugin endpoints
 
----
-
-Let me know if you want me to scaffold this entire repo with placeholders and docstrings next.
