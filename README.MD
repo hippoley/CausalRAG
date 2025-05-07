@@ -7,8 +7,10 @@
 CausalRAG enhances traditional retrieval-augmented generation (RAG) by incorporating causal reasoning. By building and leveraging causal graphs, the system can provide more accurate, coherent, and contextually relevant responses that reflect true causal relationships within knowledge sources.
 
 <p align="center">
-  <img src="https://github.com/yourusername/CausalRAG/raw/main/docs/images/causalrag_overview.png" alt="CausalRAG Overview" width="700"/>
+  <img src="./docs/causalrag_architecture.png" alt="CausalRAG Overview" width="700"/>
 </p>
+
+&nbsp;
 
 ## 🌟 Key Features
 
@@ -17,6 +19,8 @@ CausalRAG enhances traditional retrieval-augmented generation (RAG) by incorpora
 - 🧩 **Causal Path Retrieval**: Identifies relevant causal chains for any query
 - 🔄 **Graph-Enhanced Reranking**: Prioritizes passages containing causal relationships
 - 💡 **Causally-Informed Generation**: Produces answers that respect causal constraints
+
+&nbsp;
 
 ## 📋 Requirements
 
@@ -30,6 +34,8 @@ CausalRAG enhances traditional retrieval-augmented generation (RAG) by incorpora
 For GPU acceleration (optional):
 - CUDA 11.0+ compatible GPU
 - faiss-gpu instead of faiss-cpu
+
+&nbsp;
 
 ## 🚀 Getting Started
 
@@ -50,6 +56,8 @@ pip install -e .
 pip install -r requirements-gpu.txt
 ```
 
+&nbsp;
+
 ### Environment Setup
 
 Create a `.env` file in the project root (see `.env.example`):
@@ -61,6 +69,8 @@ cp .env.example .env
 # Edit with your API keys
 nano .env  # or use your preferred editor
 ```
+
+&nbsp;
 
 ### Quick Example
 
@@ -94,6 +104,8 @@ for ctx in result["context"]:
     print(f"- {ctx[:100]}...")
 ```
 
+&nbsp;
+
 ## 🖥️ Command Line Interface
 
 CausalRAG provides a convenient CLI for common operations:
@@ -111,6 +123,8 @@ python -m causalrag.cli query --index index/ --query "What causes coastal floodi
 # Start the API server
 python -m causalrag.cli serve --index index/ --host 0.0.0.0 --port 8000
 ```
+
+&nbsp;
 
 ## 📁 Project Structure
 
@@ -151,6 +165,8 @@ causalrag/
 │   ├── test_reranker.py
 ```
 
+&nbsp;
+
 ## 🧩 Key Components
 
 | Component | Description |
@@ -163,6 +179,8 @@ causalrag/
 | **Prompt Builder** | Creates LLM prompts with causal context |
 | **LLM Interface** | Connects to language models for generation |
 | **Pipeline** | Orchestrates the entire process from query to answer |
+
+&nbsp;
 
 ## 💡 How It Works
 
@@ -188,6 +206,8 @@ CausalRAG enhances traditional RAG with causal reasoning in four key steps:
    - Guide LLM to respect causal relationships in generation
    - Produce answers that follow valid causal chains
 
+&nbsp;
+
 ## 🔌 Integration Options
 
 CausalRAG can be used in multiple ways:
@@ -200,6 +220,8 @@ pipeline = CausalRAGPipeline()
 pipeline.index(documents)
 result = pipeline.run("What causes coastal flooding?")
 ```
+
+&nbsp;
 
 ### Plugin for Existing RAG
 ```python
@@ -219,6 +241,8 @@ candidates = your_existing_retriever.retrieve(query)
 reranked_candidates = reranker.rerank(query, candidates)
 ```
 
+&nbsp;
+
 ### API Service
 ```bash
 # Start the server
@@ -229,6 +253,8 @@ curl -X POST "http://localhost:8000/query" \
      -H "Content-Type: application/json" \
      -d '{"query": "What are the effects of climate change?", "top_k": 5}'
 ```
+
+&nbsp;
 
 ## ⚙️ Advanced Configuration
 
@@ -255,6 +281,8 @@ pipeline.reranker.path_match_weight = 2.0
 pipeline.prompt_builder = PromptBuilder(template_style="structured")
 ```
 
+&nbsp;
+
 ## 📊 Performance Evaluation
 
 CausalRAG shows significant improvements over standard RAG systems:
@@ -268,19 +296,29 @@ CausalRAG shows significant improvements over standard RAG systems:
 
 *Note: Results based on internal evaluation on causal reasoning benchmark. Your results may vary.*
 
+&nbsp;
+
 ## 🔍 Use Cases
 
 ### Scientific Research
 Analyze research papers to extract causal relationships between variables, enabling more accurate literature reviews and hypothesis generation.
 
+&nbsp;
+
 ### Healthcare
 Extract causal relationships from medical literature to support diagnosis, treatment planning, and outcome prediction with better explanations.
+
+&nbsp;
 
 ### Finance and Economics
 Model causal factors affecting market trends, providing more reliable explanations for financial forecasts and economic analyses.
 
+&nbsp;
+
 ### Policy Analysis
 Extract causal relationships from policy documents and research to better predict the effects of proposed changes.
+
+&nbsp;
 
 ## 🧠 Performance Optimization Tips
 
@@ -300,19 +338,29 @@ Extract causal relationships from policy documents and research to better predic
    - Implement caching for frequent queries
    - Use background workers for indexing large document collections
 
+&nbsp;
+
 ## ❓ FAQ
 
 ### Q: How many documents can CausalRAG handle?
 A: CausalRAG can handle thousands of documents, but performance may decrease with very large collections. For best results with 100K+ documents, consider sharding your index or using a database backend.
 
+&nbsp;
+
 ### Q: Does CausalRAG work with languages other than English?
 A: While the core system works with any language supported by the underlying embedding model, causal extraction works best with English text. Multilingual support is on our roadmap.
+
+&nbsp;
 
 ### Q: What LLM providers are supported?
 A: CausalRAG supports OpenAI models by default, but can be configured to work with Anthropic Claude, local models via LM Studio API, and any model with an OpenAI-compatible API.
 
+&nbsp;
+
 ### Q: How does CausalRAG handle conflicting causal information?
 A: When conflicting causal relationships are detected, CausalRAG assigns confidence scores and prioritizes relationships with higher confidence. These conflicts are also exposed in the prompt for the LLM to resolve.
+
+&nbsp;
 
 ## 🔜 Roadmap
 
@@ -324,6 +372,8 @@ A: When conflicting causal relationships are detected, CausalRAG assigns confide
 - [ ] Streaming response support
 - [ ] Multilingual support
 - [ ] Advanced conflict resolution for contradictory causal relationships
+
+&nbsp;
 
 ## 🤝 Contributing
 
@@ -337,9 +387,13 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
+&nbsp;
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+&nbsp;
 
 ## 📚 Citations
 
@@ -353,6 +407,8 @@ If you use CausalRAG in your research, please cite:
   year={2023}
 }
 ```
+
+&nbsp;
 
 ## 🙏 Acknowledgements
 
