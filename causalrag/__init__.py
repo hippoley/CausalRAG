@@ -16,6 +16,7 @@ __author__ = "CausalRAG Team"
 from .pipeline import CausalRAGPipeline
 from .causal_graph.builder import CausalGraphBuilder
 from .causal_graph.retriever import CausalPathRetriever
+from .evaluation.evaluator import CausalEvaluator, EvaluationResult
 
 # Set default logging
 import logging
@@ -55,5 +56,7 @@ __all__ = [
     'CausalRAGPipeline',
     'CausalGraphBuilder',
     'CausalPathRetriever',
+    'CausalEvaluator',
+    'EvaluationResult',
     'create_pipeline',
 ]

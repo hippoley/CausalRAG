@@ -1,0 +1,92 @@
+[
+    {
+      "question": "How does climate change lead to coastal flooding?",
+      "ground_truth": "Climate change causes rising sea levels through melting ice caps and thermal expansion of ocean water. These higher sea levels increase the risk and severity of coastal flooding, especially during storms and high tides.",
+      "domain": "climate",
+      "complexity": "medium"
+    },
+    {
+      "question": "What are the economic impacts of deforestation?",
+      "ground_truth": "Deforestation has several economic impacts including loss of ecosystem services like water purification and flood control, reduced timber resources for future harvest, decreased biodiversity affecting pharmaceutical discoveries, and contribution to climate change which has its own economic costs.",
+      "domain": "environment_economics",
+      "complexity": "high"
+    },
+    {
+      "question": "How does air pollution affect respiratory health?",
+      "ground_truth": "Air pollution introduces particulate matter and harmful gases into the lungs, causing inflammation and oxidative stress. This leads to reduced lung function, exacerbation of asthma and COPD, increased respiratory infections, and can contribute to the development of lung cancer and other chronic respiratory diseases.",
+      "domain": "health",
+      "complexity": "medium"
+    },
+    {
+      "question": "What is the relationship between education levels and economic growth?",
+      "ground_truth": "Higher education levels lead to economic growth through multiple pathways: improved human capital increases productivity, innovation and technological advancement accelerate, institutional quality improves with educated citizenry, and higher earning potential increases consumption and tax revenue for public investments.",
+      "domain": "economics_education",
+      "complexity": "high"
+    },
+    {
+      "question": "How does stress impact immune system function?",
+      "ground_truth": "Chronic stress causes the release of stress hormones like cortisol that suppress immune function by reducing white blood cell counts and inflammatory responses. This dysregulation decreases the body's ability to fight infections, slows wound healing, and can lead to chronic inflammation, increasing susceptibility to diseases.",
+      "domain": "health_psychology",
+      "complexity": "high"
+    },
+    {
+      "question": "What causes inflation and how does it affect consumer purchasing power?",
+      "ground_truth": "Inflation is caused by factors including excess money supply, increased production costs, supply chain disruptions, and high demand. It reduces consumer purchasing power because the same amount of money buys fewer goods and services over time, effectively decreasing real wages if income doesn't rise proportionally.",
+      "domain": "economics",
+      "complexity": "medium"
+    },
+    {
+      "question": "How do social media algorithms influence political polarization?",
+      "ground_truth": "Social media algorithms promote political polarization by prioritizing engaging content that often contains extreme viewpoints, creating filter bubbles that limit exposure to diverse perspectives, reinforcing existing beliefs through repeated exposure to similar content, and incentivizing divisive content that generates strong emotional reactions and higher engagement.",
+      "domain": "technology_politics",
+      "complexity": "high"
+    },
+    {
+      "question": "What causes ocean acidification and how does it impact marine ecosystems?",
+      "ground_truth": "Ocean acidification is primarily caused by increased atmospheric CO2 being absorbed by seawater, which forms carbonic acid and lowers pH. This impacts marine ecosystems by inhibiting calcification in shell-forming organisms like corals and mollusks, disrupting food webs, affecting fish development, and reducing biodiversity in marine environments.",
+      "domain": "environment",
+      "complexity": "high"
+    },
+    {
+      "question": "How does sleep deprivation affect cognitive performance?",
+      "ground_truth": "Sleep deprivation impairs cognitive performance by reducing attention and concentration, slowing reaction time, impairing working memory and decision-making abilities, increasing error rates, reducing learning capacity, and diminishing creative problem-solving skills. These effects occur due to reduced neural functioning and impaired memory consolidation.",
+      "domain": "neuroscience",
+      "complexity": "medium"
+    },
+    {
+      "question": "What is the relationship between interest rates and housing prices?",
+      "ground_truth": "Higher interest rates typically lead to lower housing prices through several mechanisms: increased mortgage costs reduce affordability and buyer demand, investors seek higher returns from alternative investments, construction financing becomes more expensive limiting new supply, and overall economic slowdowns from higher rates can reduce housing demand.",
+      "domain": "economics_housing",
+      "complexity": "medium"
+    },
+    {
+      "question": "How do greenhouse gases cause global warming?",
+      "ground_truth": "Greenhouse gases like CO2, methane, and water vapor cause global warming by absorbing infrared radiation that would otherwise escape into space. This trapped heat increases Earth's energy balance, raising global temperatures. As concentrations of these gases increase from human activities, more heat is trapped, intensifying the warming effect.",
+      "domain": "climate",
+      "complexity": "medium"
+    },
+    {
+      "question": "How does childhood nutrition affect cognitive development?",
+      "ground_truth": "Childhood nutrition affects cognitive development because essential nutrients like iron, zinc, protein, and fatty acids are required for brain structure development, neurotransmitter production, and myelination. Proper nutrition supports optimal neuronal growth and connectivity, while malnutrition can cause lasting cognitive deficits including reduced IQ, attention problems, and poorer academic performance.",
+      "domain": "health_development",
+      "complexity": "high"
+    },
+    {
+      "question": "What are the causal relationships between urbanization and biodiversity loss?",
+      "ground_truth": "Urbanization causes biodiversity loss through habitat destruction as natural areas are converted to built environments, habitat fragmentation that isolates populations, introduction of invasive species, pollution from urban activities, alteration of water flows and drainage patterns, and climate change effects from urban heat islands and emissions.",
+      "domain": "environment_urban",
+      "complexity": "high"
+    },
+    {
+      "question": "How does algorithmic trading impact market volatility?",
+      "ground_truth": "Algorithmic trading impacts market volatility through multiple mechanisms: high-frequency trading can amplify price movements during market stress, synchronized algorithms may create feedback loops of buying or selling, reduced market liquidity can occur when algorithms withdraw during unexpected events, and correlation across different assets increases as similar algorithms operate across markets.",
+      "domain": "finance",
+      "complexity": "high"
+    },
+    {
+      "question": "What is the causal pathway between smoking and heart disease?",
+      "ground_truth": "Smoking causes heart disease through several pathways: nicotine and carbon monoxide damage blood vessel linings, triggering plaque buildup; smoking increases blood pressure and heart rate; it reduces oxygen in the blood while increasing blood clotting factors; and it promotes inflammation and oxidative stress that damage cardiovascular tissues.",
+      "domain": "health",
+      "complexity": "medium"
+    }
+  ]

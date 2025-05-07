@@ -122,6 +122,9 @@ python -m causalrag.cli query --index index/ --query "What causes coastal floodi
 
 # Start the API server
 python -m causalrag.cli serve --index index/ --host 0.0.0.0 --port 8000
+
+# Run evaluation on system performance
+python -m causalrag.cli evaluate --index index/ --output results/
 ```
 
 &nbsp;
@@ -137,28 +140,33 @@ causalrag/
 │   ├── __init__.py
 │   ├── pipeline.py               # Orchestrates full RAG + Causal pipeline
 │   ├── causal_graph/
-│   │   ├── builder.py           # Causal triple extraction and graph building
-│   │   ├── retriever.py         # Causal path retriever (for reranking)
-│   │   ├── explainer.py         # Optional: Visualize or explain graph
+│   │   ├── builder.py            # Causal triple extraction and graph building
+│   │   ├── retriever.py          # Causal path retriever (for reranking)
+│   │   ├── explainer.py          # Optional: Visualize or explain graph
 │   ├── reranker/
-│   │   ├── base.py              # Interface for reranking modules
-│   │   ├── causal_path.py       # Rerank by graph path presence
+│   │   ├── base.py               # Interface for reranking modules
+│   │   ├── causal_path.py        # Rerank by graph path presence
 │   ├── retriever/
-│   │   ├── vector_store.py      # FAISS or Weaviate wrapper
-│   │   ├── hybrid.py            # Hybrid vector + graph search
-│   │   ├── bm25_retriever.py    # Keyword-based retrieval
+│   │   ├── vector_store.py       # FAISS or Weaviate wrapper
+│   │   ├── hybrid.py             # Hybrid vector + graph search
+│   │   ├── bm25_retriever.py     # Keyword-based retrieval
 │   ├── generator/
-│   │   ├── prompt_builder.py    # Prompt templates
-│   │   ├── llm_interface.py     # OpenAI / HuggingFace wrapper
+│   │   ├── prompt_builder.py     # Prompt templates
+│   │   ├── llm_interface.py      # OpenAI / HuggingFace wrapper
+│   ├── evaluation/
+│   │   ├── evaluator.py          # Comprehensive evaluation framework
 │   ├── interface/
-│   │   ├── api.py               # FastAPI for plugin/server mode
+│   │   ├── api.py                # FastAPI for plugin/server mode
 │   ├── utils/
-│   │   ├── io.py                # File readers
-│   │   ├── logging.py           # Tracing and timing utils
-│   ├── cli.py                   # Command-line interface
+│   │   ├── io.py                 # File readers
+│   │   ├── logging.py            # Tracing and timing utils
+│   ├── cli.py                    # Command-line interface
+├── data/
+│   ├── evaluation/
+│   │   ├── evaluation_dataset.json # Built-in evaluation dataset
 ├── examples/
-│   ├── basic_usage.py           # Full pipeline example (query → generation)
-│   ├── README.md                # Examples documentation
+│   ├── basic_usage.py            # Full pipeline example (query → generation)
+│   ├── README.md                 # Examples documentation
 ├── tests/
 │   ├── test_pipeline.py
 │   ├── test_graph.py
@@ -205,6 +213,85 @@ CausalRAG enhances traditional RAG with causal reasoning in four key steps:
    - Augment prompt with explicit causal paths
    - Guide LLM to respect causal relationships in generation
    - Produce answers that follow valid causal chains
+
+&nbsp;
+
+## 📊 Evaluation
+
+CausalRAG includes a comprehensive evaluation framework to measure system performance across multiple dimensions:
+
+### Built-in Metrics
+
+| Metric | Description |
+|--------|-------------|
+| **Faithfulness** | Measures whether the generated answers are supported by the retrieved context |
+| **Answer Relevancy** | Evaluates how well the answer addresses the question |
+| **Context Relevancy** | Assesses whether retrieved context is relevant to the question |
+| **Context Recall** | Measures how well the retrieved context covers the ground truth |
+| **Causal Consistency** | Evaluates whether answers respect the causal relationships in the data |
+| **Causal Completeness** | Measures how comprehensively the answers address important causal factors |
+
+### Running Evaluations
+
+You can evaluate the system using the CLI:
+
+```bash
+# Run evaluation with default settings
+python -m causalrag.cli evaluate --index index/ --output results/evaluation/
+
+# Run with specific metrics
+python -m causalrag.cli evaluate --index index/ --metrics "faithfulness,causal_consistency"
+
+# Use custom evaluation dataset
+python -m causalrag.cli evaluate --index index/ --dataset path/to/custom_dataset.json
+```
+
+Or programmatically:
+
+```python
+from causalrag import CausalRAGPipeline, CausalEvaluator
+from causalrag.generator.llm_interface import LLMInterface
+
+# Initialize pipeline
+pipeline = CausalRAGPipeline(model_name="gpt-4")
+
+# Load your evaluation data
+eval_data = [
+    {
+        "question": "How does climate change lead to coastal flooding?",
+        "ground_truth": "Climate change causes rising sea levels through melting ice caps..."
+    },
+    # More evaluation examples...
+]
+
+# Run evaluation
+results = CausalEvaluator.evaluate_pipeline(
+    pipeline=pipeline,
+    eval_data=eval_data,
+    metrics=["faithfulness", "causal_consistency"],
+    llm_interface=LLMInterface(model_name="gpt-4"),
+    results_dir="./results/evaluation"
+)
+
+# Print results
+for metric, score in results.metrics.items():
+    print(f"{metric}: {score:.4f}")
+```
+
+### Custom Evaluation Datasets
+
+Evaluation datasets should be structured as JSON arrays of objects with the following fields:
+
+```json
+[
+  {
+    "question": "The question to answer",
+    "ground_truth": "Optional reference answer for evaluation",
+    "domain": "Optional domain/category tag",
+    "complexity": "Optional complexity level (e.g., 'simple', 'medium', 'complex')"
+  }
+]
+```
 
 &nbsp;
 

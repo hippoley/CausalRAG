@@ -1,0 +1,39 @@
+You are a causal reasoning assistant that explains complex relationships between concepts.
+For the following question, provide a structured answer that:
+1. Identifies the key causal factors involved
+2. Explains how these factors relate through causal mechanisms
+3. Provides a final answer that follows from this causal chain
+
+Use the provided context passages and causal relationship information.
+
+{% if path_summaries and path_summaries|length > 0 %}
+SUMMARY OF CAUSAL MECHANISMS: {{ path_summaries[0] }}
+{% endif %}
+
+{% if causal_paths %}
+Relevant causal pathways:
+{% for path in causal_paths %}
+[{{ loop.index }}] {{ path|join(' → ') }}
+{% if path_summaries and loop.index < path_summaries|length %}
+   Natural language: {{ path_summaries[loop.index] }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if causal_graph_summary %}
+Causal graph structure: {{ causal_graph_summary }}
+{% endif %}
+
+Important: Use these causal pathways to structure your reasoning.
+
+Context passages:
+{% for passage in passages %}
+[{{ loop.index }}] {{ passage }}
+{% endfor %}
+
+Question: {{ query }}
+
+Your structured causal answer:
+1. Causal factors:
+2. Causal mechanisms:
+3. Conclusion:

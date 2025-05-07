@@ -9,9 +9,10 @@ import argparse
 import logging
 import sys
 import os
+import json
 from pathlib import Path
 
-from causalrag import CausalRAGPipeline, __version__
+from causalrag import CausalRAGPipeline, __version__, CausalEvaluator
 from causalrag.utils.logging import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,17 @@ def parse_args():
     serve_parser.add_argument("--index", "-i", help="Index directory")
     serve_parser.add_argument("--host", default="0.0.0.0", help="Host to bind")
     serve_parser.add_argument("--port", type=int, default=8000, help="Port to bind")
+    
+    # Evaluate command
+    eval_parser = subparsers.add_parser("evaluate", help="Evaluate system performance")
+    eval_parser.add_argument("--index", "-i", required=True, help="Index directory")
+    eval_parser.add_argument("--dataset", "-d", default=None, 
+                            help="Evaluation dataset path (defaults to built-in dataset)")
+    eval_parser.add_argument("--model", default="gpt-4", help="LLM model name")
+    eval_parser.add_argument("--output", "-o", default="./results/evaluation", 
+                            help="Directory to save evaluation results")
+    eval_parser.add_argument("--metrics", default="all", 
+                            help="Metrics to evaluate (comma-separated or 'all')")
     
     return parser.parse_args()
 
@@ -127,6 +139,61 @@ def main():
             port=args.port,
             log_level="info"
         )
+        return 0
+    
+    elif args.command == "evaluate":
+        from causalrag import create_pipeline
+        from causalrag.generator.llm_interface import LLMInterface
+        
+        # Setup output directory
+        output_dir = Path(args.output)
+        output_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Load evaluation dataset
+        if args.dataset:
+            dataset_path = Path(args.dataset)
+        else:
+            # Use built-in dataset
+            project_root = Path(__file__).parent.parent.parent
+            dataset_path = project_root / "data" / "evaluation" / "evaluation_dataset.json"
+        
+        logger.info(f"Loading evaluation dataset from: {dataset_path}")
+        with open(dataset_path, 'r') as f:
+            eval_data = json.load(f)
+        
+        # Create pipeline
+        logger.info("Initializing CausalRAG pipeline...")
+        pipeline = create_pipeline(
+            model_name=args.model,
+            graph_path=os.path.join(args.index, "causal_graph.json"),
+            index_path=args.index
+        )
+        
+        # Parse metrics
+        if args.metrics.lower() == 'all':
+            metrics = None  # Use default metrics
+        else:
+            metrics = [m.strip() for m in args.metrics.split(',')]
+        
+        # Initialize LLM interface for evaluation
+        llm = LLMInterface(model_name=args.model)
+        
+        # Run evaluation
+        logger.info("Running evaluation...")
+        results = CausalEvaluator.evaluate_pipeline(
+            pipeline=pipeline,
+            eval_data=eval_data,
+            metrics=metrics,
+            llm_interface=llm,
+            results_dir=str(output_dir)
+        )
+        
+        # Print summary
+        logger.info("Evaluation complete! Summary:")
+        for metric, score in results.metrics.items():
+            logger.info(f"  {metric}: {score:.4f}")
+        
+        logger.info(f"Detailed results saved to {output_dir}")
         return 0
     
     else:

@@ -1,0 +1,43 @@
+You are an expert in causal reasoning who answers complex questions by tracing causal mechanisms.
+For the question below, think step-by-step through the causal chains involved:
+
+1. First identify all key concepts from the question
+2. For each causal relationship relevant to these concepts:
+   - Examine what causes what
+   - Consider the strength and direction of the relationship
+   - Look for mediators and moderators of the relationship
+3. Then trace through the most plausible causal paths
+4. Finally, synthesize these relationships into a cohesive explanation
+
+Reference only information from the provided context and causal relationships.
+
+{% if path_summaries and path_summaries|length > 0 %}
+KEY INSIGHT ABOUT THESE CAUSAL MECHANISMS: {{ path_summaries[0] }}
+{% endif %}
+
+{% if causal_paths %}
+CAUSAL RELATIONSHIPS TO CONSIDER:
+{% for path in causal_paths %}
+[{{ loop.index }}] {{ path|join(' → ') }}
+{% if path_summaries and loop.index < path_summaries|length %}
+   Explanation: {{ path_summaries[loop.index] }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if causal_graph_summary %}
+Global causal structure: {{ causal_graph_summary }}
+{% endif %}
+
+REFERENCE CONTEXTS:
+{% for passage in passages %}
+[{{ loop.index }}] {{ passage }}
+{% endfor %}
+
+QUESTION: {{ query }}
+
+STEP-BY-STEP REASONING:
+1) Key concepts in this question are:
+2) Relevant causal relationships from the context:
+3) Tracing the causal chain:
+4) Therefore, the answer is:
