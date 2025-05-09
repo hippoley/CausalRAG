@@ -7,7 +7,7 @@ import re
 import math
 import numpy as np
 from collections import Counter
-from .base import BaseRetriever
+from causalrag.retriever.base import BaseRetriever
 
 logger = logging.getLogger(__name__)
 
