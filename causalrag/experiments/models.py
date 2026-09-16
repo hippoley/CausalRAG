@@ -96,6 +96,8 @@ class ExperimentUpdate:
     prior: Dict[str, float]
     posterior: Dict[str, float]
     expected_information_gain: float
+    predictive_probability: float
+    surprisal: float
 
 
 def _entropy(distribution: Iterable[float]) -> float:
@@ -119,6 +121,76 @@ def _normalized_prior(contract: ExperimentContract, world_model: CausalWorldMode
         uniform = 1.0 / len(raw)
         return {hypothesis_id: uniform for hypothesis_id in raw}
     return {hypothesis_id: value / total for hypothesis_id, value in raw.items()}
+
+
+def predictive_probability(contract: ExperimentContract, world_model: CausalWorldModel, outcome: str) -> float:
+    """P(outcome | current modeled hypothesis set)."""
+    prior = _normalized_prior(contract, world_model)
+    if not prior or outcome not in contract.outcome_labels():
+        return 0.0
+    return max(
+        0.0,
+        min(
+            1.0,
+            sum(
+                prior[hypothesis_id] * contract.likelihood(outcome, hypothesis_id)
+                for hypothesis_id in prior
+            ),
+        ),
+    )
+
+
+def outcome_surprisal(contract: ExperimentContract, world_model: CausalWorldModel, outcome: str, floor: float = 1e-12) -> float:
+    probability = max(float(floor), predictive_probability(contract, world_model, outcome))
+    return -math.log(probability)
+
+
+def _valid_prediction_distribution(contract: ExperimentContract, distribution: Mapping[str, float]) -> bool:
+    if set(str(key) for key in distribution) != set(contract.outcome_labels()):
+        return False
+    try:
+        values = [float(distribution[label]) for label in contract.outcome_labels()]
+    except (TypeError, ValueError, KeyError):
+        return False
+    if any(value < 0.0 or value > 1.0 for value in values):
+        return False
+    return abs(sum(values) - 1.0) <= contract.tolerance
+
+
+def expanded_experiment_contract(contract: ExperimentContract, world_model: CausalWorldModel) -> ExperimentContract:
+    """Add validated *predictions* from provisional discovered hypotheses.
+
+    The base contract remains unchanged. A discovered hypothesis can enter the
+    runtime's Bayesian comparison only after it makes a complete normalized
+    prediction over an existing experiment's outcomes. This turns model output
+    into a falsifiable forecast rather than trusting proposer confidence.
+    """
+    existing_ids = set(contract.hypothesis_ids())
+    additions: Dict[str, Mapping[str, float]] = {}
+    for hypothesis in world_model.hypotheses(include_rejected=False):
+        if hypothesis.hypothesis_id in existing_ids:
+            continue
+        distribution = hypothesis.experiment_predictions.get(contract.experiment_id)
+        if distribution and _valid_prediction_distribution(contract, distribution):
+            additions[hypothesis.hypothesis_id] = distribution
+
+    if not additions:
+        return contract
+
+    outcomes: List[OutcomeLikelihood] = []
+    for outcome in contract.outcomes:
+        likelihoods = {str(key): float(value) for key, value in outcome.likelihoods.items()}
+        for hypothesis_id, distribution in additions.items():
+            likelihoods[hypothesis_id] = float(distribution[outcome.outcome])
+        outcomes.append(OutcomeLikelihood(outcome=outcome.outcome, likelihoods=likelihoods))
+
+    return ExperimentContract(
+        experiment_id=contract.experiment_id,
+        outcomes=outcomes,
+        outcome_key=contract.outcome_key,
+        description=contract.description,
+        tolerance=contract.tolerance,
+    )
 
 
 def posterior_for_outcome(contract: ExperimentContract, world_model: CausalWorldModel, outcome: str) -> Dict[str, float]:
@@ -157,6 +229,8 @@ def apply_experiment_observation(contract: ExperimentContract, world_model: Caus
     if outcome is None:
         return None
     prior = _normalized_prior(contract, world_model)
+    predictive = predictive_probability(contract, world_model, outcome)
+    surprisal = outcome_surprisal(contract, world_model, outcome)
     posterior = posterior_for_outcome(contract, world_model, outcome)
     information_gain = expected_information_gain(contract, world_model)
     for hypothesis_id, probability in posterior.items():
@@ -166,7 +240,21 @@ def apply_experiment_observation(contract: ExperimentContract, world_model: Caus
             statement=f"Experiment {contract.experiment_id} observed outcome '{outcome}': normalized prior {prior_probability:.4f} -> posterior {probability:.4f}",
             weight=probability - prior_probability,
             kind="bayesian_experiment",
-            metadata={"experiment_id": contract.experiment_id, "outcome": outcome, **(metadata or {})},
+            metadata={
+                "experiment_id": contract.experiment_id,
+                "outcome": outcome,
+                "predictive_probability": predictive,
+                "surprisal": surprisal,
+                **(metadata or {}),
+            },
         )
         world_model.set_hypothesis_probability(hypothesis_id, probability=probability, evidence=evidence)
-    return ExperimentUpdate(experiment_id=contract.experiment_id, outcome=outcome, prior=prior, posterior=posterior, expected_information_gain=information_gain)
+    return ExperimentUpdate(
+        experiment_id=contract.experiment_id,
+        outcome=outcome,
+        prior=prior,
+        posterior=posterior,
+        expected_information_gain=information_gain,
+        predictive_probability=predictive,
+        surprisal=surprisal,
+    )
