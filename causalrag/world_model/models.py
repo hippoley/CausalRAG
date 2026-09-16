@@ -306,6 +306,8 @@ class CausalWorldModel:
 
     def record_model_mismatch(self, mismatch: ModelMismatch) -> None:
         self.model_mismatches.append(mismatch)
+
+    def activate_model_mismatch(self) -> None:
         self.model_mismatch_active = True
 
     def unresolved_model_mismatches(self) -> List[ModelMismatch]:
@@ -331,7 +333,7 @@ class CausalWorldModel:
             "open_world": {
                 "model_mismatch": self.model_mismatch_active,
                 "none_of_the_above": self.model_mismatch_active,
-                "unresolved_mismatch_count": len(unresolved),
+                "mismatch_warning_count": len(unresolved),
                 "recent_mismatches": [
                     {
                         "id": item.mismatch_id,
