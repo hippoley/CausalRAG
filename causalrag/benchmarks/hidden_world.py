@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
@@ -10,12 +11,7 @@ from causalrag.world_model import CausalWorldModel
 
 @dataclass(frozen=True)
 class HiddenWorldScenario:
-    """A reproducible hidden-mechanism decision problem.
-
-    Experiments expose a declared observation model to the runtime, but the
-    environment alone knows which hypothesis is actually true. Interventions
-    succeed only when they match the hidden mechanism.
-    """
+    """A reproducible hidden-mechanism decision problem."""
 
     scenario_id: str
     hypotheses: Mapping[str, str]
@@ -55,6 +51,9 @@ class HiddenWorldMetrics:
     true_hypothesis_posterior: float
     identification_correct: bool
     causal_regret: float
+    brier_score: float
+    seed: Optional[int] = None
+    outcome_mode: str = "deterministic"
 
     def to_dict(self) -> Dict[str, object]:
         return {
@@ -70,12 +69,51 @@ class HiddenWorldMetrics:
             "true_hypothesis_posterior": self.true_hypothesis_posterior,
             "identification_correct": self.identification_correct,
             "causal_regret": self.causal_regret,
+            "brier_score": self.brier_score,
+            "seed": self.seed,
+            "outcome_mode": self.outcome_mode,
+        }
+
+
+@dataclass
+class HiddenWorldSuiteReport:
+    episodes: int
+    success_rate: float
+    identification_accuracy: float
+    mean_true_hypothesis_posterior: float
+    mean_brier_score: float
+    mean_probes: float
+    mean_total_cost: float
+    mean_causal_regret: float
+    per_hidden: Dict[str, Dict[str, float]]
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "episodes": self.episodes,
+            "success_rate": self.success_rate,
+            "identification_accuracy": self.identification_accuracy,
+            "mean_true_hypothesis_posterior": self.mean_true_hypothesis_posterior,
+            "mean_brier_score": self.mean_brier_score,
+            "mean_probes": self.mean_probes,
+            "mean_total_cost": self.mean_total_cost,
+            "mean_causal_regret": self.mean_causal_regret,
+            "per_hidden": self.per_hidden,
         }
 
 
 class HiddenWorldEnvironment:
-    def __init__(self, scenario: HiddenWorldScenario) -> None:
+    def __init__(
+        self,
+        scenario: HiddenWorldScenario,
+        outcome_mode: str = "deterministic",
+        seed: Optional[int] = None,
+    ) -> None:
+        if outcome_mode not in {"deterministic", "stochastic"}:
+            raise ValueError("outcome_mode must be 'deterministic' or 'stochastic'")
         self.scenario = scenario
+        self.outcome_mode = outcome_mode
+        self.seed = seed
+        self._rng = random.Random(seed)
         self.probes = 0
         self.interventions = 0
         self.total_cost = 0.0
@@ -83,17 +121,27 @@ class HiddenWorldEnvironment:
         self.last_intervention_success = False
 
     def _deterministic_outcome(self, contract: ExperimentContract) -> str:
-        """Return the most likely outcome under the hidden mechanism.
-
-        The first benchmark is deterministic by design so policies can be
-        compared without Monte Carlo noise. A stochastic sampler can later be
-        added as a separate benchmark mode without changing the contract API.
-        """
         hidden = self.scenario.hidden_hypothesis
         return max(
             contract.outcome_labels(),
             key=lambda label: contract.likelihood(label, hidden),
         )
+
+    def _stochastic_outcome(self, contract: ExperimentContract) -> str:
+        hidden = self.scenario.hidden_hypothesis
+        draw = self._rng.random()
+        cumulative = 0.0
+        labels = contract.outcome_labels()
+        for label in labels:
+            cumulative += contract.likelihood(label, hidden)
+            if draw <= cumulative:
+                return label
+        return labels[-1]
+
+    def _outcome(self, contract: ExperimentContract) -> str:
+        if self.outcome_mode == "stochastic":
+            return self._stochastic_outcome(contract)
+        return self._deterministic_outcome(contract)
 
     def experiment_tool(self, name: str, contract: ExperimentContract) -> ToolSpec:
         cost = float(self.scenario.experiment_costs.get(name, 0.05))
@@ -101,7 +149,7 @@ class HiddenWorldEnvironment:
         def handler() -> Dict[str, object]:
             self.probes += 1
             self.total_cost += cost
-            outcome = self._deterministic_outcome(contract)
+            outcome = self._outcome(contract)
             return {
                 contract.outcome_key: outcome,
                 "experiment_id": contract.experiment_id,
@@ -182,6 +230,14 @@ class HiddenWorldEnvironment:
         actual_reward = 1.0 if self.last_intervention_success else 0.0
         actual_utility = actual_reward - self.total_cost
         regret = max(0.0, oracle_utility - actual_utility)
+        brier = sum(
+            (
+                hypothesis.probability
+                - (1.0 if hypothesis.hypothesis_id == self.scenario.hidden_hypothesis else 0.0)
+            )
+            ** 2
+            for hypothesis in hypotheses
+        )
         return HiddenWorldMetrics(
             scenario_id=self.scenario.scenario_id,
             hidden_hypothesis=self.scenario.hidden_hypothesis,
@@ -195,17 +251,14 @@ class HiddenWorldEnvironment:
             true_hypothesis_posterior=true_hypothesis.probability,
             identification_correct=selected.hypothesis_id == self.scenario.hidden_hypothesis,
             causal_regret=regret,
+            brier_score=brier,
+            seed=self.seed,
+            outcome_mode=self.outcome_mode,
         )
 
 
 class HiddenWorldReasoner:
-    """Reference no-key policy for the benchmark.
-
-    It does not calculate experiment value itself. Before confidence is high it
-    proposes every available experiment and lets the runtime policy choose using
-    Bayesian EIG and capability cost. Once confidence crosses the threshold it
-    proposes the intervention associated with the current leading hypothesis.
-    """
+    """Reference no-key policy for the benchmark."""
 
     def __init__(
         self,
@@ -340,9 +393,15 @@ def run_hidden_world(
     confidence_threshold: float = 0.8,
     max_probes: int = 3,
     max_steps: int = 6,
+    outcome_mode: str = "deterministic",
+    seed: Optional[int] = None,
 ) -> Tuple[HiddenWorldMetrics, object]:
     scenario = scenario or build_hvac_hidden_world()
-    environment = HiddenWorldEnvironment(scenario)
+    environment = HiddenWorldEnvironment(
+        scenario,
+        outcome_mode=outcome_mode,
+        seed=seed,
+    )
     world = environment.world_model()
     reasoner = HiddenWorldReasoner(
         scenario,
@@ -359,3 +418,63 @@ def run_hidden_world(
         max_steps=max_steps,
     )
     return environment.metrics(result), result
+
+
+def _mean(values: Iterable[float]) -> float:
+    values = list(values)
+    return sum(values) / len(values) if values else 0.0
+
+
+def run_hidden_world_suite(
+    seeds: Iterable[int] = range(20),
+    hidden_hypotheses: Sequence[str] = ("H1", "H2", "H3"),
+    confidence_threshold: float = 0.8,
+    max_probes: int = 3,
+    max_steps: int = 6,
+) -> Tuple[HiddenWorldSuiteReport, List[HiddenWorldMetrics]]:
+    episode_metrics: List[HiddenWorldMetrics] = []
+    for hidden in hidden_hypotheses:
+        for seed in seeds:
+            metrics, _result = run_hidden_world(
+                build_hvac_hidden_world(hidden),
+                confidence_threshold=confidence_threshold,
+                max_probes=max_probes,
+                max_steps=max_steps,
+                outcome_mode="stochastic",
+                seed=int(seed),
+            )
+            episode_metrics.append(metrics)
+
+    per_hidden: Dict[str, Dict[str, float]] = {}
+    for hidden in hidden_hypotheses:
+        rows = [row for row in episode_metrics if row.hidden_hypothesis == hidden]
+        per_hidden[hidden] = {
+            "episodes": float(len(rows)),
+            "success_rate": _mean(1.0 if row.success else 0.0 for row in rows),
+            "identification_accuracy": _mean(
+                1.0 if row.identification_correct else 0.0 for row in rows
+            ),
+            "mean_true_hypothesis_posterior": _mean(
+                row.true_hypothesis_posterior for row in rows
+            ),
+            "mean_brier_score": _mean(row.brier_score for row in rows),
+            "mean_probes": _mean(float(row.probes) for row in rows),
+            "mean_causal_regret": _mean(row.causal_regret for row in rows),
+        }
+
+    report = HiddenWorldSuiteReport(
+        episodes=len(episode_metrics),
+        success_rate=_mean(1.0 if row.success else 0.0 for row in episode_metrics),
+        identification_accuracy=_mean(
+            1.0 if row.identification_correct else 0.0 for row in episode_metrics
+        ),
+        mean_true_hypothesis_posterior=_mean(
+            row.true_hypothesis_posterior for row in episode_metrics
+        ),
+        mean_brier_score=_mean(row.brier_score for row in episode_metrics),
+        mean_probes=_mean(float(row.probes) for row in episode_metrics),
+        mean_total_cost=_mean(row.total_cost for row in episode_metrics),
+        mean_causal_regret=_mean(row.causal_regret for row in episode_metrics),
+        per_hidden=per_hidden,
+    )
+    return report, episode_metrics
