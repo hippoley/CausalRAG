@@ -1,7 +1,32 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Protocol
+
+
+class TimeDriver(Protocol):
+    """Adapter for the environment clock used by WAIT.
+
+    The core runtime does not sleep. Simulators can use `VirtualTimeDriver`;
+    production schedulers can provide another driver with the same contract.
+    """
+
+    @property
+    def now_seconds(self) -> float:
+        ...
+
+    def advance(self, seconds: float) -> float:
+        ...
+
+
+@dataclass
+class VirtualTimeDriver:
+    now_seconds: float = 0.0
+
+    def advance(self, seconds: float) -> float:
+        delta = max(0.0, float(seconds))
+        self.now_seconds += delta
+        return delta
 
 
 @dataclass(frozen=True)
