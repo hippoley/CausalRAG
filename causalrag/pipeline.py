@@ -1,6 +1,9 @@
 # pipeline.py
 # Legacy one-shot retrieval interface. New applications should prefer create_agent().
 
+import json
+import os
+
 from .causal_graph.builder import CausalGraphBuilder
 from .causal_graph.retriever import CausalPathRetriever
 from .reranker.causal_path import CausalPathReranker
@@ -23,13 +26,17 @@ class CausalRAGPipeline:
         provider="openai",
         api_key=None,
     ):
+        self.index_path = index_path
         self.graph_builder = CausalGraphBuilder(graph_path=graph_path)
         self.vector_retriever = VectorStoreRetriever(
             model_name=embedding_model,
             cache_dir=index_path,
         )
-        if index_path:
-            self.vector_retriever.load_cached(index_path)
+        if index_path and self.vector_retriever.load_cached(index_path):
+            passages_path = os.path.join(index_path, "passages.json")
+            if os.path.exists(passages_path):
+                with open(passages_path, "r", encoding="utf-8") as handle:
+                    self.vector_retriever.passages = json.load(handle)
         self.graph_retriever = CausalPathRetriever(self.graph_builder)
         self.hybrid_retriever = HybridRetriever(self.vector_retriever, self.graph_retriever)
         self.reranker = CausalPathReranker(self.graph_retriever)
@@ -43,8 +50,14 @@ class CausalRAGPipeline:
 
     def index(self, documents):
         """Build causal graph and vector index from documents."""
+        documents = list(documents)
         graph_result = self.graph_builder.index_documents(documents)
         vector_result = self.vector_retriever.index_corpus(documents)
+        if self.index_path:
+            os.makedirs(self.index_path, exist_ok=True)
+            with open(os.path.join(self.index_path, "passages.json"), "w", encoding="utf-8") as handle:
+                json.dump(documents, handle, ensure_ascii=False)
+            self.graph_builder.save_graph(os.path.join(self.index_path, "causal_graph.json"))
         return {"graph": graph_result, "vectors": vector_result}
 
     def run(self, query: str, top_k: int = 5):
