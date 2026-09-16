@@ -6,7 +6,7 @@ graph and evaluation surfaces are loaded only when explicitly requested.
 
 import logging
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "CausalRAG Team"
 
 from .agent import (
@@ -68,7 +68,7 @@ def create_pipeline(model_name="gpt-5.6-terra", embedding_model="text-embedding-
     try:
         from .pipeline import CausalRAGPipeline
     except (ImportError, ModuleNotFoundError) as exc:
-        raise RuntimeError("The legacy RAG pipeline requires optional dependencies. Install them with: pip install 'causalrag[rag]'") from exc
+        raise RuntimeError("The legacy RAG pipeline requires optional dependencies. Install them with: pip install 'causalrag[rag]'" ) from exc
     return CausalRAGPipeline(
         model_name=model_name,
         embedding_model=embedding_model,

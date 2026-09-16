@@ -1,44 +1,61 @@
-# CausalRAG v0.2 — from retrieval to intervention
+# CausalRAG v0.3 — from retrieval to causal decision
 
-CausalRAG is evolving from a causal-graph-enhanced RAG pipeline into a **goal-directed agent runtime built around an explicit causal world model**.
+CausalRAG is a **causal decision runtime for agents operating under uncertainty**.
 
-The core loop is no longer just:
-
-```text
-query → retrieve → rerank → answer
-```
-
-It is:
+It started as causal-graph-enhanced RAG. In v0.3, retrieval is only one way to acquire evidence. The runtime now maintains explicit competing hypotheses, chooses what to observe or intervene on, updates beliefs from outcomes, and can value another experiment by whether it is expected to improve the eventual decision.
 
 ```text
 Goal
   ↓
-Belief state
+Belief state + competing hypotheses
   ↓
-Candidate actions
+Candidate observations / interventions
   ↓
-Causal utility selection
+Runtime decision layer
+  ├─ Bayesian information gain
+  ├─ expected value of sample information (EVSI)
+  ├─ intervention consequence utility
+  └─ capability cost / risk / reversibility
   ↓
 Observe / Retrieve / Ask / Intervene / Wait
   ↓
-Observation
+Outcome
   ↓
-Transition + belief update
+Posterior + world-model update
   ↓
 Repeat or Stop
 ```
 
-The runtime is designed around three ideas:
+The central distinction is simple:
 
-1. **Proposal is not decision.** A model proposes actions; a separate policy scores goal gain, information gain, cost, risk, and irreversibility.
-2. **Beliefs are explicit.** The system keeps a causal world model and a trace of action → observation transitions instead of hiding all state inside the model context.
-3. **Retrieval is one capability, not the identity of the system.** RAG remains useful for gathering evidence, but agents can also observe, ask, intervene, wait, and stop.
+> **The model proposes. The runtime decides. The world corrects both.**
 
-The legacy `CausalRAGPipeline` remains available as an optional compatibility layer, but new applications should start with `create_agent()`.
+An LLM can suggest hypotheses and actions, but it does not own the belief state, capability economics, Bayesian update, or deployment consequence utility.
 
-## Install v0.2
+## Why this is not another tool-use loop
 
-The default install is the lightweight causal-agent runtime. It does **not** install Torch, sentence-transformers, or FAISS.
+A normal agent loop can repeatedly do:
+
+```text
+LLM → tool → result → LLM
+```
+
+CausalRAG v0.3 adds explicit semantics around *why* another action is worth taking:
+
+1. **Beliefs are explicit and defeasible.** Competing hypotheses live in a `CausalWorldModel`, not only in prompt context.
+2. **Experiments have declared observation models.** `ExperimentContract` can represent `P(outcome | hypothesis, action)` and enables exact Bayesian posterior updates.
+3. **Information and decision value are separated.** EIG asks how much uncertainty an experiment removes. EVSI asks whether the information is expected to change the best downstream decision enough to justify its cost.
+4. **Interventions have consequence utilities.** `InterventionContract` evaluates actions under the current posterior rather than trusting model self-scores.
+5. **Deployment owns preferences.** `DecisionPreferences` can change consequence utility without changing the reasoner, the tool implementation, or the causal world model.
+6. **Behavior is benchmarked, not just prose.** HiddenWorld measures success, calibration, experiment cost, and causal regret over seeded stochastic episodes.
+
+The legacy `CausalRAGPipeline` remains available as an optional compatibility layer.
+
+## Install
+
+Python **3.10+** is required.
+
+The default install is the lightweight causal runtime. It does **not** install Torch, sentence-transformers, or FAISS.
 
 ```bash
 git clone https://github.com/hippoley/CausalRAG.git
@@ -46,7 +63,7 @@ cd CausalRAG
 pip install -e .
 ```
 
-Add capabilities only when you need them:
+Add optional capability layers only when needed:
 
 ```bash
 pip install -e ".[rag]"               # lightweight document + causal retrieval
@@ -63,13 +80,9 @@ For the default OpenAI-backed reasoner and hosted embedding provider:
 export OPENAI_API_KEY=...
 ```
 
-The default reasoning model is `gpt-5.6-terra` and the default embedding model is `text-embedding-3-small`. The hosted RAG path uses NumPy in-memory cosine search by default, so installing `[rag]` does not imply a local ML runtime.
+Core CI exercises Python 3.10 and 3.12 independently from the optional API and RAG gates.
 
-Python **3.10+** is required for the v0.2 agent runtime. Core CI exercises Python 3.10 and 3.12 independently from optional RAG/API checks.
-
-## 30-second core quickstart
-
-You can use the causal agent runtime without RAG or embeddings:
+## 30-second agent quickstart
 
 ```python
 from causalrag import ToolSpec, create_agent
@@ -83,7 +96,7 @@ agent = create_agent(
     tools=[
         ToolSpec(
             name="read_co2",
-            description="Read the current CO2 concentration in a room.",
+            description="Read current CO2 concentration in a room.",
             handler=read_co2,
             cost=0.01,
             risk=0.0,
@@ -102,17 +115,155 @@ print(result.answer)
 print(result.to_dict()["decisions"])
 ```
 
-The model proposes actions; the runtime selects among them and records decision, observation and belief state separately.
+The runtime records candidate actions, scores, selected action, observations, beliefs, and transitions separately.
+
+## Causal experiments: likelihoods instead of model guesses
+
+When an observation has a known or estimated likelihood model, declare an `ExperimentContract`:
+
+```python
+from causalrag.experiments import ExperimentContract, OutcomeLikelihood
+
+pressure_test = ExperimentContract(
+    experiment_id="filter_pressure_test",
+    outcomes=[
+        OutcomeLikelihood("high",   {"H1": 0.90, "H2": 0.15}),
+        OutcomeLikelihood("normal", {"H1": 0.10, "H2": 0.85}),
+    ],
+)
+```
+
+The runtime can then compute Bayesian expected information gain and update the posterior exactly when an outcome arrives. The LLM does not get a second chance to independently reinterpret the same evidence and double-count it.
+
+Without a valid likelihood contract, the runtime falls back to weaker hypothesis-discrimination or model-estimated information signals rather than pretending it has Bayesian semantics.
+
+## Observe or intervene? Use decision value
+
+Information gain alone is not enough. An experiment can reduce uncertainty without changing the decision.
+
+CausalRAG v0.3 can place experiments and interventions on the same expected-value axis when both contracts are available:
+
+```text
+best action now
+vs.
+expected best action after observing one more sample
+```
+
+For an experiment:
+
+```text
+EVSI =
+  E_outcome [ best intervention value after posterior update ]
+  - best intervention value now
+
+net value of sampling = EVSI - experiment cost
+```
+
+For an intervention, expected utility is evaluated under the current posterior and its capability cost is subtracted. The runtime can therefore decide whether another observation is worth buying or whether it should act now.
+
+The current implementation is **one-step value of information**, not a general POMDP solver.
+
+## Deployment-owned consequence utility
+
+Different deployments can value the same physical outcome differently. That preference should not live in the LLM prompt.
+
+```python
+from causalrag import DecisionPreferences, create_agent
+
+preferences = DecisionPreferences(
+    intervention_utilities={
+        "repair_fan": {
+            "H1": -1.0,
+            "H2":  1.0,
+            "H3": -1.0,
+        },
+        "clear_duct": {
+            "H1": -1.0,
+            "H2": -1.0,
+            "H3":  1.0,
+        },
+    }
+)
+
+agent = create_agent(
+    tools=my_tools,
+    reasoner=my_reasoner,
+    decision_preferences=preferences,
+)
+```
+
+Ownership is intentionally separated:
+
+```text
+ExperimentContract      = what observations are likely under each hypothesis
+InterventionContract    = default consequence semantics
+DecisionPreferences     = how this deployment values intervention outcomes
+ToolSpec                 = capability cost / risk / reversibility
+Reasoner                 = proposes candidates
+Runtime                  = performs arbitration
+World                    = returns outcomes and updates evidence
+```
+
+`DecisionPreferences` creates effective runtime contracts without mutating the original tool objects.
+
+## HiddenWorld: evaluate agency as behavior
+
+`HiddenWorld` hides the true mechanism and gives the agent a finite diagnostic/intervention budget. The environment alone knows the truth; the agent receives priors, experiment contracts, capabilities, costs, and observations.
+
+The first HVAC scenario contains three competing hidden mechanisms and noisy diagnostic tests. It is intentionally small: the purpose is to establish a reproducible behavioral benchmark contract before moving to hidden graph/SCM discovery.
+
+A fixed stochastic suite can be run without an API key:
+
+```bash
+python examples/hidden_world_suite_demo.py
+python examples/hidden_world_policy_comparison.py
+python examples/hidden_world_risk_sweep.py
+```
+
+### Current fixed-suite baseline
+
+The table below is **not a universal performance claim**. It is the measured result on the repository's fixed 30-episode suite: three hidden mechanisms × seeds `0..9`.
+
+| policy | success | Brier ↓ | probes | cost | causal regret ↓ |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| greedy EIG | 0.800 | 0.340 | 2.10 | 0.346 | 0.296 |
+| conservative EIG | 0.867 | 0.247 | 2.90 | 0.388 | 0.272 |
+| decision value | 0.833 | 0.292 | **2.00** | **0.334** | **0.251** |
+| random probe | 0.733 | 0.403 | 2.33 | 0.357 | 0.373 |
+| cheapest probe | 0.633 | 0.390 | 2.73 | 0.344 | 0.461 |
+
+The benchmark also exposed a useful non-monotonic utility frontier. On the same episodes, assigning increasing loss to a wrong intervention produced:
+
+| wrong-action loss | success | Brier ↓ | probes | cost | causal regret ↓ |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.0 | 0.833 | 0.292 | 2.00 | 0.334 | 0.251 |
+| 0.5 | 0.833 | 0.292 | 2.00 | 0.334 | 0.251 |
+| 1.0 | **0.900** | **0.176** | 2.63 | 0.366 | **0.216** |
+| 2.0 | 0.867 | 0.225 | 2.60 | 0.368 | 0.251 |
+
+The useful result is not that `1.0` is a globally correct constant. It is that policy behavior can exhibit a phase change as consequence utility changes, and making a system "more risk averse" is not monotonically better.
+
+## Run the no-key causal demos
+
+```bash
+python examples/hypothesis_falsification_demo.py
+python examples/bayesian_experiment_demo.py
+python examples/decision_preferences_demo.py
+python examples/hidden_world_demo.py
+python examples/hidden_world_suite_demo.py
+python examples/hidden_world_policy_comparison.py
+python examples/hidden_world_risk_sweep.py
+```
+
+These demos exercise the causal runtime without requiring a hosted reasoning model.
 
 ## Add causal retrieval
 
-Install the lightweight RAG capability layer:
+RAG remains useful as an evidence capability.
 
 ```bash
 pip install -e ".[rag]"
 ```
-
-Then documents can become an evidence capability without installing Torch or FAISS:
 
 ```python
 from causalrag import create_agent
@@ -126,18 +277,14 @@ agent = create_agent(
 )
 
 result = agent.run(
-    "Find the safest leverage point for reducing indoor CO2 and explain what evidence should be checked first.",
+    "Find the safest leverage point for reducing indoor CO2 and what evidence should be checked first.",
     max_steps=6,
 )
-
-print(result.answer)
 ```
 
-By default, vector retrieval and causal-graph node normalization share one hosted OpenAI embedding provider using `text-embedding-3-small`, with NumPy cosine search as the vector backend.
+By default, vector retrieval and causal-graph normalization share one hosted embedding provider with NumPy in-memory cosine search. Local sentence-transformers and FAISS remain opt-in.
 
-### Run embeddings locally
-
-If you want an offline/local embedding model:
+### Local embeddings
 
 ```bash
 pip install -e ".[rag,local-embeddings]"
@@ -151,9 +298,7 @@ agent = create_agent(
 )
 ```
 
-### Use FAISS explicitly
-
-FAISS is also opt-in:
+### FAISS
 
 ```bash
 pip install -e ".[rag,faiss]"
@@ -166,38 +311,33 @@ agent = create_agent(
 )
 ```
 
-You can also inject your own `EmbeddingProvider` into `create_agent(..., embedding_provider=...)` or `create_pipeline(...)`. This keeps the causal graph and vector retrieval on the same embedding space without tying the runtime to a specific embedding vendor or local framework.
-
-When retrieval is enabled, the agent gets a `retrieve_evidence` capability backed by the hybrid vector + causal graph retrieval stack. Extracted graph edges seed the explicit belief state, and later observations can revise those beliefs.
-
 ## Bring your own reasoner
 
-The runtime does not require a vendor-specific model contract. You can inject a custom reasoner directly:
+The runtime does not require a vendor-specific model contract:
 
 ```python
 agent = create_agent(
     tools=my_tools,
     reasoner=my_reasoner,
     belief_updater=my_belief_updater,
+    decision_preferences=my_preferences,
 )
 ```
 
-This is useful for deterministic policies, local models, test doubles, domain-specific planners, or a future non-LLM causal policy. The core path can run without an API key when you provide your own reasoner.
+This supports deterministic policies, local models, test doubles, domain-specific planners, or future RL/planning policies. The core path can run without an API key when a custom reasoner is supplied.
 
 ## CLI
-
-Core commands such as version/help do not load the RAG stack:
 
 ```bash
 causalrag --version
 causalrag --help
 ```
 
-To run against a text file or directory using hosted embeddings:
+Run an agent over documents:
 
 ```bash
 causalrag agent \
-  --goal "What should I change to reduce indoor CO2, and what should I verify first?" \
+  --goal "Which variable is the highest-leverage intervention and what should I verify first?" \
   --input ./docs \
   --embedding-provider openai \
   --embedding-model text-embedding-3-small \
@@ -205,55 +345,28 @@ causalrag agent \
   --max-steps 8
 ```
 
-Use local embeddings instead:
+Build a reusable index:
 
 ```bash
-causalrag agent \
-  --goal "Find the most plausible causal explanation" \
-  --input ./docs \
-  --embedding-provider local \
-  --embedding-model all-MiniLM-L6-v2 \
-  --json
+causalrag index --input ./docs --output ./index
 ```
 
-Create a reusable hosted-embedding index:
+Legacy one-shot retrieval remains available:
 
 ```bash
-causalrag index \
-  --input ./docs \
-  --output ./index \
-  --embedding-provider openai
-```
-
-Use that index later:
-
-```bash
-causalrag agent \
-  --goal "Which variable is the highest-leverage intervention?" \
-  --index ./index
+causalrag query --index ./index --query "How can A lead to B?"
 ```
 
 ## HTTP API
 
-Install the API layer:
-
 ```bash
 pip install -e ".[api]"
-```
-
-Start the standalone v0.2 server:
-
-```bash
 causalrag serve --host 0.0.0.0 --port 8000
 ```
-
-Health check:
 
 ```http
 GET /health
 ```
-
-Run the agent:
 
 ```http
 POST /agent/run
@@ -270,84 +383,33 @@ Content-Type: application/json
 }
 ```
 
-If the request includes `documents`, install both optional layers:
+If the request includes documents, install both optional layers:
 
 ```bash
 pip install -e ".[api,rag]"
 ```
 
-The response contains the final answer plus the decision trace, observations, current beliefs, and recorded transitions. `steps` is the number of decision rounds including the terminal `STOP`; `executed_actions` counts non-STOP actions actually executed against a tool or the world.
-
-## Add real-world capabilities
-
-Tools are explicit capabilities rather than framework-specific tool calls:
-
-```python
-from causalrag import ToolSpec, create_agent
-
-
-def read_co2(room: str):
-    # Replace with a sensor/API call.
-    return {"room": room, "co2_ppm": 1180}
-
-
-agent = create_agent(
-    tools=[
-        ToolSpec(
-            name="read_co2",
-            description="Read the current CO2 concentration in a room.",
-            handler=read_co2,
-            cost=0.01,
-            risk=0.0,
-            reversible=True,
-            metadata={"kind": "observe"},
-        )
-    ]
-)
-
-result = agent.run("Determine whether the bedroom needs more ventilation")
-```
-
-The model may propose the capability, but the runtime chooses among candidates using causal utility:
-
-```text
-utility =
-    expected goal gain
-  + expected information gain
-  - cost
-  - risk
-  - irreversibility
-```
-
-Tool metadata is enforced by the runtime: model output cannot lower a capability's declared cost/risk or relabel an irreversible intervention as an observation.
-
-`WAIT` and `STOP` are first-class actions. This matters for causal reasoning: after an intervention, the correct next action may be to wait for its expected effect instead of immediately changing another variable.
+The response contains the final answer, decision trace, observations, beliefs/hypotheses, and recorded transitions.
 
 ## Core primitives
 
-### Goal
+### `CausalWorldModel`
 
-The desired state or question the agent is trying to resolve.
+Stores explicit causal beliefs, competing hypotheses, evidence, and action→observation transitions. The implementation is intentionally lightweight so future backends can include Bayesian SCMs, temporal models, simulators, neural world models, or hybrids.
 
-### CausalWorldModel
+### `ExperimentContract`
 
-An explicit store for causal beliefs, evidence, and observed transitions. The current implementation is intentionally lightweight so the backend can later be replaced by a Bayesian SCM, temporal causal model, simulator, neural world model, or hybrid system without changing the agent loop.
+Declares discrete outcomes and their likelihood under competing hypotheses. Enables Bayesian EIG and exact posterior updates.
 
-### CandidateAction
+### `InterventionContract`
 
-Every proposal declares:
+Declares consequence utility of an intervention under each causal hypothesis.
 
-```text
-kind
-name
-arguments
-expected_goal_gain
-expected_information_gain
-cost
-risk
-irreversibility
-rationale
-```
+### `DecisionPreferences`
+
+Deployment-owned overrides for consequence utility. The reasoner cannot rewrite them.
+
+### `CandidateAction`
 
 Supported action kinds:
 
@@ -360,71 +422,63 @@ wait
 stop
 ```
 
-### DecisionRecord
+### `DecisionRecord`
 
-Each step stores the uncertainty, all candidate actions, the selected action, and the belief snapshot before action. Explanations therefore come from an actual decision record rather than being reconstructed after the fact.
+Stores uncertainty, all candidates, runtime score breakdown, selected action, and belief snapshot before action.
 
-### Transition
+### `Transition`
 
-Executed actions and their observations are stored as transitions. This is the foundation for causal memory and future experiment-driven belief learning.
-
-### Belief update
-
-After a new observation, the v0.2 runtime can extract conservative, defeasible directional causal updates. Evidence can strengthen or weaken a belief, and retrieved claims are kept distinct from an actual intervention performed by the agent.
+Stores executed action → observation history, forming the base for future causal/experiment memory.
 
 ## Architecture
 
 ```text
-┌─────────────────────────────────────────┐
-│              CausalAgent                │
-│ Goal → Decide → Act → Observe → Learn  │
-└────────────────────┬────────────────────┘
-                     │
-┌────────────────────▼────────────────────┐
-│          Explicit World Model           │
-│ beliefs · evidence · transitions        │
-│ future: SCM · temporal · experiments   │
-└────────────────────┬────────────────────┘
-                     │
-┌────────────────────▼────────────────────┐
-│             Capabilities                │
-│ retrieval · APIs · sensors · humans     │
-│ simulators · software · robots          │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│                CausalAgent                   │
+│ Goal → Propose → Decide → Act → Observe     │
+└──────────────────────┬───────────────────────┘
+                       │
+┌──────────────────────▼───────────────────────┐
+│             Causal Decision Runtime          │
+│ hypotheses · Bayes · EIG · EVSI · utility   │
+│ capability cost/risk · DecisionPreferences  │
+└──────────────────────┬───────────────────────┘
+                       │
+┌──────────────────────▼───────────────────────┐
+│             Explicit World Model             │
+│ beliefs · evidence · transitions · outcomes │
+└──────────────────────┬───────────────────────┘
+                       │
+┌──────────────────────▼───────────────────────┐
+│                 Environment                  │
+│ retrieval · APIs · sensors · humans         │
+│ simulators · software · robots              │
+└──────────────────────────────────────────────┘
 ```
 
-The LLM is a `Reasoner`: it proposes hypotheses/actions and explains them. It is **not** treated as the world model or the final action authority.
+The LLM is a `Reasoner`: it can propose hypotheses/actions and explain them. It is not the world model or the final action authority.
 
-## Current repository layout
+## Repository layout
 
 ```text
 causalrag/
-├── agent/
-│   ├── actions.py       # action kinds + decision records
-│   ├── state.py         # persistent runtime state
-│   ├── loop.py          # thin causal learning/action loop
-│   └── runtime.py       # CausalAgent + create_agent
-├── world_model/
-│   └── models.py        # beliefs, evidence, transitions
-├── reasoning/
-│   ├── base.py          # model-agnostic Reasoner protocol
-│   ├── llm.py           # schema-constrained LLM proposer
-│   ├── belief.py        # observation → defeasible belief updates
-│   └── policy.py        # causal utility selection
-├── tools/
-│   └── base.py          # capability registry
-├── embeddings/          # hosted/local/custom provider abstraction
-├── causal_graph/        # optional causal extraction + graph layer
-├── retriever/           # optional vector/hybrid retrieval
-├── reranker/            # optional causal reranking
-├── interface/
-│   └── agent_api.py     # optional /health + /agent/run
-└── pipeline.py          # optional legacy one-shot RAG compatibility
+├── agent/              # loop, state, actions, user-facing runtime
+├── world_model/        # beliefs, hypotheses, evidence, transitions
+├── reasoning/          # reasoner adapters, updates, runtime policy
+├── experiments/        # experiment/intervention contracts, Bayes, EVSI, preferences
+├── benchmarks/         # HiddenWorld, stochastic suites, policy comparisons
+├── tools/              # capability registry and runtime metadata
+├── embeddings/         # hosted/local/custom embedding abstraction
+├── causal_graph/       # optional causal extraction + graph layer
+├── retriever/          # optional vector/hybrid retrieval
+├── reranker/           # optional causal reranking
+├── interface/          # optional HTTP surfaces
+└── pipeline.py         # legacy one-shot RAG compatibility
 ```
 
 ## Legacy one-shot RAG
 
-Install the RAG layer and existing code can continue to use:
+Existing code can continue to use:
 
 ```python
 from causalrag import create_pipeline
@@ -437,52 +491,44 @@ pipeline.index([
 
 result = pipeline.run("How can climate change lead to coastal flooding?")
 print(result["answer"])
-print(result["causal_paths"])
 ```
 
 For new projects, prefer `create_agent()`.
 
-## What v0.2 already changes
+## What v0.3 adds
 
-- explicit `CausalWorldModel`
-- persistent `AgentState`
-- `observe / retrieve / ask / intervene / wait / stop`
-- schema-constrained model-backed action proposals
-- GPT-5.6 Terra + Responses API as the default OpenAI path
-- runtime-enforced capability risk/cost/reversibility
-- causal utility action selection
-- explicit decision records
-- action → observation transition memory
-- graph → initial belief synchronization
-- observation → defeasible belief updates
-- built-in hybrid causal evidence retrieval as an optional capability
-- shared `EmbeddingProvider` abstraction across vector and causal graph retrieval
-- lightweight hosted `[rag]` install with no Torch / sentence-transformers / FAISS
-- opt-in local embeddings and FAISS backends
-- lightweight default core install
-- lazy-loaded RAG/API/evaluation/visualization layers
-- injectable custom reasoner / LLM / belief updater / embedding provider
-- Python `create_agent()` API
-- CLI agent entry point
-- standalone HTTP `/agent/run`
-- legacy pipeline and dependency compatibility fixes
-- separate core / API / RAG CI gates
+- explicit competing hypotheses and falsification targets
+- runtime-owned hypothesis discrimination
+- `ExperimentContract` likelihood models
+- Bayesian expected information gain
+- exact posterior updates without LLM double-counting
+- `InterventionContract` consequence utility
+- one-step EVSI / observe-vs-intervene decision value
+- deployment-owned `DecisionPreferences`
+- runtime enforcement of capability cost/risk/reversibility
+- deterministic and seeded stochastic HiddenWorld episodes
+- Brier calibration, probe cost, and causal-regret metrics
+- fixed-world policy tournament and utility-sensitivity sweeps
+- no-key causal decision demos
+- optional RAG compatibility rather than RAG as the core ontology
 
-## Next: from agent loop to causal learning loop
+See [`CHANGELOG.md`](CHANGELOG.md) for the release summary.
 
-The immediate roadmap is intentionally not “add more tools”. The next layers are:
+## Next
 
-1. **Hypothesis + falsification engine** — represent competing explanations and actively look for evidence that separates them.
-2. **Experiment contracts** — intervention, prediction, observation window, confounders, result, prediction error.
-3. **HiddenWorld benchmark** — agents must discover an unknown SCM through limited observations/interventions and reach a goal under a budget.
-4. **Causal regret + calibration metrics** — evaluate whether actions were informative and effective, not just whether final prose looked correct.
-5. **Temporal effects and drift** — model delays, waiting, regime change, and non-stationary mechanisms.
-6. **Protocol adapters** — capabilities can later be exposed through MCP/A2A without making those protocols part of the core ontology.
+The next layers should extend the same contracts rather than replace them:
 
-The long-term invariant is:
+1. **Temporal effects and observation windows** — action lag, persistence, and first-class `WAIT` semantics.
+2. **Causal/experiment memory** — learn from `(state, action, next_state)` and reuse intervention outcomes across similar contexts.
+3. **Hidden graph / SCM discovery** — move HiddenWorld from discrete mechanism identification to unknown structure and latent variables.
+4. **Finite-horizon value of information** — replace one-step EVSI with multi-step planning when the extra complexity is justified.
+5. **Drift and regime change** — detect when previously learned mechanisms stop predicting outcomes.
+6. **Protocol adapters** — MCP/A2A/API/sensor adapters remain replaceable capability transports rather than core ontology.
+
+The intended invariant is:
 
 ```text
-experience → causal belief → leverage → action → new experience
+experience → causal belief → decision value → action → new experience
 ```
 
 ## License
