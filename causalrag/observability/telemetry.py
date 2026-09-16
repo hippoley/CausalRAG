@@ -6,7 +6,7 @@ import logging
 import os
 import time
 import uuid
-from contextlib import AbstractContextManager, nullcontext
+from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,7 +88,6 @@ class TelemetrySpan(AbstractContextManager):
         else:
             self.trace_id = uuid.uuid4().hex
         self.span_id = uuid.uuid4().hex[:16]
-        self._stack_token = _LOCAL_STACK.set(stack + ((self.trace_id, self.span_id),))
 
         tracer = self.telemetry._tracer
         if tracer is not None:
@@ -103,9 +102,10 @@ class TelemetrySpan(AbstractContextManager):
             if getattr(context, "is_valid", False):
                 self.trace_id = f"{context.trace_id:032x}"
                 self.span_id = f"{context.span_id:016x}"
-                # Keep the local stack aligned with the real OTel identifiers.
-                current = _LOCAL_STACK.get()[:-1]
-                self._stack_token = _LOCAL_STACK.set(current + ((self.trace_id, self.span_id),))
+
+        # Set the local context exactly once, after OTel has had a chance to
+        # replace the provisional IDs. This guarantees a single matching reset.
+        self._stack_token = _LOCAL_STACK.set(stack + ((self.trace_id, self.span_id),))
 
         self.telemetry._record(
             "span.start",
@@ -147,10 +147,10 @@ class TelemetrySpan(AbstractContextManager):
             span_id=self.span_id,
             parent_span_id=self.parent_span_id,
         )
-        if self._otel_scope is not None:
-            self._otel_scope.__exit__(exc_type, exc, tb)
         if self._stack_token is not None:
             _LOCAL_STACK.reset(self._stack_token)
+        if self._otel_scope is not None:
+            self._otel_scope.__exit__(exc_type, exc, tb)
         return False
 
 
