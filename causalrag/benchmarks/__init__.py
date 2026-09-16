@@ -2,6 +2,7 @@ from .comparison import (
     PolicyComparisonReport,
     PolicyReport,
     compare_hidden_world_policies,
+    compare_risk_sensitivity,
     run_policy_episode,
 )
 from .hidden_world import (
@@ -42,4 +43,5 @@ __all__ = [
     "run_hidden_world_suite",
     "run_policy_episode",
     "compare_hidden_world_policies",
+    "compare_risk_sensitivity",
 ]
