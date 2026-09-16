@@ -25,9 +25,14 @@ def envelope(payload, status=200, message=""):
 
 def test_full_boptest_control_surface_and_kpis_are_mapped_to_documented_endpoints():
     transport = FakeTransport()
+    transport.add("GET", "/version", {"version": "0.9.0"})
+    transport.add("GET", "/testcases", ["bestest_air", "bestest_hydronic"])
     transport.add("POST", "/testcases/bestest_air/select", {"testid": "abc-123"})
+    transport.add("GET", "/status/abc-123", {"status": "Running"})
+    transport.add("GET", "/name/abc-123", envelope({"name": "BESTEST Air"}))
     transport.add("GET", "/measurements/abc-123", envelope({"TRooAir_y": {"Unit": "K"}}))
     transport.add("GET", "/inputs/abc-123", envelope({"oveHea_u": {"Unit": "1"}}))
+    transport.add("GET", "/forecast_points/abc-123", envelope({"TDryBul": {"Unit": "K"}}))
     transport.add("GET", "/step/abc-123", envelope(300.0))
     transport.add("PUT", "/step/abc-123", envelope("600"))
     transport.add("PUT", "/initialize/abc-123", envelope({"time": 0.0, "TRooAir_y": 294.0}))
@@ -40,9 +45,14 @@ def test_full_boptest_control_surface_and_kpis_are_mapped_to_documented_endpoint
     transport.add("PUT", "/stop/abc-123", envelope({"stopped": True}))
 
     client = BOPTESTClient(base_url="https://example.invalid", transport=transport)
+    assert client.version() == {"version": "0.9.0"}
+    assert client.testcases() == ["bestest_air", "bestest_hydronic"]
     assert client.select_testcase("bestest_air") == "abc-123"
+    assert client.status() == {"status": "Running"}
+    assert client.name() == {"name": "BESTEST Air"}
     assert "TRooAir_y" in client.measurements()
     assert "oveHea_u" in client.inputs()
+    assert "TDryBul" in client.forecast_points()
     assert client.get_step() == pytest.approx(300.0)
     assert client.set_step(600) == pytest.approx(600.0)
     assert client.initialize(0, 86400)["TRooAir_y"] == pytest.approx(294.0)
@@ -59,8 +69,11 @@ def test_full_boptest_control_surface_and_kpis_are_mapped_to_documented_endpoint
     assert advance[2] == {"oveHea_u": 0.5, "oveHea_activate": 1}
 
 
-def test_instance_calls_require_selected_testcase():
-    client = BOPTESTClient(transport=FakeTransport())
+def test_instance_calls_require_selected_testcase_but_service_calls_do_not():
+    transport = FakeTransport()
+    transport.add("GET", "/version", {"version": "0.9.0"})
+    client = BOPTESTClient(transport=transport)
+    assert client.version() == {"version": "0.9.0"}
     with pytest.raises(BOPTESTProtocolError, match="No active BOPTEST testcase"):
         client.measurements()
 
