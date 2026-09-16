@@ -25,9 +25,16 @@ class CausalRAGPipeline:
         config_path=None,
         provider="openai",
         api_key=None,
+        extractor_method="rule",
     ):
         self.index_path = index_path
-        self.graph_builder = CausalGraphBuilder(model_name=embedding_model)
+        self.llm = LLMInterface(model=model_name, provider=provider, api_key=api_key)
+        llm_extractor = self.llm if extractor_method in ("llm", "hybrid") else None
+        self.graph_builder = CausalGraphBuilder(
+            model_name=embedding_model,
+            extractor_method=extractor_method,
+            llm_interface=llm_extractor,
+        )
         if graph_path:
             self.graph_builder.load(graph_path)
 
@@ -44,7 +51,6 @@ class CausalRAGPipeline:
         self.graph_retriever = CausalPathRetriever(self.graph_builder)
         self.hybrid_retriever = HybridRetriever(self.vector_retriever, self.graph_retriever)
         self.reranker = CausalPathReranker(self.graph_retriever)
-        self.llm = LLMInterface(model=model_name, provider=provider, api_key=api_key)
 
         if config_path:
             self._load_config(config_path)
