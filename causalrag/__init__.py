@@ -27,14 +27,20 @@ from .experiments import (
     DecisionPreferences,
     ExperimentContract,
     ExperimentUpdate,
+    ModelMismatchAssessment,
+    ModelMismatchPolicy,
     OutcomeLikelihood,
+    assess_model_mismatch,
     expected_information_gain,
+    expanded_experiment_contract,
+    outcome_surprisal,
     posterior_for_outcome,
+    predictive_probability,
 )
 from .reasoning.hypothesis import HypothesisProposal, LLMHypothesisUpdater
 from .reasoning.llm import LLMCausalReasoner
 from .tools import ToolRegistry, ToolSpec
-from .world_model import CausalBelief, CausalWorldModel, Evidence, Hypothesis, Transition
+from .world_model import CausalBelief, CausalWorldModel, Evidence, Hypothesis, ModelMismatch, Transition
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -93,6 +99,7 @@ __all__ = [
     "CausalAgent", "AgentRunResult", "create_agent", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
     "ActionKind", "ActionScore", "AgentState", "CandidateAction", "CausalAgentLoop", "DecisionRecord", "Observation",
     "TemporalEffectContract", "PendingEffect", "TimeDriver", "VirtualTimeDriver",
-    "ToolRegistry", "ToolSpec", "CausalBelief", "CausalWorldModel", "Evidence", "Hypothesis", "Transition",
+    "ToolRegistry", "ToolSpec", "CausalBelief", "CausalWorldModel", "Evidence", "Hypothesis", "ModelMismatch", "Transition",
     "DecisionPreferences", "OutcomeLikelihood", "ExperimentContract", "ExperimentUpdate", "expected_information_gain", "posterior_for_outcome",
+    "ModelMismatchPolicy", "ModelMismatchAssessment", "assess_model_mismatch", "predictive_probability", "outcome_surprisal", "expanded_experiment_contract",
 ]
