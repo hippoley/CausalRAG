@@ -9,6 +9,7 @@ from causalrag.agent.actions import ActionKind, CandidateAction
 class _BaseHiddenWorldPolicy:
     policy_id = "base"
     requires_intervention_contracts = False
+    wrong_intervention_utility = 0.0
 
     def __init__(
         self,
@@ -196,3 +197,17 @@ class DecisionValuePolicy(_BaseHiddenWorldPolicy):
             for name in self.scenario.interventions
         )
         return candidates
+
+
+class RiskSensitiveDecisionValuePolicy(DecisionValuePolicy):
+    """Decision value with an explicit loss for choosing the wrong intervention.
+
+    This policy has no confidence threshold. The only difference from
+    DecisionValuePolicy is the intervention utility contract supplied by the
+    benchmark harness: a wrong intervention is harmful rather than merely worth
+    zero. Runtime EVSI therefore buys more evidence only when avoiding that
+    expected loss is worth the additional diagnostic cost.
+    """
+
+    policy_id = "risk_sensitive_decision_value"
+    wrong_intervention_utility = -0.5
