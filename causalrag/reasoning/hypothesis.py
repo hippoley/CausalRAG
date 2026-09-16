@@ -22,7 +22,10 @@ class LLMHypothesisUpdater:
     """Update competing hypotheses from the latest action outcome.
 
     The model only proposes signed evidence updates. Persistent probability,
-    support/conflict history, and status live in CausalWorldModel.
+    support/conflict history, and status live in CausalWorldModel. When an
+    action explicitly declares which hypotheses it tests, updates are scoped to
+    those hypotheses so evidence remains traceable to the experiment that
+    produced it.
     """
 
     def __init__(self, llm, max_updates: int = 6) -> None:
@@ -40,11 +43,18 @@ class LLMHypothesisUpdater:
         if not hypotheses:
             return
 
+        declared_tests = {
+            str(hypothesis_id)
+            for hypothesis_id in decision.selected.tests_hypotheses
+            if str(hypothesis_id).strip()
+        }
+
         prompt = f"""Evaluate the latest observation against the current competing hypotheses.
 Update only hypotheses for which this observation is actually diagnostic.
 Use a positive weight for supporting evidence and a negative weight for conflicting/falsifying evidence.
 Do not reward a hypothesis merely because the observation is compatible with it; compatibility is weaker than discrimination.
 Strong negative weights should be reserved for observations that match an explicit falsifier or clearly contradict the hypothesis.
+If the action explicitly lists hypotheses it tests, do not update hypotheses outside that list.
 
 Return ONLY JSON:
 {{
@@ -71,6 +81,8 @@ Current hypotheses: {json.dumps(hypotheses, ensure_ascii=False, default=str)}
         for item in payload.get("updates", [])[: self.max_updates]:
             hypothesis_id = str(item.get("id") or "").strip()
             if not hypothesis_id or world_model.get_hypothesis(hypothesis_id) is None:
+                continue
+            if declared_tests and hypothesis_id not in declared_tests:
                 continue
             try:
                 weight = float(item.get("weight", 0.0))
