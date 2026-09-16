@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Optional, Protocol
+from typing import Any, Dict, Mapping, Optional, Protocol, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from causalrag.experiments import ExperimentContract
 
 
 class TimeDriver(Protocol):
-    """Adapter for the environment clock used by WAIT.
-
-    The core runtime does not sleep. Simulators can use `VirtualTimeDriver`;
-    production schedulers can provide another driver with the same contract.
-    """
+    """Adapter for the environment clock used by WAIT."""
 
     @property
     def now_seconds(self) -> float:
@@ -30,15 +29,28 @@ class VirtualTimeDriver:
 
 
 @dataclass(frozen=True)
-class TemporalEffectContract:
-    """Expected delayed observation after an intervention.
+class TemporalObservationPoint:
+    """A time-indexed observation model after an intervention.
 
-    The contract states when an intervention can be evaluated, how it should be
-    measured, and whether another intervention should be blocked until this
-    effect has been observed. `protect_attribution` is intentionally local to
-    the effect: independent interventions may opt out instead of inheriting a
-    global serialization rule.
+    `experiment_contract` is a real P(outcome | hypothesis, observe_at=t)
+    model, so temporal scheduling reuses Bayesian EIG/EVSI rather than a
+    separate heuristic confidence score.
     """
+
+    offset_seconds: float
+    experiment_contract: "ExperimentContract"
+    measurement_cost: float = 0.0
+
+    def __post_init__(self) -> None:
+        if float(self.offset_seconds) < 0.0:
+            raise ValueError("offset_seconds must be >= 0")
+        if float(self.measurement_cost) < 0.0:
+            raise ValueError("measurement_cost must be >= 0")
+
+
+@dataclass(frozen=True)
+class TemporalEffectContract:
+    """Expected delayed observation after an intervention."""
 
     effect_id: str
     observe_with: str
@@ -50,6 +62,7 @@ class TemporalEffectContract:
     description: str = ""
     observe_arguments: Mapping[str, Any] = field(default_factory=dict)
     protect_attribution: bool = True
+    observation_points: Tuple[TemporalObservationPoint, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         if not str(self.effect_id).strip():
@@ -66,6 +79,12 @@ class TemporalEffectContract:
             raise ValueError("expected_outcomes must not be empty")
         if not 0.0 < float(self.falsification_weight) <= 1.0:
             raise ValueError("falsification_weight must be in (0, 1]")
+        offsets = [float(point.offset_seconds) for point in self.observation_points]
+        if len(offsets) != len(set(offsets)):
+            raise ValueError("temporal observation offsets must be unique")
+        for offset in offsets:
+            if offset < float(self.earliest_seconds) or offset > float(self.latest_seconds):
+                raise ValueError("temporal observation points must fall inside the effect window")
 
     def expected_for(self, hypothesis_id: str) -> Optional[Any]:
         return self.expected_outcomes.get(str(hypothesis_id))
@@ -84,11 +103,15 @@ class PendingEffect:
     falsification_weight: float = 0.5
     observe_arguments: Dict[str, Any] = field(default_factory=dict)
     protect_attribution: bool = True
+    observation_points: Tuple[TemporalObservationPoint, ...] = field(default_factory=tuple)
     observed: bool = False
     expired: bool = False
     expiry_recorded: bool = False
     matched_prediction: Optional[bool] = None
     observed_value: Any = None
+    planned_observation_at: Optional[float] = None
+    planned_experiment_contract: Optional[Any] = field(default=None, repr=False)
+    planned_temporal_value: Optional[float] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def is_ready(self, now: float) -> bool:
@@ -121,6 +144,9 @@ class PendingEffect:
             "expires_at": self.expires_at,
             "observe_arguments": dict(self.observe_arguments),
             "protect_attribution": self.protect_attribution,
+            "observation_points": [point.offset_seconds for point in self.observation_points],
+            "planned_observation_at": self.planned_observation_at,
+            "planned_temporal_value": self.planned_temporal_value,
             "observed": self.observed,
             "expired": self.expired,
             "matched_prediction": self.matched_prediction,
@@ -146,5 +172,6 @@ def pending_effect_from_contract(
         falsification_weight=float(contract.falsification_weight),
         observe_arguments=dict(contract.observe_arguments),
         protect_attribution=bool(contract.protect_attribution),
+        observation_points=tuple(contract.observation_points),
         metadata={"description": contract.description},
     )
