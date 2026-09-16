@@ -1,5 +1,5 @@
 # pipeline.py
-# Top-level orchestration of CausalRAG pipeline
+# Legacy one-shot retrieval interface. New applications should prefer create_agent().
 
 from .causal_graph.builder import CausalGraphBuilder
 from .causal_graph.retriever import CausalPathRetriever
@@ -9,59 +9,54 @@ from .retriever.hybrid import HybridRetriever
 from .generator.prompt_builder import build_prompt
 from .generator.llm_interface import LLMInterface
 
+
 class CausalRAGPipeline:
-    def __init__(self, 
-                model_name="gpt-4", 
-                embedding_model="all-MiniLM-L6-v2",
-                graph_path=None, 
-                index_path=None,
-                config_path=None):
-        """
-        Initialize the CausalRAG pipeline with configurable components
-        
-        Args:
-            model_name: Name of LLM model to use
-            embedding_model: Name of embedding model for vector store
-            graph_path: Optional path to pre-built causal graph
-            index_path: Optional path to pre-built vector index
-            config_path: Optional path to pipeline configuration
-        """
-        # Core components
+    """Backward-compatible one-shot causal RAG pipeline."""
+
+    def __init__(
+        self,
+        model_name="gpt-4o-mini",
+        embedding_model="all-MiniLM-L6-v2",
+        graph_path=None,
+        index_path=None,
+        config_path=None,
+        provider="openai",
+        api_key=None,
+    ):
         self.graph_builder = CausalGraphBuilder(graph_path=graph_path)
         self.vector_retriever = VectorStoreRetriever(
-            embedding_model=embedding_model, 
-            index_path=index_path
+            embedding_model=embedding_model,
+            index_path=index_path,
         )
         self.graph_retriever = CausalPathRetriever(self.graph_builder)
         self.hybrid_retriever = HybridRetriever(self.vector_retriever, self.graph_retriever)
         self.reranker = CausalPathReranker(self.graph_retriever)
-        self.llm = LLMInterface(model_name=model_name)
-        
-        # Load configuration if provided
+        self.llm = LLMInterface(model=model_name, provider=provider, api_key=api_key)
+
         if config_path:
             self._load_config(config_path)
 
     def _load_config(self, config_path):
-        """Load configuration from file"""
-        # Implementation for loading config
-        pass
+        # Configuration loading remains a compatibility hook.
+        return None
 
     def index(self, documents):
-        """Build graph + vector index from documents"""
-        self.graph_builder.index_documents(documents)
-        self.vector_retriever.index_corpus(documents)
+        """Build causal graph and vector index from documents."""
+        graph_result = self.graph_builder.index_documents(documents)
+        vector_result = self.vector_retriever.index_corpus(documents)
+        return {"graph": graph_result, "vectors": vector_result}
 
-    def run(self, query: str, top_k: int = 5) -> str:
-        """Query → Retrieval → Rerank → Prompt → Generate"""
-        # Step 1: Hybrid retrieval
+    def run(self, query: str, top_k: int = 5):
+        """Retrieve, causally rerank, and generate a structured answer."""
         candidates = self.hybrid_retriever.retrieve(query, top_k=top_k)
-
-        # Step 2: Rerank via causal path
         reranked = self.reranker.rerank(query, candidates)
-
-        # Step 3: Build prompt with causal context
+        context = [passage for passage, _score in reranked[:top_k]]
+        causal_paths = self.graph_retriever.retrieve_paths(query, max_paths=5)
         causal_nodes = self.graph_retriever.retrieve_path_nodes(query)
-        prompt = build_prompt(query, reranked[:top_k], causal_path=causal_nodes)
-
-        # Step 4: Generate answer
-        return self.llm.generate(prompt)
+        prompt = build_prompt(query, context, causal_path=causal_nodes)
+        answer = self.llm.generate(prompt)
+        return {
+            "answer": answer,
+            "context": context,
+            "causal_paths": causal_paths,
+        }
