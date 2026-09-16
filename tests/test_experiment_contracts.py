@@ -4,6 +4,7 @@ from causalrag.agent import ActionKind, CandidateAction, CausalAgentLoop
 from causalrag.experiments import (
     ExperimentContract,
     OutcomeLikelihood,
+    apply_experiment_observation,
     contract_applicable,
     expected_information_gain,
     posterior_for_outcome,
@@ -30,6 +31,17 @@ def _contract():
             OutcomeLikelihood("normal", {"H1": 0.1, "H2": 0.9}),
         ],
     )
+
+
+def test_contract_validates_likelihood_columns_sum_to_one():
+    with pytest.raises(ValueError, match="must sum to 1"):
+        ExperimentContract(
+            experiment_id="invalid",
+            outcomes=[
+                OutcomeLikelihood("a", {"H1": 0.8, "H2": 0.2}),
+                OutcomeLikelihood("b", {"H1": 0.3, "H2": 0.8}),
+            ],
+        )
 
 
 def test_contract_computes_exact_posterior_and_expected_information_gain():
@@ -104,6 +116,37 @@ def test_policy_prefers_bayesian_eig_over_model_or_heuristic_information_scores(
     assert score.information_source == "runtime_bayesian_eig"
     assert score.bayesian_information_gain == pytest.approx(expected_information_gain(contract, world))
     assert score.information_gain == score.bayesian_information_gain
+
+
+def test_bayesian_evidence_direction_uses_normalized_prior_not_raw_credence():
+    world = CausalWorldModel()
+    world.upsert_hypothesis("H1", "Filter is clogged", probability=0.8)
+    world.upsert_hypothesis("H2", "Fan is weak", probability=0.8)
+    contract = ExperimentContract(
+        experiment_id="mild_test",
+        outcomes=[
+            OutcomeLikelihood("leans_h1", {"H1": 0.6, "H2": 0.4}),
+            OutcomeLikelihood("leans_h2", {"H1": 0.4, "H2": 0.6}),
+        ],
+    )
+
+    update = apply_experiment_observation(
+        contract,
+        world,
+        {"outcome": "leans_h1"},
+        source="mild_test",
+    )
+
+    assert update is not None
+    assert update.prior == {"H1": pytest.approx(0.5), "H2": pytest.approx(0.5)}
+    assert update.posterior["H1"] == pytest.approx(0.6)
+    assert update.posterior["H2"] == pytest.approx(0.4)
+    h1 = world.get_hypothesis("H1")
+    h2 = world.get_hypothesis("H2")
+    assert h1.supporting_evidence[-1].kind == "bayesian_experiment"
+    assert h1.supporting_evidence[-1].weight > 0
+    assert h2.conflicting_evidence[-1].kind == "bayesian_experiment"
+    assert h2.conflicting_evidence[-1].weight < 0
 
 
 class ContractReasoner:
