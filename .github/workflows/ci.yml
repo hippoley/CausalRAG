@@ -57,12 +57,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
-      - name: Install RAG layer
+      - name: Install lightweight RAG layer
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[rag]"
+          pip install -e ".[rag,dev]"
+      - name: Assert local ML stack is opt-in
+        run: |
+          python -c "import importlib.util as i; assert i.find_spec('sentence_transformers') is None; assert i.find_spec('faiss') is None; assert i.find_spec('torch') is None"
       - name: Compile and import RAG
         run: |
-          python -m compileall -q causalrag/causal_graph causalrag/retriever causalrag/reranker causalrag/pipeline.py
-          python -c "from causalrag import create_pipeline; print('rag surface available')"
+          python -m compileall -q causalrag/embeddings causalrag/causal_graph causalrag/retriever causalrag/reranker causalrag/pipeline.py
+          python -c "from causalrag import create_pipeline; from causalrag.embeddings import OpenAIEmbeddingProvider; print('lightweight rag surface available')"
+      - name: Embedding and retrieval tests
+        run: pytest -q tests/test_embedding_providers.py
