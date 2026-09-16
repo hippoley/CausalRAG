@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
+import causalrag
 from causalrag.causal_graph.builder import CausalGraphBuilder
 from causalrag.causal_graph.retriever import CausalPathRetriever
 from causalrag.embeddings import OpenAIEmbeddingProvider
@@ -97,3 +98,28 @@ def test_graph_builder_and_path_retriever_share_provider():
     assert nodes
     assert any("opening window" in path for path in paths)
     assert retriever.embedding_provider is provider
+
+
+def test_top_level_create_pipeline_forwards_embedding_configuration(monkeypatch):
+    captured = {}
+
+    class FakePipeline:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    import causalrag.pipeline as pipeline_module
+
+    monkeypatch.setattr(pipeline_module, "CausalRAGPipeline", FakePipeline)
+    provider = FakeEmbeddingProvider()
+
+    causalrag.create_pipeline(
+        embedding_provider_name="local",
+        embedding_provider=provider,
+        embedding_model="custom-model",
+        vector_backend="faiss",
+    )
+
+    assert captured["embedding_provider_name"] == "local"
+    assert captured["embedding_provider"] is provider
+    assert captured["embedding_model"] == "custom-model"
+    assert captured["vector_backend"] == "faiss"
