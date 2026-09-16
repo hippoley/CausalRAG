@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol, Sequence
+from typing import Optional, Protocol, Sequence
 
 from causalrag.agent.actions import CandidateAction
 from causalrag.agent.state import AgentState
@@ -13,5 +13,5 @@ class Reasoner(Protocol):
     def propose(self, state: AgentState, world_model: CausalWorldModel) -> Sequence[CandidateAction]:
         ...
 
-    def uncertainty(self, state: AgentState, world_model: CausalWorldModel) -> str | None:
+    def uncertainty(self, state: AgentState, world_model: CausalWorldModel) -> Optional[str]:
         ...
