@@ -30,6 +30,7 @@ core_requirements = [
 
 extra_requirements = {
     "dev": ["pytest>=7.0", "pytest-cov>=4.0", "black>=23.0", "isort>=5.10", "flake8>=6.0", "mypy>=1.0"],
+    "evaluation": ["pandas>=1.3.0", "ragas>=0.0.16"],
     "weaviate": ["weaviate-client>=3.0.0"],
     "gpu": ["faiss-gpu>=1.7.0"],
     "anthropic": ["anthropic>=0.25.0"],
