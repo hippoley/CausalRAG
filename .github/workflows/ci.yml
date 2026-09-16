@@ -25,7 +25,7 @@ jobs:
           python -c "import importlib.util as i; assert i.find_spec('sentence_transformers') is None; assert i.find_spec('faiss') is None; assert i.find_spec('torch') is None"
       - name: Compile runtime
         run: |
-          python -m py_compile causalrag/__init__.py causalrag/cli.py examples/hypothesis_falsification_demo.py
+          python -m py_compile causalrag/__init__.py causalrag/cli.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py
           python -m compileall -q causalrag/agent causalrag/world_model causalrag/reasoning causalrag/experiments causalrag/tools causalrag/generator causalrag/utils
       - name: Core import and CLI smoke
         run: |
@@ -36,6 +36,8 @@ jobs:
         run: pytest -q tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_hypothesis_falsification.py tests/test_discrimination_policy.py tests/test_experiment_contracts.py tests/test_llm_interface.py tests/test_user_quickstart.py tests/test_cli_embedding_options.py
       - name: Run no-key falsification demo
         run: python examples/hypothesis_falsification_demo.py
+      - name: Run no-key Bayesian experiment demo
+        run: python examples/bayesian_experiment_demo.py
 
   api:
     runs-on: ubuntu-latest
