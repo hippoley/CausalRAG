@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from causalrag.agent.temporal import TemporalEffectContract
     from causalrag.experiments import (
         DecisionPreferences,
         ExperimentContract,
@@ -22,6 +23,7 @@ class ToolSpec:
     metadata: Dict[str, Any] = field(default_factory=dict)
     experiment_contract: Optional["ExperimentContract"] = None
     intervention_contract: Optional["InterventionContract"] = None
+    temporal_effect_contract: Optional["TemporalEffectContract"] = None
 
 
 class ToolRegistry:
