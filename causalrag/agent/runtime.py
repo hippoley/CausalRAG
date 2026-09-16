@@ -110,7 +110,7 @@ def _load_rag_pipeline():
 
 
 def create_agent(
-    model_name: str = "gpt-4o-mini",
+    model_name: str = "gpt-5.6-terra",
     embedding_model: str = "all-MiniLM-L6-v2",
     graph_path: Optional[str] = None,
     index_path: Optional[str] = None,
