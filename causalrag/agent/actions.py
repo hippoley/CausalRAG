@@ -30,6 +30,7 @@ class CandidateAction:
 
     @property
     def utility(self) -> float:
+        """Legacy/model-proposed utility before runtime epistemic rescoring."""
         return (
             self.expected_goal_gain
             + self.expected_information_gain
@@ -40,6 +41,24 @@ class CandidateAction:
 
 
 @dataclass
+class ActionScore:
+    """Runtime score used to select one candidate action."""
+
+    candidate_index: int
+    action_name: str
+    action_kind: ActionKind
+    total_utility: float
+    goal_gain: float
+    information_gain: float
+    information_source: str
+    model_information_gain: float
+    discrimination_score: Optional[float]
+    cost: float
+    risk: float
+    irreversibility: float
+
+
+@dataclass
 class DecisionRecord:
     step: int
     uncertainty: Optional[str]
@@ -47,3 +66,4 @@ class DecisionRecord:
     selected: CandidateAction
     beliefs_before: Dict[str, Any]
     rationale: str = ""
+    action_scores: List[ActionScore] = field(default_factory=list)
