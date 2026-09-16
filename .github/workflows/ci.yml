@@ -1,0 +1,68 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install lightweight core
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Assert heavy RAG stack is absent
+        run: |
+          python -c "import importlib.util as i; assert i.find_spec('sentence_transformers') is None; assert i.find_spec('faiss') is None; assert i.find_spec('torch') is None"
+      - name: Compile runtime
+        run: |
+          python -m py_compile causalrag/__init__.py causalrag/cli.py
+          python -m compileall -q causalrag/agent causalrag/world_model causalrag/reasoning causalrag/tools causalrag/generator causalrag/utils
+      - name: Core import and CLI smoke
+        run: |
+          python -c "import causalrag; from causalrag import CausalAgent, create_agent; print(causalrag.__version__)"
+          causalrag --version
+          causalrag --help
+      - name: Agent and LLM adapter tests
+        run: pytest -q tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_llm_interface.py tests/test_user_quickstart.py
+
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install API layer
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api]"
+      - name: Import API
+        run: |
+          python -c "from causalrag.interface.agent_api import app, health; assert health()['status'] == 'healthy'; print(app.title)"
+
+  rag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install RAG layer
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[rag]"
+      - name: Compile and import RAG
+        run: |
+          python -m compileall -q causalrag/causal_graph causalrag/retriever causalrag/reranker causalrag/pipeline.py
+          python -c "from causalrag import create_pipeline; print('rag surface available')"

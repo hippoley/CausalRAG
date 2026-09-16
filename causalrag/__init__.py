@@ -1,62 +1,132 @@
-# __init__.py
-# Expose top-level imports for external use
+"""CausalRAG: causal world models for goal-directed agents.
 
-"""
-CausalRAG: Causal Graph Enhanced Retrieval-Augmented Generation
-
-This package integrates causal reasoning with retrieval-augmented generation
-to improve the quality and accuracy of generated answers by considering
-causal relationships between concepts.
+The default import exposes the lightweight v0.2 causal-agent runtime. Legacy
+RAG, graph and evaluation surfaces are loaded only when explicitly requested.
 """
 
-__version__ = "0.1.0"
+import logging
+
+__version__ = "0.2.0"
 __author__ = "CausalRAG Team"
 
-# Core components
-from .pipeline import CausalRAGPipeline
-from .causal_graph.builder import CausalGraphBuilder
-from .causal_graph.retriever import CausalPathRetriever
-from .evaluation.evaluator import CausalEvaluator, EvaluationResult
+from .agent import (
+    ActionKind,
+    AgentState,
+    CandidateAction,
+    CausalAgentLoop,
+    DecisionRecord,
+    Observation,
+)
+from .agent.runtime import AgentRunResult, CausalAgent, create_agent
+from .reasoning.llm import LLMCausalReasoner
+from .tools import ToolRegistry, ToolSpec
+from .world_model import CausalBelief, CausalWorldModel, Evidence, Transition
 
-# Set default logging
-import logging
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-# Convenience function to create and configure a pipeline
+
+def __getattr__(name):
+    """Lazy-load optional compatibility surfaces."""
+    if name in {"CausalEvaluator", "EvaluationResult"}:
+        try:
+            from .evaluation.evaluator import CausalEvaluator, EvaluationResult
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                "Evaluation requires optional dependencies. Install them with: "
+                "pip install 'causalrag[evaluation]'"
+            ) from exc
+        return {
+            "CausalEvaluator": CausalEvaluator,
+            "EvaluationResult": EvaluationResult,
+        }[name]
+
+    if name == "CausalRAGPipeline":
+        try:
+            from .pipeline import CausalRAGPipeline
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                "CausalRAGPipeline requires optional RAG dependencies. Install "
+                "them with: pip install 'causalrag[rag]'"
+            ) from exc
+        return CausalRAGPipeline
+
+    if name == "CausalGraphBuilder":
+        try:
+            from .causal_graph.builder import CausalGraphBuilder
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                "CausalGraphBuilder requires optional RAG dependencies. Install "
+                "them with: pip install 'causalrag[rag]'"
+            ) from exc
+        return CausalGraphBuilder
+
+    if name == "CausalPathRetriever":
+        try:
+            from .causal_graph.retriever import CausalPathRetriever
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                "CausalPathRetriever requires optional RAG dependencies. Install "
+                "them with: pip install 'causalrag[rag]'"
+            ) from exc
+        return CausalPathRetriever
+
+    raise AttributeError("module 'causalrag' has no attribute %r" % name)
+
+
 def create_pipeline(
-    model_name="gpt-4", 
+    model_name="gpt-5.6-terra",
     embedding_model="all-MiniLM-L6-v2",
-    graph_path=None, 
+    graph_path=None,
     index_path=None,
-    config_path=None
+    config_path=None,
+    provider="openai",
+    api_key=None,
+    extractor_method="rule",
 ):
+    """Create the legacy one-shot RAG pipeline on demand.
+
+    Requires the optional retrieval dependencies::
+
+        pip install "causalrag[rag]"
     """
-    Create and configure a CausalRAG pipeline
-    
-    Args:
-        model_name: Name of LLM model to use
-        embedding_model: Name of embedding model for vector store
-        graph_path: Optional path to pre-built causal graph
-        index_path: Optional path to pre-built vector index
-        config_path: Optional path to pipeline configuration
-        
-    Returns:
-        Configured CausalRAGPipeline instance
-    """
+    try:
+        from .pipeline import CausalRAGPipeline
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RuntimeError(
+            "The legacy RAG pipeline requires optional dependencies. "
+            "Install them with: pip install 'causalrag[rag]'"
+        ) from exc
+
     return CausalRAGPipeline(
         model_name=model_name,
         embedding_model=embedding_model,
         graph_path=graph_path,
         index_path=index_path,
-        config_path=config_path
+        config_path=config_path,
+        provider=provider,
+        api_key=api_key,
+        extractor_method=extractor_method,
     )
 
-# Define what's available via import *
+
+# Star imports intentionally expose only the lightweight runtime. Optional
+# compatibility surfaces remain available via explicit attribute access.
 __all__ = [
-    'CausalRAGPipeline',
-    'CausalGraphBuilder',
-    'CausalPathRetriever',
-    'CausalEvaluator',
-    'EvaluationResult',
-    'create_pipeline',
+    "CausalAgent",
+    "AgentRunResult",
+    "create_agent",
+    "LLMCausalReasoner",
+    "create_pipeline",
+    "ActionKind",
+    "AgentState",
+    "CandidateAction",
+    "CausalAgentLoop",
+    "DecisionRecord",
+    "Observation",
+    "ToolRegistry",
+    "ToolSpec",
+    "CausalBelief",
+    "CausalWorldModel",
+    "Evidence",
+    "Transition",
 ]
