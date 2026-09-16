@@ -2,6 +2,7 @@ from .comparison import (
     PolicyComparisonReport,
     PolicyReport,
     compare_hidden_world_policies,
+    compare_risk_sensitivity,
     run_policy_episode,
 )
 from .hidden_world import (
@@ -20,6 +21,7 @@ from .policies import (
     DecisionValuePolicy,
     GreedyEIGPolicy,
     RandomProbePolicy,
+    RiskSensitiveDecisionValuePolicy,
 )
 
 __all__ = [
@@ -33,6 +35,7 @@ __all__ = [
     "GreedyEIGPolicy",
     "ConservativeEIGPolicy",
     "DecisionValuePolicy",
+    "RiskSensitiveDecisionValuePolicy",
     "CheapestProbePolicy",
     "RandomProbePolicy",
     "build_hvac_hidden_world",
@@ -40,4 +43,5 @@ __all__ = [
     "run_hidden_world_suite",
     "run_policy_episode",
     "compare_hidden_world_policies",
+    "compare_risk_sensitivity",
 ]

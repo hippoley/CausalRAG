@@ -1,11 +1,14 @@
 from causalrag.benchmarks import (
     CheapestProbePolicy,
     ConservativeEIGPolicy,
+    DecisionValuePolicy,
     GreedyEIGPolicy,
     RandomProbePolicy,
-    compare_hidden_world_policies,
-    run_policy_episode,
+    RiskSensitiveDecisionValuePolicy,
     build_hvac_hidden_world,
+    compare_hidden_world_policies,
+    compare_risk_sensitivity,
+    run_policy_episode,
 )
 
 
@@ -74,6 +77,62 @@ def test_conservative_policy_does_not_intervene_before_minimum_evidence():
     )
     assert probes_before_intervention >= 2
     assert metrics.probes >= 2
+
+
+def test_risk_sensitive_policy_still_uses_runtime_decision_value():
+    scenario = build_hvac_hidden_world("H3")
+
+    _metrics, result = run_policy_episode(
+        RiskSensitiveDecisionValuePolicy,
+        scenario,
+        seed=0,
+        max_steps=7,
+    )
+
+    first = result.state.decisions[0]
+    selected_score = next(
+        score for score in first.action_scores if score.action_name == first.selected.name
+    )
+    assert first.selected.kind.value == "observe"
+    assert selected_score.decision_value_source == "runtime_expected_decision_value_after_sampling"
+
+
+def test_default_tournament_keeps_historical_policy_surface():
+    report, _metrics = compare_hidden_world_policies(seeds=[0])
+
+    assert set(report.reports) == {
+        "greedy_eig",
+        "conservative_eig",
+        "decision_value",
+        "cheapest_probe",
+        "random_probe",
+    }
+    assert "risk_sensitive_decision_value" not in report.reports
+
+
+def test_risk_sensitivity_sweep_keeps_same_episode_grid():
+    losses = [0.0, 0.5, 1.0, 2.0]
+    seeds = [0, 1]
+
+    report, metrics = compare_risk_sensitivity(
+        wrong_action_losses=losses,
+        seeds=seeds,
+    )
+
+    assert set(report.reports) == {
+        "decision_value_wrong_loss_0p0",
+        "decision_value_wrong_loss_0p5",
+        "decision_value_wrong_loss_1p0",
+        "decision_value_wrong_loss_2p0",
+    }
+    for policy_id, rows in metrics.items():
+        assert len(rows) == 6
+        assert {(row.hidden_hypothesis, row.seed) for row in rows} == {
+            (hidden, seed)
+            for hidden in ("H1", "H2", "H3")
+            for seed in seeds
+        }
+        assert report.reports[policy_id].episodes == 6
 
 
 def test_comparison_reports_metric_ranges_without_declaring_a_winner():
