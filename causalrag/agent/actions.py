@@ -25,6 +25,8 @@ class CandidateAction:
     risk: float = 0.0
     irreversibility: float = 0.0
     rationale: str = ""
+    tests_hypotheses: List[str] = field(default_factory=list)
+    falsification_target: Optional[str] = None
 
     @property
     def utility(self) -> float:

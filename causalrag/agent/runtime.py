@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterable, Optional
 
 from causalrag.generator.llm_interface import LLMInterface
 from causalrag.reasoning.belief import LLMBeliefUpdater
+from causalrag.reasoning.hypothesis import LLMHypothesisUpdater
 from causalrag.reasoning.llm import LLMCausalReasoner
 from causalrag.tools.base import ToolRegistry, ToolSpec
 from causalrag.world_model.models import CausalWorldModel
@@ -46,6 +47,7 @@ class AgentRunResult:
     world_model: CausalWorldModel
 
     def to_dict(self) -> Dict[str, Any]:
+        snapshot = self.world_model.snapshot()
         return {
             "answer": self.answer,
             "goal": self.state.goal,
@@ -54,7 +56,10 @@ class AgentRunResult:
             "stop_reason": self.state.stop_reason,
             "decisions": _jsonable(self.state.decisions),
             "observations": _jsonable(self.state.observations),
-            "beliefs": _jsonable(self.world_model.snapshot()),
+            # Keep the existing compatibility field while exposing hypotheses
+            # explicitly for v0.3 clients.
+            "beliefs": _jsonable(snapshot),
+            "hypotheses": _jsonable(snapshot.get("hypotheses", [])),
             "transitions": _jsonable(self.world_model.transitions),
         }
 
@@ -119,6 +124,7 @@ def create_agent(
     llm: Optional[Any] = None,
     reasoner: Optional[Any] = None,
     belief_updater: Optional[Any] = None,
+    hypothesis_updater: Optional[Any] = None,
     embedding_provider_name: Optional[str] = None,
     embedding_api_key: Optional[str] = None,
     embedding_provider: Optional[Any] = None,
@@ -129,7 +135,7 @@ def create_agent(
     The core runtime remains retrieval-free. When retrieval is enabled, hosted
     OpenAI embeddings are the default for OpenAI-backed agents and local
     sentence-transformers are opt-in through ``embedding_provider_name='local'``.
-    A custom embedding provider can be injected directly.
+    Custom reasoners, belief updaters, and hypothesis updaters remain injectable.
     """
     registry = ToolRegistry(tools)
     model_state = world_model or CausalWorldModel()
@@ -195,11 +201,14 @@ def create_agent(
 
     if belief_updater is None and llm is not None:
         belief_updater = LLMBeliefUpdater(llm=llm)
+    if hypothesis_updater is None and llm is not None:
+        hypothesis_updater = LLMHypothesisUpdater(llm=llm)
 
     loop = CausalAgentLoop(
         reasoner=reasoner,
         tools=registry,
         world_model=model_state,
         belief_updater=belief_updater,
+        hypothesis_updater=hypothesis_updater,
     )
     return CausalAgent(loop=loop, pipeline=pipeline)

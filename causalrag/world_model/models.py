@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 def _now() -> str:
@@ -11,7 +11,7 @@ def _now() -> str:
 
 @dataclass
 class Evidence:
-    """A single piece of evidence that can update a causal belief."""
+    """A single piece of evidence that can update a causal belief or hypothesis."""
 
     source: str
     statement: str
@@ -41,24 +41,50 @@ class CausalBelief:
         return self.cause, self.effect
 
     def update(self, evidence: Evidence) -> None:
-        """Apply a bounded additive belief update.
-
-        This deliberately stays simple in v0.2. The API is stable so the update
-        rule can later be replaced by Bayesian, learned, or domain-specific
-        estimators without changing the agent loop.
-        """
         weight = max(-1.0, min(1.0, evidence.weight))
         if weight >= 0:
             self.evidence.append(evidence)
-        else:
-            self.counterevidence.append(evidence)
-
-        if weight >= 0:
             self.probability += (1.0 - self.probability) * weight
         else:
+            self.counterevidence.append(evidence)
             self.probability += self.probability * weight
 
         self.probability = max(0.001, min(0.999, self.probability))
+        self.version += 1
+        self.updated_at = _now()
+
+
+@dataclass
+class Hypothesis:
+    """A competing explanation that remains explicitly falsifiable."""
+
+    hypothesis_id: str
+    statement: str
+    probability: float = 0.5
+    rationale: str = ""
+    falsifiers: List[str] = field(default_factory=list)
+    supporting_evidence: List[Evidence] = field(default_factory=list)
+    conflicting_evidence: List[Evidence] = field(default_factory=list)
+    status: str = "active"
+    version: int = 1
+    updated_at: str = field(default_factory=_now)
+
+    def update(self, evidence: Evidence) -> None:
+        weight = max(-1.0, min(1.0, evidence.weight))
+        if weight >= 0:
+            self.supporting_evidence.append(evidence)
+            self.probability += (1.0 - self.probability) * weight
+        else:
+            self.conflicting_evidence.append(evidence)
+            self.probability += self.probability * weight
+
+        self.probability = max(0.001, min(0.999, self.probability))
+        if self.probability >= 0.9:
+            self.status = "supported"
+        elif self.probability <= 0.1:
+            self.status = "rejected"
+        else:
+            self.status = "active"
         self.version += 1
         self.updated_at = _now()
 
@@ -76,14 +102,11 @@ class Transition:
 
 
 class CausalWorldModel:
-    """Explicit, continuously updated causal belief state.
-
-    The model intentionally does not depend on NetworkX, an LLM vendor, or a
-    particular causal inference package. Those are adapters around this core.
-    """
+    """Explicit, continuously updated causal and epistemic state."""
 
     def __init__(self) -> None:
         self._beliefs: Dict[Tuple[str, str], CausalBelief] = {}
+        self._hypotheses: Dict[str, Hypothesis] = {}
         self.transitions: List[Transition] = []
 
     def upsert_belief(
@@ -120,6 +143,87 @@ class CausalWorldModel:
         belief.update(evidence)
         return belief
 
+    def upsert_hypothesis(
+        self,
+        hypothesis_id: str,
+        statement: str,
+        probability: float = 0.5,
+        rationale: str = "",
+        falsifiers: Optional[Iterable[str]] = None,
+    ) -> Hypothesis:
+        hypothesis_id = str(hypothesis_id).strip()
+        if not hypothesis_id:
+            raise ValueError("hypothesis_id must be non-empty")
+
+        existing = self._hypotheses.get(hypothesis_id)
+        if existing is None:
+            existing = Hypothesis(
+                hypothesis_id=hypothesis_id,
+                statement=str(statement).strip(),
+                probability=max(0.001, min(0.999, float(probability))),
+                rationale=str(rationale or ""),
+                falsifiers=[str(item) for item in (falsifiers or []) if str(item).strip()],
+            )
+            self._hypotheses[hypothesis_id] = existing
+        else:
+            if statement:
+                existing.statement = str(statement).strip()
+            if rationale:
+                existing.rationale = str(rationale)
+            if falsifiers:
+                existing.falsifiers = [str(item) for item in falsifiers if str(item).strip()]
+            existing.updated_at = _now()
+        return existing
+
+    def hypotheses(self, include_rejected: bool = True) -> List[Hypothesis]:
+        values = list(self._hypotheses.values())
+        if include_rejected:
+            return values
+        return [hypothesis for hypothesis in values if hypothesis.status != "rejected"]
+
+    def get_hypothesis(self, hypothesis_id: str) -> Optional[Hypothesis]:
+        return self._hypotheses.get(hypothesis_id)
+
+    def update_hypothesis(
+        self,
+        hypothesis_id: str,
+        evidence: Evidence,
+    ) -> Optional[Hypothesis]:
+        hypothesis = self._hypotheses.get(hypothesis_id)
+        if hypothesis is None:
+            return None
+        hypothesis.update(evidence)
+        return hypothesis
+
+    def sync_hypotheses(self, proposals: Iterable[Any]) -> None:
+        """Persist reasoner proposals without erasing accumulated evidence."""
+        for proposal in proposals:
+            if isinstance(proposal, dict):
+                data = proposal
+            else:
+                data = {
+                    "id": getattr(proposal, "hypothesis_id", None),
+                    "statement": getattr(proposal, "statement", ""),
+                    "probability": getattr(proposal, "probability", 0.5),
+                    "rationale": getattr(proposal, "rationale", ""),
+                    "falsifiers": getattr(proposal, "falsifiers", []),
+                }
+            hypothesis_id = data.get("id") or data.get("hypothesis_id")
+            statement = data.get("statement")
+            if not hypothesis_id or not statement:
+                continue
+            try:
+                probability = float(data.get("probability", 0.5))
+            except (TypeError, ValueError):
+                probability = 0.5
+            self.upsert_hypothesis(
+                hypothesis_id=str(hypothesis_id),
+                statement=str(statement),
+                probability=probability,
+                rationale=str(data.get("rationale") or ""),
+                falsifiers=data.get("falsifiers") or [],
+            )
+
     def record_transition(self, transition: Transition) -> None:
         self.transitions.append(transition)
 
@@ -140,6 +244,20 @@ class CausalWorldModel:
                     "version": b.version,
                 }
                 for b in self.beliefs()
+            ],
+            "hypotheses": [
+                {
+                    "id": h.hypothesis_id,
+                    "statement": h.statement,
+                    "probability": h.probability,
+                    "rationale": h.rationale,
+                    "falsifiers": h.falsifiers,
+                    "status": h.status,
+                    "support_count": len(h.supporting_evidence),
+                    "conflict_count": len(h.conflicting_evidence),
+                    "version": h.version,
+                }
+                for h in self.hypotheses()
             ],
             "transition_count": len(self.transitions),
         }

@@ -1,7 +1,7 @@
 """CausalRAG: causal world models for goal-directed agents.
 
-The default import exposes the lightweight v0.2 causal-agent runtime. Legacy
-RAG, graph and evaluation surfaces are loaded only when explicitly requested.
+The default import exposes the lightweight causal-agent runtime. Legacy RAG,
+graph and evaluation surfaces are loaded only when explicitly requested.
 """
 
 import logging
@@ -18,9 +18,10 @@ from .agent import (
     Observation,
 )
 from .agent.runtime import AgentRunResult, CausalAgent, create_agent
+from .reasoning.hypothesis import HypothesisProposal, LLMHypothesisUpdater
 from .reasoning.llm import LLMCausalReasoner
 from .tools import ToolRegistry, ToolSpec
-from .world_model import CausalBelief, CausalWorldModel, Evidence, Transition
+from .world_model import CausalBelief, CausalWorldModel, Evidence, Hypothesis, Transition
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -113,6 +114,8 @@ __all__ = [
     "AgentRunResult",
     "create_agent",
     "LLMCausalReasoner",
+    "LLMHypothesisUpdater",
+    "HypothesisProposal",
     "create_pipeline",
     "ActionKind",
     "AgentState",
@@ -125,5 +128,6 @@ __all__ = [
     "CausalBelief",
     "CausalWorldModel",
     "Evidence",
+    "Hypothesis",
     "Transition",
 ]
