@@ -6,7 +6,7 @@ from causalrag.agent.state import AgentState, Observation
 from causalrag.reasoning.hypothesis import HypothesisProposal, LLMHypothesisUpdater
 from causalrag.reasoning.llm import LLMCausalReasoner
 from causalrag.tools.base import ToolRegistry, ToolSpec
-from causalrag.world_model.models import CausalWorldModel
+from causalrag.world_model.models import CausalWorldModel, Evidence
 
 
 class FakeLLM:
@@ -127,6 +127,78 @@ def test_hypothesis_updater_records_falsifying_evidence():
     assert h1 is not None and h1.probability < 0.7
     assert h1.conflicting_evidence[-1].kind == "falsifier"
     assert h2 is not None and h2.probability > 0.4
+
+
+def test_hypothesis_updater_cannot_modify_untested_hypothesis():
+    world = CausalWorldModel()
+    world.upsert_hypothesis("H1", "Filter is clogged", probability=0.5)
+    world.upsert_hypothesis("H2", "Fan is weak", probability=0.5)
+    world.upsert_hypothesis("H3", "Damper is stuck", probability=0.5)
+
+    updater = LLMHypothesisUpdater(
+        FakeLLM(
+            {
+                "updates": [
+                    {"id": "H1", "weight": -0.5, "statement": "normal filter", "kind": "conflict"},
+                    {"id": "H3", "weight": 0.9, "statement": "maybe damper", "kind": "support"},
+                ]
+            }
+        )
+    )
+    selected = CandidateAction(
+        kind=ActionKind.OBSERVE,
+        name="read_filter_pressure",
+        tests_hypotheses=["H1", "H2"],
+        falsification_target="H1",
+    )
+    decision = DecisionRecord(
+        step=0,
+        uncertainty="fault source",
+        candidates=[selected],
+        selected=selected,
+        beliefs_before=world.snapshot(),
+    )
+
+    updater(
+        AgentState(goal="diagnose"),
+        world,
+        decision,
+        Observation(action_name="read_filter_pressure", result={"status": "normal"}),
+    )
+
+    assert world.get_hypothesis("H1").probability < 0.5
+    assert world.get_hypothesis("H3").probability == 0.5
+    assert not world.get_hypothesis("H3").supporting_evidence
+
+
+def test_repeated_reasoner_proposal_does_not_reset_accumulated_evidence():
+    world = CausalWorldModel()
+    world.upsert_hypothesis("H1", "Filter is clogged", probability=0.6)
+    world.update_hypothesis(
+        "H1",
+        Evidence(
+            source="read_filter_pressure",
+            statement="pressure normal",
+            weight=-0.8,
+            kind="falsifier",
+        ),
+    )
+    after_evidence = world.get_hypothesis("H1").probability
+
+    world.sync_hypotheses(
+        [
+            HypothesisProposal(
+                hypothesis_id="H1",
+                statement="Filter is clogged",
+                probability=0.95,
+                rationale="model still proposes it",
+                falsifiers=["pressure normal"],
+            )
+        ]
+    )
+
+    assert world.get_hypothesis("H1").probability == after_evidence
+    assert world.get_hypothesis("H1").conflicting_evidence
 
 
 class TwoStepReasoner:
