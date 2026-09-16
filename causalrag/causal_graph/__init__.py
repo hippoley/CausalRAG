@@ -1,16 +1,24 @@
-"""
-Causal graph components for extracting, managing and querying causal relationships.
+"""Causal graph extraction and retrieval components.
 
-This package provides tools for building causal graphs from text,
-retrieving relevant causal paths, and explaining causal relationships.
+Core graph building and path retrieval stay lightweight. Visualization helpers
+are loaded only when explicitly requested.
 """
 
 from .builder import CausalGraphBuilder
 from .retriever import CausalPathRetriever
-from .explainer import CausalGraphExplainer
 
-__all__ = [
-    'CausalGraphBuilder',
-    'CausalPathRetriever',
-    'CausalGraphExplainer'
-] 
+
+def __getattr__(name):
+    if name == "CausalGraphExplainer":
+        try:
+            from .explainer import CausalGraphExplainer
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                "Graph visualization requires optional visualization dependencies. "
+                "Install them with: pip install 'causalrag[visualization]'"
+            ) from exc
+        return CausalGraphExplainer
+    raise AttributeError("module 'causalrag.causal_graph' has no attribute %r" % name)
+
+
+__all__ = ["CausalGraphBuilder", "CausalPathRetriever"]
