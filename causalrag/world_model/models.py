@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 
 def _now() -> str:
@@ -56,7 +56,13 @@ class CausalBelief:
 
 @dataclass
 class Hypothesis:
-    """A competing explanation that remains explicitly falsifiable."""
+    """A competing explanation that remains explicitly falsifiable.
+
+    ``origin`` and ``validated`` distinguish authored/known hypotheses from new
+    open-world explanations. A discovered hypothesis is provisional until an
+    actual experiment updates it strongly enough; proposer confidence alone is
+    never treated as validation.
+    """
 
     hypothesis_id: str
     statement: str
@@ -66,6 +72,9 @@ class Hypothesis:
     supporting_evidence: List[Evidence] = field(default_factory=list)
     conflicting_evidence: List[Evidence] = field(default_factory=list)
     status: str = "active"
+    origin: str = "authored"
+    validated: bool = True
+    experiment_predictions: Dict[str, Dict[str, float]] = field(default_factory=dict)
     version: int = 1
     updated_at: str = field(default_factory=_now)
 
@@ -92,23 +101,37 @@ class Hypothesis:
         self.updated_at = _now()
 
     def set_probability(self, probability: float, evidence: Optional[Evidence] = None) -> None:
-        """Set an externally computed probability while preserving evidence direction.
-
-        For exact posterior updates, ``evidence.weight`` is authoritative about
-        whether the observation supported or conflicted with the hypothesis.
-        This matters when the external estimator normalizes a set of operational
-        credences before computing a posterior: comparing the posterior to the
-        raw pre-normalized credence can give the wrong evidence direction.
-        """
+        """Set an externally computed probability while preserving evidence direction."""
         self.probability = max(0.001, min(0.999, float(probability)))
         if evidence is not None:
             if float(evidence.weight) >= 0.0:
                 self.supporting_evidence.append(evidence)
             else:
                 self.conflicting_evidence.append(evidence)
+            if (
+                self.origin == "discovered"
+                and evidence.kind == "bayesian_experiment"
+                and self.probability >= 0.5
+            ):
+                self.validated = True
         self._refresh_status()
         self.version += 1
         self.updated_at = _now()
+
+
+@dataclass
+class ModelMismatch:
+    """Evidence that the currently modeled hypothesis set predicts poorly."""
+
+    mismatch_id: str
+    experiment_id: str
+    outcome: str
+    predictive_probability: float
+    surprisal: float
+    severity: str = "soft"
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    resolved: bool = False
+    created_at: str = field(default_factory=_now)
 
 
 @dataclass
@@ -130,6 +153,8 @@ class CausalWorldModel:
         self._beliefs: Dict[Tuple[str, str], CausalBelief] = {}
         self._hypotheses: Dict[str, Hypothesis] = {}
         self.transitions: List[Transition] = []
+        self.model_mismatches: List[ModelMismatch] = []
+        self.model_mismatch_active: bool = False
 
     def upsert_belief(self, cause: str, effect: str, probability: float = 0.5, **kwargs: Any) -> CausalBelief:
         key = (cause, effect)
@@ -148,13 +173,38 @@ class CausalWorldModel:
         belief.update(evidence)
         return belief
 
-    def upsert_hypothesis(self, hypothesis_id: str, statement: str, probability: float = 0.5, rationale: str = "", falsifiers: Optional[Iterable[str]] = None) -> Hypothesis:
+    def upsert_hypothesis(
+        self,
+        hypothesis_id: str,
+        statement: str,
+        probability: float = 0.5,
+        rationale: str = "",
+        falsifiers: Optional[Iterable[str]] = None,
+        origin: str = "authored",
+        validated: bool = True,
+        experiment_predictions: Optional[Mapping[str, Mapping[str, float]]] = None,
+    ) -> Hypothesis:
         hypothesis_id = str(hypothesis_id).strip()
         if not hypothesis_id:
             raise ValueError("hypothesis_id must be non-empty")
         existing = self._hypotheses.get(hypothesis_id)
         if existing is None:
-            existing = Hypothesis(hypothesis_id=hypothesis_id, statement=str(statement).strip(), probability=max(0.001, min(0.999, float(probability))), rationale=str(rationale or ""), falsifiers=[str(item) for item in (falsifiers or []) if str(item).strip()])
+            existing = Hypothesis(
+                hypothesis_id=hypothesis_id,
+                statement=str(statement).strip(),
+                probability=max(0.001, min(0.999, probability)),
+                rationale=str(rationale or ""),
+                falsifiers=[str(item) for item in (falsifiers or []) if str(item).strip()],
+                origin=str(origin or "authored"),
+                validated=bool(validated),
+                experiment_predictions={
+                    str(experiment_id): {
+                        str(outcome): float(value)
+                        for outcome, value in distribution.items()
+                    }
+                    for experiment_id, distribution in (experiment_predictions or {}).items()
+                },
+            )
             self._hypotheses[hypothesis_id] = existing
         else:
             if statement:
@@ -163,8 +213,47 @@ class CausalWorldModel:
                 existing.rationale = str(rationale)
             if falsifiers:
                 existing.falsifiers = [str(item) for item in falsifiers if str(item).strip()]
+            if experiment_predictions:
+                existing.experiment_predictions.update(
+                    {
+                        str(experiment_id): {
+                            str(outcome): float(value)
+                            for outcome, value in distribution.items()
+                        }
+                        for experiment_id, distribution in experiment_predictions.items()
+                    }
+                )
             existing.updated_at = _now()
         return existing
+
+    def add_discovered_hypothesis(
+        self,
+        hypothesis_id: str,
+        statement: str,
+        rationale: str = "",
+        falsifiers: Optional[Iterable[str]] = None,
+        experiment_predictions: Optional[Mapping[str, Mapping[str, float]]] = None,
+        initial_probability: float = 0.2,
+    ) -> Optional[Hypothesis]:
+        """Add a model-discovered explanation as provisional runtime state.
+
+        Confidence supplied by the proposer is intentionally ignored. The
+        runtime assigns a bounded initial credence and requires experimental
+        evidence before ``validated`` can become true.
+        """
+        hypothesis_id = str(hypothesis_id).strip()
+        if not hypothesis_id or hypothesis_id in self._hypotheses:
+            return None
+        return self.upsert_hypothesis(
+            hypothesis_id=hypothesis_id,
+            statement=statement,
+            probability=max(0.01, min(0.4, float(initial_probability))),
+            rationale=rationale,
+            falsifiers=falsifiers,
+            origin="discovered",
+            validated=False,
+            experiment_predictions=experiment_predictions,
+        )
 
     def hypotheses(self, include_rejected: bool = True) -> List[Hypothesis]:
         values = list(self._hypotheses.values())
@@ -196,6 +285,7 @@ class CausalWorldModel:
                 "probability": getattr(proposal, "probability", 0.5),
                 "rationale": getattr(proposal, "rationale", ""),
                 "falsifiers": getattr(proposal, "falsifiers", []),
+                "experiment_predictions": getattr(proposal, "experiment_predictions", {}),
             }
             hypothesis_id = data.get("id") or data.get("hypothesis_id")
             statement = data.get("statement")
@@ -205,7 +295,26 @@ class CausalWorldModel:
                 probability = float(data.get("probability", 0.5))
             except (TypeError, ValueError):
                 probability = 0.5
-            self.upsert_hypothesis(str(hypothesis_id), str(statement), probability, str(data.get("rationale") or ""), data.get("falsifiers") or [])
+            self.upsert_hypothesis(
+                str(hypothesis_id),
+                str(statement),
+                probability,
+                str(data.get("rationale") or ""),
+                data.get("falsifiers") or [],
+                experiment_predictions=data.get("experiment_predictions") or {},
+            )
+
+    def record_model_mismatch(self, mismatch: ModelMismatch) -> None:
+        self.model_mismatches.append(mismatch)
+        self.model_mismatch_active = True
+
+    def unresolved_model_mismatches(self) -> List[ModelMismatch]:
+        return [item for item in self.model_mismatches if not item.resolved]
+
+    def resolve_model_mismatch(self) -> None:
+        for item in self.model_mismatches:
+            item.resolved = True
+        self.model_mismatch_active = False
 
     def record_transition(self, transition: Transition) -> None:
         self.transitions.append(transition)
@@ -215,8 +324,26 @@ class CausalWorldModel:
         return sorted(matches, key=lambda b: b.probability, reverse=True)[:limit]
 
     def snapshot(self) -> Dict[str, Any]:
+        unresolved = self.unresolved_model_mismatches()
         return {
             "beliefs": [{"cause": b.cause, "effect": b.effect, "probability": b.probability, "context": b.context, "mechanism": b.mechanism, "temporal_lag": b.temporal_lag, "version": b.version} for b in self.beliefs()],
-            "hypotheses": [{"id": h.hypothesis_id, "statement": h.statement, "probability": h.probability, "rationale": h.rationale, "falsifiers": h.falsifiers, "status": h.status, "support_count": len(h.supporting_evidence), "conflict_count": len(h.conflicting_evidence), "version": h.version} for h in self.hypotheses()],
+            "hypotheses": [{"id": h.hypothesis_id, "statement": h.statement, "probability": h.probability, "rationale": h.rationale, "falsifiers": h.falsifiers, "status": h.status, "origin": h.origin, "validated": h.validated, "experiment_predictions": h.experiment_predictions, "support_count": len(h.supporting_evidence), "conflict_count": len(h.conflicting_evidence), "version": h.version} for h in self.hypotheses()],
+            "open_world": {
+                "model_mismatch": self.model_mismatch_active,
+                "none_of_the_above": self.model_mismatch_active,
+                "unresolved_mismatch_count": len(unresolved),
+                "recent_mismatches": [
+                    {
+                        "id": item.mismatch_id,
+                        "experiment_id": item.experiment_id,
+                        "outcome": item.outcome,
+                        "predictive_probability": item.predictive_probability,
+                        "surprisal": item.surprisal,
+                        "severity": item.severity,
+                        "created_at": item.created_at,
+                    }
+                    for item in unresolved[-5:]
+                ],
+            },
             "transition_count": len(self.transitions),
         }
