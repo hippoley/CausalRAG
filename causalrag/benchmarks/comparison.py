@@ -77,13 +77,7 @@ def _attach_intervention_contracts(
     scenario: HiddenWorldScenario,
     wrong_intervention_utility: float = 0.0,
 ) -> None:
-    """Attach explicit intervention outcome utilities to runtime capabilities.
-
-    The benchmark world stays unchanged. Different decision-value policies can
-    express different domain loss models through the same InterventionContract.
-    A wrong action may be neutral (0.0) or harmful (negative utility); the
-    runtime EVSI math remains identical.
-    """
+    """Attach explicit intervention outcome utilities to runtime capabilities."""
     hypothesis_ids = list(scenario.hypotheses)
     by_name = {tool.name: tool for tool in tools}
     wrong_utility = float(wrong_intervention_utility)
@@ -183,7 +177,6 @@ def compare_hidden_world_policies(
         GreedyEIGPolicy,
         ConservativeEIGPolicy,
         DecisionValuePolicy,
-        RiskSensitiveDecisionValuePolicy,
         CheapestProbePolicy,
         RandomProbePolicy,
     ),
@@ -216,4 +209,39 @@ def compare_hidden_world_policies(
             reports=reports,
         ),
         all_metrics,
+    )
+
+
+def _risk_policy_type(wrong_action_loss: float):
+    loss = max(0.0, float(wrong_action_loss))
+    label = str(loss).replace(".", "p")
+    return type(
+        f"RiskSensitiveDecisionValueLoss{label}",
+        (RiskSensitiveDecisionValuePolicy,),
+        {
+            "policy_id": f"decision_value_wrong_loss_{label}",
+            "wrong_intervention_utility": -loss,
+        },
+    )
+
+
+def compare_risk_sensitivity(
+    wrong_action_losses: Iterable[float] = (0.0, 0.5, 1.0, 2.0),
+    seeds: Iterable[int] = range(20),
+    hidden_hypotheses: Sequence[str] = ("H1", "H2", "H3"),
+    max_steps: int = 7,
+) -> Tuple[PolicyComparisonReport, Dict[str, List[HiddenWorldMetrics]]]:
+    """Measure the policy frontier as wrong-action loss increases.
+
+    The environment, experiment likelihoods, capability prices, and seeds stay
+    fixed. Only the intervention utility assigned to a wrong action changes.
+    This makes phase changes in observe-vs-intervene behavior directly visible
+    instead of hiding a magic risk constant in the policy implementation.
+    """
+    policies = tuple(_risk_policy_type(loss) for loss in wrong_action_losses)
+    return compare_hidden_world_policies(
+        seeds=seeds,
+        hidden_hypotheses=hidden_hypotheses,
+        policy_types=policies,
+        max_steps=max_steps,
     )
