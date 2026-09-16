@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from causalrag.interface import agent_api
 
 
@@ -36,3 +39,19 @@ def test_api_forwards_embedding_configuration(monkeypatch):
     assert captured["embedding_provider_name"] == "local"
     assert captured["embedding_model"] == "all-MiniLM-L6-v2"
     assert captured["vector_backend"] == "faiss"
+
+
+def test_api_rejects_unknown_embedding_provider():
+    with pytest.raises(ValidationError):
+        agent_api.AgentRunRequest(
+            goal="inspect ventilation",
+            embedding_provider="mystery",
+        )
+
+
+def test_api_rejects_unknown_vector_backend():
+    with pytest.raises(ValidationError):
+        agent_api.AgentRunRequest(
+            goal="inspect ventilation",
+            vector_backend="mystery",
+        )
