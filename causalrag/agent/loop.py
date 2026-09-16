@@ -11,6 +11,7 @@ from .state import AgentState, Observation
 
 
 BeliefUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
+HypothesisUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
 GoalEvaluator = Callable[[AgentState, CausalWorldModel], bool]
 
 
@@ -23,12 +24,14 @@ class CausalAgentLoop:
         tools: Optional[ToolRegistry] = None,
         world_model: Optional[CausalWorldModel] = None,
         belief_updater: Optional[BeliefUpdater] = None,
+        hypothesis_updater: Optional[HypothesisUpdater] = None,
         goal_evaluator: Optional[GoalEvaluator] = None,
     ) -> None:
         self.reasoner = reasoner
         self.tools = tools or ToolRegistry()
         self.world_model = world_model or CausalWorldModel()
         self.belief_updater = belief_updater
+        self.hypothesis_updater = hypothesis_updater
         self.goal_evaluator = goal_evaluator
 
     def run(self, goal: str, max_steps: int = 10) -> AgentState:
@@ -41,6 +44,12 @@ class CausalAgentLoop:
                 break
 
             candidates = list(self.reasoner.propose(state, self.world_model))
+            proposal_method = getattr(self.reasoner, "hypothesis_proposals", None)
+            if callable(proposal_method):
+                self.world_model.sync_hypotheses(
+                    proposal_method(state, self.world_model)
+                )
+
             selected = select_action(candidates)
             uncertainty = self.reasoner.uncertainty(state, self.world_model)
 
@@ -78,12 +87,16 @@ class CausalAgentLoop:
                     expected_effects={
                         "goal_gain": selected.expected_goal_gain,
                         "information_gain": selected.expected_information_gain,
+                        "tests_hypotheses": list(selected.tests_hypotheses),
+                        "falsification_target": selected.falsification_target,
                     },
                 )
             )
 
             if self.belief_updater:
                 self.belief_updater(state, self.world_model, decision, observation)
+            if self.hypothesis_updater:
+                self.hypothesis_updater(state, self.world_model, decision, observation)
 
             state.step += 1
 
