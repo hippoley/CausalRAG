@@ -21,8 +21,22 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Compile
-        run: python -m compileall -q causalrag
+      - name: Compile top-level runtime
+        run: python -m py_compile causalrag/__init__.py causalrag/pipeline.py causalrag/cli.py
+      - name: Compile agent
+        run: python -m compileall -q causalrag/agent
+      - name: Compile world model
+        run: python -m compileall -q causalrag/world_model
+      - name: Compile reasoning
+        run: python -m compileall -q causalrag/reasoning
+      - name: Compile tools
+        run: python -m compileall -q causalrag/tools
+      - name: Compile causal graph
+        run: python -m compileall -q causalrag/causal_graph
+      - name: Compile retrievers
+        run: python -m compileall -q causalrag/retriever causalrag/reranker
+      - name: Compile generator evaluation interface utils
+        run: python -m compileall -q causalrag/generator causalrag/evaluation causalrag/interface causalrag/utils
       - name: Import smoke
         run: |
           python -c "import causalrag; from causalrag import CausalAgent, create_agent; print(causalrag.__version__)"
