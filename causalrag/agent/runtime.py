@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, Iterable, Optional
 
-from causalrag.pipeline import CausalRAGPipeline
+from causalrag.generator.llm_interface import LLMInterface
 from causalrag.reasoning.belief import LLMBeliefUpdater
 from causalrag.reasoning.llm import LLMCausalReasoner
 from causalrag.tools.base import ToolRegistry, ToolSpec
@@ -26,8 +26,8 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def _sync_graph_beliefs(pipeline: CausalRAGPipeline, world_model: CausalWorldModel) -> None:
-    """Seed explicit beliefs from the current extracted causal graph."""
+def _sync_graph_beliefs(pipeline: Any, world_model: CausalWorldModel) -> None:
+    """Seed explicit beliefs from an optional extracted causal graph."""
     graph = pipeline.graph_builder.get_graph()
     node_text = pipeline.graph_builder.node_text
     for cause_id, effect_id, data in graph.edges(data=True):
@@ -60,19 +60,24 @@ class AgentRunResult:
 
 
 class CausalAgent:
-    """User-facing causal agent with retrieval available out of the box."""
+    """User-facing causal agent.
 
-    def __init__(
-        self,
-        loop: CausalAgentLoop,
-        pipeline: Optional[CausalRAGPipeline] = None,
-    ) -> None:
+    The core runtime has no retrieval dependency. RAG is attached lazily when
+    the agent is created with documents/index/graph input or
+    ``enable_retrieval=True``.
+    """
+
+    def __init__(self, loop: CausalAgentLoop, pipeline: Optional[Any] = None) -> None:
         self.loop = loop
         self.pipeline = pipeline
 
     def index(self, documents: Iterable[str]) -> "CausalAgent":
         if self.pipeline is None:
-            raise RuntimeError("This agent was created without a retrieval pipeline")
+            raise RuntimeError(
+                "Indexing is not enabled for this agent. Install the RAG extra "
+                "(`pip install 'causalrag[rag]'`) and create the agent with "
+                "enable_retrieval=True or documents/index_path."
+            )
         self.pipeline.index(list(documents))
         _sync_graph_beliefs(self.pipeline, self.loop.world_model)
         return self
@@ -93,6 +98,17 @@ class CausalAgent:
         return self.loop.tools
 
 
+def _load_rag_pipeline():
+    try:
+        from causalrag.pipeline import CausalRAGPipeline
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RuntimeError(
+            "CausalRAG retrieval requires the optional RAG dependencies. "
+            "Install them with: pip install 'causalrag[rag]'"
+        ) from exc
+    return CausalRAGPipeline
+
+
 def create_agent(
     model_name: str = "gpt-4o-mini",
     embedding_model: str = "all-MiniLM-L6-v2",
@@ -104,55 +120,81 @@ def create_agent(
     api_key: Optional[str] = None,
     world_model: Optional[CausalWorldModel] = None,
     extractor_method: str = "hybrid",
+    enable_retrieval: Optional[bool] = None,
+    llm: Optional[Any] = None,
+    reasoner: Optional[Any] = None,
+    belief_updater: Optional[Any] = None,
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
 
-    By default, indexing combines rule-based and model-based causal extraction.
-    Set ``extractor_method='rule'`` for offline/low-cost indexing.
+    Core-only usage is lightweight and does not import the RAG/embedding stack.
+    Retrieval is enabled automatically when documents, graph_path or index_path
+    are supplied, or explicitly with ``enable_retrieval=True``.
+
+    ``reasoner`` and ``llm`` are injectable so local/custom policies can use the
+    runtime without an OpenAI key or vendor-specific orchestration layer.
     """
-    pipeline = CausalRAGPipeline(
-        model_name=model_name,
-        embedding_model=embedding_model,
-        graph_path=graph_path,
-        index_path=index_path,
-        provider=provider,
-        api_key=api_key,
-        extractor_method=extractor_method,
-    )
-    if documents:
-        pipeline.index(list(documents))
-
-    model_state = world_model or CausalWorldModel()
-    _sync_graph_beliefs(pipeline, model_state)
-
     registry = ToolRegistry(tools)
+    model_state = world_model or CausalWorldModel()
+    pipeline = None
 
-    def retrieve_evidence(query: str, top_k: int = 5) -> Dict[str, Any]:
-        candidates = pipeline.hybrid_retriever.retrieve(query, top_k=top_k)
-        reranked = pipeline.reranker.rerank(query, candidates)
-        paths = pipeline.graph_retriever.retrieve_paths(query, max_paths=5)
-        return {
-            "query": query,
-            "evidence": reranked[:top_k],
-            "causal_paths": paths,
-        }
+    wants_retrieval = (
+        bool(documents or graph_path or index_path)
+        if enable_retrieval is None
+        else enable_retrieval
+    )
 
-    if "retrieve_evidence" not in registry.specs():
-        registry.register(
-            ToolSpec(
-                name="retrieve_evidence",
-                description="Retrieve semantically and causally relevant evidence from the indexed corpus.",
-                handler=retrieve_evidence,
-                cost=0.05,
-                risk=0.0,
-                reversible=True,
-                metadata={"kind": "retrieve", "arguments": {"query": "str", "top_k": "int"}},
-            )
+    if wants_retrieval:
+        CausalRAGPipeline = _load_rag_pipeline()
+        pipeline = CausalRAGPipeline(
+            model_name=model_name,
+            embedding_model=embedding_model,
+            graph_path=graph_path,
+            index_path=index_path,
+            provider=provider,
+            api_key=api_key,
+            extractor_method=extractor_method,
         )
+        if documents:
+            pipeline.index(list(documents))
+        _sync_graph_beliefs(pipeline, model_state)
 
-    llm = pipeline.llm
-    reasoner = LLMCausalReasoner(llm=llm, tools=registry)
-    belief_updater = LLMBeliefUpdater(llm=llm)
+        def retrieve_evidence(query: str, top_k: int = 5) -> Dict[str, Any]:
+            candidates = pipeline.hybrid_retriever.retrieve(query, top_k=top_k)
+            reranked = pipeline.reranker.rerank(query, candidates)
+            paths = pipeline.graph_retriever.retrieve_paths(query, max_paths=5)
+            return {
+                "query": query,
+                "evidence": reranked[:top_k],
+                "causal_paths": paths,
+            }
+
+        if "retrieve_evidence" not in registry.specs():
+            registry.register(
+                ToolSpec(
+                    name="retrieve_evidence",
+                    description="Retrieve semantically and causally relevant evidence from the indexed corpus.",
+                    handler=retrieve_evidence,
+                    cost=0.05,
+                    risk=0.0,
+                    reversible=True,
+                    metadata={
+                        "kind": "retrieve",
+                        "arguments": {"query": "str", "top_k": "int"},
+                    },
+                )
+            )
+        if llm is None:
+            llm = pipeline.llm
+
+    if reasoner is None:
+        if llm is None:
+            llm = LLMInterface(model=model_name, provider=provider, api_key=api_key)
+        reasoner = LLMCausalReasoner(llm=llm, tools=registry)
+
+    if belief_updater is None and llm is not None:
+        belief_updater = LLMBeliefUpdater(llm=llm)
+
     loop = CausalAgentLoop(
         reasoner=reasoner,
         tools=registry,
