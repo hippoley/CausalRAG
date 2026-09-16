@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from causalrag.experiments import ExperimentContract
+    from causalrag.experiments import ExperimentContract, InterventionContract
 
 
 @dataclass
@@ -17,6 +17,7 @@ class ToolSpec:
     reversible: bool = True
     metadata: Dict[str, Any] = field(default_factory=dict)
     experiment_contract: Optional["ExperimentContract"] = None
+    intervention_contract: Optional["InterventionContract"] = None
 
 
 class ToolRegistry:

@@ -17,6 +17,7 @@ from .hidden_world import (
 from .policies import (
     CheapestProbePolicy,
     ConservativeEIGPolicy,
+    DecisionValuePolicy,
     GreedyEIGPolicy,
     RandomProbePolicy,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "PolicyReport",
     "GreedyEIGPolicy",
     "ConservativeEIGPolicy",
+    "DecisionValuePolicy",
     "CheapestProbePolicy",
     "RandomProbePolicy",
     "build_hvac_hidden_world",

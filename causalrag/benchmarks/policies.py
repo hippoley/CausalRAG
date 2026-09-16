@@ -8,6 +8,7 @@ from causalrag.agent.actions import ActionKind, CandidateAction
 
 class _BaseHiddenWorldPolicy:
     policy_id = "base"
+    requires_intervention_contracts = False
 
     def __init__(
         self,
@@ -166,3 +167,32 @@ class RandomProbePolicy(_BaseHiddenWorldPolicy):
             return self._intervention(world_model)
         name = self._rng.choice(list(self.scenario.experiments))
         return [self._experiment_action(name)]
+
+
+class DecisionValuePolicy(_BaseHiddenWorldPolicy):
+    """Threshold-free policy: runtime decides sample vs intervene by expected utility."""
+
+    policy_id = "decision_value"
+    requires_intervention_contracts = True
+
+    def propose(self, state, world_model) -> Sequence[CandidateAction]:
+        if self._latest_is_intervention(state):
+            return self._stop_after_intervention(state)
+
+        candidates = [
+            self._experiment_action(name)
+            for name in self.scenario.experiments
+        ]
+        candidates.extend(
+            CandidateAction(
+                kind=ActionKind.INTERVENE,
+                name=name,
+                expected_goal_gain=0.0,
+                rationale=(
+                    "Runtime decision value compares intervention utility against "
+                    "the value of gathering another sample."
+                ),
+            )
+            for name in self.scenario.interventions
+        )
+        return candidates

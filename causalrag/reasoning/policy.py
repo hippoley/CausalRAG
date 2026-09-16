@@ -4,7 +4,12 @@ import math
 from typing import List, Optional, Sequence, Tuple
 
 from causalrag.agent.actions import ActionKind, ActionScore, CandidateAction
-from causalrag.experiments import contract_applicable, expected_information_gain
+from causalrag.experiments import (
+    contract_applicable,
+    expected_information_gain,
+    experiment_decision_value,
+    intervention_value,
+)
 from causalrag.tools.base import ToolRegistry
 from causalrag.world_model.models import CausalWorldModel, Hypothesis
 
@@ -65,20 +70,16 @@ def _tool_spec_for_action(action: CandidateAction, tools: Optional[ToolRegistry]
         return None
 
 
-def _contract_for_action(action: CandidateAction, tools: Optional[ToolRegistry]):
-    tool_spec = _tool_spec_for_action(action, tools)
-    return None if tool_spec is None else tool_spec.experiment_contract
-
-
 def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel] = None, candidate_index: int = 0, tools: Optional[ToolRegistry] = None) -> ActionScore:
     model_information_gain = _clamp01(action.expected_information_gain)
     discrimination = hypothesis_discrimination_score(action, world_model)
     bayesian_information_gain = None
     tool_spec = _tool_spec_for_action(action, tools)
-    contract = None if tool_spec is None else tool_spec.experiment_contract
+    experiment_contract = None if tool_spec is None else tool_spec.experiment_contract
+    intervention_contract = None if tool_spec is None else tool_spec.intervention_contract
 
-    if contract is not None and world_model is not None and contract_applicable(contract, world_model):
-        bayesian_information_gain = expected_information_gain(contract, world_model)
+    if experiment_contract is not None and world_model is not None and contract_applicable(experiment_contract, world_model):
+        bayesian_information_gain = expected_information_gain(experiment_contract, world_model)
         information_gain = bayesian_information_gain
         information_source = "runtime_bayesian_eig"
     elif discrimination is not None:
@@ -101,7 +102,45 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
         if not tool_spec.reversible:
             irreversibility = max(irreversibility, 1.0)
 
-    total_utility = goal_gain + information_gain - cost - risk - irreversibility
+    decision_value = None
+    decision_value_source = None
+    evsi = None
+    net_sampling = None
+
+    if world_model is not None and tools is not None and intervention_contract is not None:
+        intervention = intervention_value(
+            action.name,
+            intervention_contract,
+            world_model,
+            capability_cost=cost,
+        )
+        if intervention is not None:
+            decision_value = intervention.net_value - risk - irreversibility
+            decision_value_source = "runtime_expected_intervention_utility"
+    elif world_model is not None and tools is not None and experiment_contract is not None:
+        experiment_value = experiment_decision_value(
+            action.name,
+            experiment_contract,
+            world_model,
+            tools,
+            experiment_cost=cost,
+        )
+        if experiment_value is not None:
+            decision_value = (
+                experiment_value.expected_best_value_after
+                - experiment_value.experiment_cost
+                - risk
+                - irreversibility
+            )
+            decision_value_source = "runtime_expected_decision_value_after_sampling"
+            evsi = experiment_value.evsi
+            net_sampling = experiment_value.net_value_of_sampling
+
+    if decision_value is not None:
+        total_utility = decision_value
+    else:
+        total_utility = goal_gain + information_gain - cost - risk - irreversibility
+
     return ActionScore(
         candidate_index=candidate_index,
         action_name=action.name,
@@ -116,6 +155,10 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
         cost=cost,
         risk=risk,
         irreversibility=irreversibility,
+        decision_value=decision_value,
+        decision_value_source=decision_value_source,
+        expected_value_of_sample_information=evsi,
+        net_value_of_sampling=net_sampling,
     )
 
 
