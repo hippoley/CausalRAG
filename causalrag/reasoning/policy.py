@@ -13,6 +13,10 @@ def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
 
 
+def _has_active_hypotheses(world_model: Optional[CausalWorldModel]) -> bool:
+    return bool(world_model and world_model.hypotheses(include_rejected=False))
+
+
 def hypothesis_discrimination_score(action: CandidateAction, world_model: Optional[CausalWorldModel]) -> Optional[float]:
     if not action.tests_hypotheses:
         return None
@@ -66,6 +70,7 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
     discrimination = hypothesis_discrimination_score(action, world_model)
     bayesian_information_gain = None
     contract = _contract_for_action(action, tools)
+
     if contract is not None and world_model is not None and contract_applicable(contract, world_model):
         bayesian_information_gain = expected_information_gain(contract, world_model)
         information_gain = bayesian_information_gain
@@ -73,9 +78,16 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
     elif discrimination is not None:
         information_gain = discrimination
         information_source = "runtime_hypothesis_discrimination"
+    elif _has_active_hypotheses(world_model) and action.kind in (ActionKind.OBSERVE, ActionKind.RETRIEVE, ActionKind.ASK):
+        # Once explicit competing hypotheses exist, epistemic utility must be
+        # anchored to those hypotheses or to a runtime-owned experiment model.
+        # The model's self-score is retained for audit but cannot drive policy.
+        information_gain = 0.0
+        information_source = "unanchored_model_estimate"
     else:
         information_gain = model_information_gain
         information_source = "model_estimate"
+
     goal_gain = _clamp01(action.expected_goal_gain)
     total_utility = goal_gain + information_gain - float(action.cost) - float(action.risk) - float(action.irreversibility)
     return ActionScore(
