@@ -34,16 +34,15 @@ The runtime is designed around three ideas:
 2. **Beliefs are explicit.** The system keeps a causal world model and a trace of action → observation transitions instead of hiding all state inside the model context.
 3. **Retrieval is one capability, not the identity of the system.** RAG remains useful for gathering evidence, but agents can also observe, ask, intervene, wait, and stop.
 
-> v0.2 is currently on `feature/causal-agent-v2` and PR #3 while install/CI checks are completed. The legacy `CausalRAGPipeline` remains available, but new applications should start with `create_agent()`.
+The legacy `CausalRAGPipeline` remains available as an optional compatibility layer, but new applications should start with `create_agent()`.
 
-## Install the latest v0.2 branch
+## Install v0.2
 
 The default install is the lightweight causal-agent runtime. It does **not** install the embedding/Torch/FAISS stack.
 
 ```bash
 git clone https://github.com/hippoley/CausalRAG.git
 cd CausalRAG
-git checkout feature/causal-agent-v2
 pip install -e .
 ```
 
@@ -61,6 +60,8 @@ For the default OpenAI-backed reasoner:
 ```bash
 export OPENAI_API_KEY=...
 ```
+
+The default OpenAI reasoning model is `gpt-5.6-terra`, using the Responses API. You can override `model_name` or `--model` when you need a different model.
 
 Python **3.10+** is required for the v0.2 agent runtime. Core CI exercises Python 3.10 and 3.12 independently from optional RAG/API checks.
 
@@ -144,7 +145,7 @@ agent = create_agent(
 )
 ```
 
-This is useful for deterministic policies, local models, test doubles, domain-specific planners, or a future non-LLM causal policy.
+This is useful for deterministic policies, local models, test doubles, domain-specific planners, or a future non-LLM causal policy. The core path can run without an API key when you provide your own reasoner.
 
 ## CLI
 
@@ -216,7 +217,7 @@ Content-Type: application/json
 {
   "goal": "Find the safest leverage point for reducing indoor CO2",
   "max_steps": 8,
-  "model": "gpt-4o-mini",
+  "model": "gpt-5.6-terra",
   "provider": "openai"
 }
 ```
@@ -227,7 +228,7 @@ If the request includes `documents`, install both optional layers:
 pip install -e ".[api,rag]"
 ```
 
-The response contains the final answer plus the decision trace, observations, current beliefs, and recorded transitions.
+The response contains the final answer plus the decision trace, observations, current beliefs, and recorded transitions. `steps` is the number of decision rounds including the terminal `STOP`; `executed_actions` counts non-STOP actions actually executed against a tool or the world.
 
 ## Add real-world capabilities
 
@@ -398,6 +399,7 @@ For new projects, prefer `create_agent()`.
 - persistent `AgentState`
 - `observe / retrieve / ask / intervene / wait / stop`
 - schema-constrained model-backed action proposals
+- GPT-5.6 Terra + Responses API as the default OpenAI path
 - runtime-enforced capability risk/cost/reversibility
 - causal utility action selection
 - explicit decision records
