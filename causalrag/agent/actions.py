@@ -50,6 +50,10 @@ class ActionScore:
     cost: float
     risk: float
     irreversibility: float
+    decision_value: Optional[float] = None
+    decision_value_source: Optional[str] = None
+    expected_value_of_sample_information: Optional[float] = None
+    net_value_of_sampling: Optional[float] = None
 
 
 @dataclass
