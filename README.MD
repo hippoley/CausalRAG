@@ -1,509 +1,333 @@
-# 🧠 CausalRAG: Integrating Causal Graphs into Retrieval-Augmented Generation
+# CausalRAG v0.2 — from retrieval to intervention
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![arXiv](https://img.shields.io/badge/arXiv-CausalRAG-b31b1b.svg)](https://arxiv.org)
+CausalRAG is evolving from a causal-graph-enhanced RAG pipeline into a **goal-directed agent runtime built around an explicit causal world model**.
 
-CausalRAG enhances traditional retrieval-augmented generation (RAG) by incorporating causal reasoning. By building and leveraging causal graphs, the system can provide more accurate, coherent, and contextually relevant responses that reflect true causal relationships within knowledge sources.
+The core loop is no longer just:
 
-<p align="center">
-  <img src="./docs/causalrag_architecture.png" alt="CausalRAG Overview" width="700"/>
-</p>
+```text
+query → retrieve → rerank → answer
+```
 
-&nbsp;
+It is:
 
-## 🌟 Key Features
+```text
+Goal
+  ↓
+Belief state
+  ↓
+Candidate actions
+  ↓
+Causal utility selection
+  ↓
+Observe / Retrieve / Ask / Intervene / Wait
+  ↓
+Observation
+  ↓
+Transition + belief update
+  ↓
+Repeat or Stop
+```
 
-- 🔍 **Causal Triple Extraction**: Automatically extracts cause-effect relationships from text
-- 📊 **Dynamic Causal Graph Construction**: Builds a structured representation of causal knowledge
-- 🧩 **Causal Path Retrieval**: Identifies relevant causal chains for any query
-- 🔄 **Graph-Enhanced Reranking**: Prioritizes passages containing causal relationships
-- 💡 **Causally-Informed Generation**: Produces answers that respect causal constraints
+The runtime is designed around three ideas:
 
-&nbsp;
+1. **Proposal is not decision.** A model proposes actions; a separate policy scores goal gain, information gain, cost, risk, and irreversibility.
+2. **Beliefs are explicit.** The system keeps a causal world model and a trace of action → observation transitions instead of hiding all state inside the model context.
+3. **Retrieval is one capability, not the identity of the system.** RAG remains useful for gathering evidence, but agents can also observe, ask, intervene, wait, and stop.
 
-## 📋 Requirements
+> v0.2 is an active architectural transition. The legacy `CausalRAGPipeline` remains available, but new applications should start with `create_agent()`.
 
-- Python 3.8+
-- PyTorch 1.10+
-- FAISS for efficient vector search
-- Sentence Transformers for embeddings
-- NetworkX for graph operations
-- API key for OpenAI (or other LLM providers)
-
-For GPU acceleration (optional):
-- CUDA 11.0+ compatible GPU
-- faiss-gpu instead of faiss-cpu
-
-&nbsp;
-
-## 🚀 Getting Started
-
-### Installation
+## Install
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/CausalRAG.git
+git clone https://github.com/hippoley/CausalRAG.git
 cd CausalRAG
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Optional: Install for development
+git checkout feature/causal-agent-v2
 pip install -e .
-
-# Optional: Install GPU-accelerated version
-pip install -r requirements-gpu.txt
 ```
 
-&nbsp;
+For the default OpenAI-backed reasoner:
 
-### Environment Setup
-
-Create a `.env` file in the project root (see `.env.example`):
-
-```
-# Copy the example environment file
-cp .env.example .env
-
-# Edit with your API keys
-nano .env  # or use your preferred editor
+```bash
+export OPENAI_API_KEY=...
 ```
 
-&nbsp;
+Python 3.8+ is supported.
 
-### Quick Example
+## 30-second quickstart
 
 ```python
-from causalrag import CausalRAGPipeline
+from causalrag import create_agent
 
-# Initialize pipeline
-pipeline = CausalRAGPipeline()
-
-# Index your documents (builds both vector index and causal graph)
-documents = [
-    "Climate change causes rising sea levels, which leads to coastal flooding.",
-    "Deforestation reduces carbon capture, increasing atmospheric CO2.",
-    "Higher CO2 levels accelerate global warming, exacerbating climate change.",
-    "Coastal flooding damages infrastructure and causes population displacement.",
-    "Climate policies aim to reduce emissions, thereby mitigating climate change effects."
-]
-pipeline.index(documents)
-
-# Query the system
-result = pipeline.run("What are the consequences of climate change?")
-print(result["answer"])
-
-# Access supporting information
-print("\nRelevant causal paths:")
-for path in result["causal_paths"]:
-    print(" → ".join(path))
-
-print("\nSupporting contexts:")
-for ctx in result["context"]:
-    print(f"- {ctx[:100]}...")
-```
-
-&nbsp;
-
-## 🖥️ Command Line Interface
-
-CausalRAG provides a convenient CLI for common operations:
-
-```bash
-# Display help information
-python -m causalrag.cli --help
-
-# Index a directory of documents
-python -m causalrag.cli index --input docs/ --output index/
-
-# Query an existing index
-python -m causalrag.cli query --index index/ --query "What causes coastal flooding?"
-
-# Start the API server
-python -m causalrag.cli serve --index index/ --host 0.0.0.0 --port 8000
-
-# Run evaluation on system performance
-python -m causalrag.cli evaluate --index index/ --output results/
-```
-
-&nbsp;
-
-## 📁 Project Structure
-
-```bash
-causalrag/
-├── README.md
-├── requirements.txt
-├── setup.py
-├── causalrag/
-│   ├── __init__.py
-│   ├── pipeline.py               # Orchestrates full RAG + Causal pipeline
-│   ├── causal_graph/
-│   │   ├── builder.py            # Causal triple extraction and graph building
-│   │   ├── retriever.py          # Causal path retriever (for reranking)
-│   │   ├── explainer.py          # Optional: Visualize or explain graph
-│   ├── reranker/
-│   │   ├── base.py               # Interface for reranking modules
-│   │   ├── causal_path.py        # Rerank by graph path presence
-│   ├── retriever/
-│   │   ├── vector_store.py       # FAISS or Weaviate wrapper
-│   │   ├── hybrid.py             # Hybrid vector + graph search
-│   │   ├── bm25_retriever.py     # Keyword-based retrieval
-│   ├── generator/
-│   │   ├── prompt_builder.py     # Prompt templates
-│   │   ├── llm_interface.py      # OpenAI / HuggingFace wrapper
-│   ├── evaluation/
-│   │   ├── evaluator.py          # Comprehensive evaluation framework
-│   ├── interface/
-│   │   ├── api.py                # FastAPI for plugin/server mode
-│   ├── utils/
-│   │   ├── io.py                 # File readers
-│   │   ├── logging.py            # Tracing and timing utils
-│   ├── cli.py                    # Command-line interface
-├── data/
-│   ├── evaluation/
-│   │   ├── evaluation_dataset.json # Built-in evaluation dataset
-├── examples/
-│   ├── basic_usage.py            # Full pipeline example (query → generation)
-│   ├── README.md                 # Examples documentation
-├── tests/
-│   ├── test_pipeline.py
-│   ├── test_graph.py
-│   ├── test_reranker.py
-```
-
-&nbsp;
-
-## 🧩 Key Components
-
-| Component | Description |
-|-----------|-------------|
-| **Causal Graph Builder** | Extracts causal triples from text and constructs a directed acyclic graph |
-| **Causal Path Retriever** | Finds causal paths relevant to the query |
-| **Reranker** | Prioritizes documents based on causal relevance |
-| **Vector Store** | Provides semantic similarity search capability |
-| **Hybrid Retriever** | Combines vector search with causal graph search |
-| **Prompt Builder** | Creates LLM prompts with causal context |
-| **LLM Interface** | Connects to language models for generation |
-| **Pipeline** | Orchestrates the entire process from query to answer |
-
-&nbsp;
-
-## 💡 How It Works
-
-CausalRAG enhances traditional RAG with causal reasoning in four key steps:
-
-1. **Causal Graph Construction**: 
-   - Extract causal triples (A→B relationships) from documents
-   - Build a connected graph of causal relationships
-   - Store embeddings of causal concepts for semantic matching
-
-2. **Hybrid Retrieval**:
-   - Perform standard vector similarity search
-   - Identify causally relevant concepts to the query
-   - Combine both signals to retrieve candidate passages
-
-3. **Causal Reranking**:
-   - Score passages based on presence of causally relevant concepts
-   - Prioritize passages that preserve causal path structure
-   - Select top passages that contain both relevance and causal coherence
-
-4. **Informed Generation**:
-   - Augment prompt with explicit causal paths
-   - Guide LLM to respect causal relationships in generation
-   - Produce answers that follow valid causal chains
-
-&nbsp;
-
-## 📊 Evaluation
-
-CausalRAG includes a comprehensive evaluation framework to measure system performance across multiple dimensions:
-
-### Built-in Metrics
-
-| Metric | Description |
-|--------|-------------|
-| **Faithfulness** | Measures whether the generated answers are supported by the retrieved context |
-| **Answer Relevancy** | Evaluates how well the answer addresses the question |
-| **Context Relevancy** | Assesses whether retrieved context is relevant to the question |
-| **Context Recall** | Measures how well the retrieved context covers the ground truth |
-| **Causal Consistency** | Evaluates whether answers respect the causal relationships in the data |
-| **Causal Completeness** | Measures how comprehensively the answers address important causal factors |
-
-### Running Evaluations
-
-You can evaluate the system using the CLI:
-
-```bash
-# Run evaluation with default settings
-python -m causalrag.cli evaluate --index index/ --output results/evaluation/
-
-# Run with specific metrics
-python -m causalrag.cli evaluate --index index/ --metrics "faithfulness,causal_consistency"
-
-# Use custom evaluation dataset
-python -m causalrag.cli evaluate --index index/ --dataset path/to/custom_dataset.json
-```
-
-Or programmatically:
-
-```python
-from causalrag import CausalRAGPipeline, CausalEvaluator
-from causalrag.generator.llm_interface import LLMInterface
-
-# Initialize pipeline
-pipeline = CausalRAGPipeline(model_name="gpt-4")
-
-# Load your evaluation data
-eval_data = [
-    {
-        "question": "How does climate change lead to coastal flooding?",
-        "ground_truth": "Climate change causes rising sea levels through melting ice caps..."
-    },
-    # More evaluation examples...
-]
-
-# Run evaluation
-results = CausalEvaluator.evaluate_pipeline(
-    pipeline=pipeline,
-    eval_data=eval_data,
-    metrics=["faithfulness", "causal_consistency"],
-    llm_interface=LLMInterface(model_name="gpt-4"),
-    results_dir="./results/evaluation"
+agent = create_agent(
+    documents=[
+        "Opening a window increases air exchange and can lower indoor CO2.",
+        "More occupants increase indoor CO2 when ventilation is unchanged.",
+        "Outdoor particulate pollution can make opening windows undesirable.",
+    ]
 )
 
-# Print results
-for metric, score in results.metrics.items():
-    print(f"{metric}: {score:.4f}")
-```
-
-### Custom Evaluation Datasets
-
-Evaluation datasets should be structured as JSON arrays of objects with the following fields:
-
-```json
-[
-  {
-    "question": "The question to answer",
-    "ground_truth": "Optional reference answer for evaluation",
-    "domain": "Optional domain/category tag",
-    "complexity": "Optional complexity level (e.g., 'simple', 'medium', 'complex')"
-  }
-]
-```
-
-&nbsp;
-
-## 🔌 Integration Options
-
-CausalRAG can be used in multiple ways:
-
-### Standalone QA System
-```python
-from causalrag import CausalRAGPipeline
-
-pipeline = CausalRAGPipeline()
-pipeline.index(documents)
-result = pipeline.run("What causes coastal flooding?")
-```
-
-&nbsp;
-
-### Plugin for Existing RAG
-```python
-from causalrag.reranker import CausalPathReranker
-from causalrag.causal_graph import CausalGraphBuilder, CausalPathRetriever
-
-# Build graph
-builder = CausalGraphBuilder()
-builder.index_documents(documents)
-
-# Setup reranker
-retriever = CausalPathRetriever(builder)
-reranker = CausalPathReranker(retriever)
-
-# Use in your existing RAG pipeline
-candidates = your_existing_retriever.retrieve(query)
-reranked_candidates = reranker.rerank(query, candidates)
-```
-
-&nbsp;
-
-### API Service
-```bash
-# Start the server
-python -m causalrag.cli serve --index your_index_dir/ --port 8000
-
-# In another application:
-curl -X POST "http://localhost:8000/query" \
-     -H "Content-Type: application/json" \
-     -d '{"query": "What are the effects of climate change?", "top_k": 5}'
-```
-
-&nbsp;
-
-## ⚙️ Advanced Configuration
-
-```python
-# Create pipeline with custom settings
-from causalrag import create_pipeline
-
-pipeline = create_pipeline(
-    model_name="gpt-4",
-    embedding_model="text-embedding-ada-002",
-    graph_path="saved/my_causal_graph.json",  # Load pre-built graph
-    config_path="config/custom_settings.json"  # Custom configuration
+result = agent.run(
+    "Find the safest leverage point for reducing indoor CO2 and explain what evidence should be checked first.",
+    max_steps=6,
 )
 
-# Configure causal vs. semantic weights
-pipeline.hybrid_retriever.semantic_weight = 0.3
-pipeline.hybrid_retriever.causal_weight = 0.7
-
-# Adjust reranker settings
-pipeline.reranker.node_match_weight = 1.2
-pipeline.reranker.path_match_weight = 2.0
-
-# Change prompt template style
-pipeline.prompt_builder = PromptBuilder(template_style="structured")
+print(result.answer)
+print(result.to_dict()["decisions"])
 ```
 
-&nbsp;
+A fresh agent automatically gets a `retrieve_evidence` capability backed by the existing hybrid vector + causal graph retrieval stack.
 
-## 📊 Performance Evaluation
+## CLI
 
-CausalRAG shows significant improvements over standard RAG systems:
+Run directly against a text file or directory:
 
-| Metric | Standard RAG | CausalRAG | Improvement |
-|--------|--------------|-----------|------------|
-| Answer Accuracy | 78.2% | 87.5% | +9.3% |
-| Causal Consistency | 65.4% | 89.2% | +23.8% |
-| Factual Grounding | 83.7% | 86.1% | +2.4% |
-| ROUGE-L | 0.412 | 0.459 | +0.047 |
+```bash
+causalrag agent \
+  --goal "What should I change to reduce indoor CO2, and what should I verify first?" \
+  --input ./docs \
+  --max-steps 8
+```
 
-*Note: Results based on internal evaluation on causal reasoning benchmark. Your results may vary.*
+Print the complete decision trace:
 
-&nbsp;
+```bash
+causalrag agent \
+  --goal "Find the most plausible causal explanation" \
+  --input ./docs \
+  --json
+```
 
-## 🔍 Use Cases
+Create a reusable index:
 
-### Scientific Research
-Analyze research papers to extract causal relationships between variables, enabling more accurate literature reviews and hypothesis generation.
+```bash
+causalrag index --input ./docs --output ./index
+```
 
-&nbsp;
+Use that index later:
 
-### Healthcare
-Extract causal relationships from medical literature to support diagnosis, treatment planning, and outcome prediction with better explanations.
+```bash
+causalrag agent \
+  --goal "Which variable is the highest-leverage intervention?" \
+  --index ./index
+```
 
-&nbsp;
+## HTTP API
 
-### Finance and Economics
-Model causal factors affecting market trends, providing more reliable explanations for financial forecasts and economic analyses.
+Start the server:
 
-&nbsp;
+```bash
+causalrag serve --host 0.0.0.0 --port 8000
+```
 
-### Policy Analysis
-Extract causal relationships from policy documents and research to better predict the effects of proposed changes.
+The v0.2 endpoint is:
 
-&nbsp;
+```http
+POST /agent/run
+Content-Type: application/json
 
-## 🧠 Performance Optimization Tips
-
-1. **Vector Search Optimization**:
-   - Use `faiss-gpu` on CUDA-enabled systems for faster similarity search
-   - Consider dimensionality reduction for large document collections
-
-2. **Causal Graph Efficiency**:
-   - Set appropriate confidence thresholds to filter weak causal relationships
-   - Use `min_node_length` parameter to avoid short, common words as nodes
-
-3. **Memory Management**:
-   - For large document collections, use batch processing during indexing
-   - Consider saving and loading the causal graph and vector index separately
-
-4. **API Performance**:
-   - Implement caching for frequent queries
-   - Use background workers for indexing large document collections
-
-&nbsp;
-
-## ❓ FAQ
-
-### Q: How many documents can CausalRAG handle?
-A: CausalRAG can handle thousands of documents, but performance may decrease with very large collections. For best results with 100K+ documents, consider sharding your index or using a database backend.
-
-&nbsp;
-
-### Q: Does CausalRAG work with languages other than English?
-A: While the core system works with any language supported by the underlying embedding model, causal extraction works best with English text. Multilingual support is on our roadmap.
-
-&nbsp;
-
-### Q: What LLM providers are supported?
-A: CausalRAG supports OpenAI models by default, but can be configured to work with Anthropic Claude, local models via LM Studio API, and any model with an OpenAI-compatible API.
-
-&nbsp;
-
-### Q: How does CausalRAG handle conflicting causal information?
-A: When conflicting causal relationships are detected, CausalRAG assigns confidence scores and prioritizes relationships with higher confidence. These conflicts are also exposed in the prompt for the LLM to resolve.
-
-&nbsp;
-
-## 🔜 Roadmap
-
-- [ ] Support for multi-hop causal reasoning
-- [ ] Interactive causal graph visualization tools
-- [ ] Real-time causal graph updates based on LLM feedback
-- [ ] Support for additional embedding models
-- [ ] Integration with popular RAG frameworks
-- [ ] Streaming response support
-- [ ] Multilingual support
-- [ ] Advanced conflict resolution for contradictory causal relationships
-
-&nbsp;
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
-
-&nbsp;
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-&nbsp;
-
-## 📚 Citations
-
-If you use CausalRAG in your research, please cite:
-
-```bibtex
-@article{author2023causalrag,
-  title={CausalRAG: Integrating Causal Graphs into Retrieval-Augmented Generation},
-  author={Author, A. and Researcher, B.},
-  journal={arXiv preprint arXiv:2307.XXXXX},
-  year={2023}
+{
+  "goal": "Find the safest leverage point for reducing indoor CO2",
+  "max_steps": 8,
+  "model": "gpt-4o-mini",
+  "provider": "openai",
+  "documents": [
+    "Opening a window increases air exchange and can lower indoor CO2."
+  ]
 }
 ```
 
-&nbsp;
+The response contains the final answer plus the decision trace, observations, current beliefs, and recorded transitions.
 
-## 🙏 Acknowledgements
+## Add real-world capabilities
 
-- Based on the research: "CausalRAG: Integrating Causal Graphs into Retrieval-Augmented Generation"
-- Thanks to the open-source community for tools and libraries that made this possible:
-  - [PyTorch](https://pytorch.org/)
-  - [Sentence Transformers](https://www.sbert.net/)
-  - [FAISS](https://github.com/facebookresearch/faiss)
-  - [NetworkX](https://networkx.org/)
-  - [OpenAI API](https://openai.com/blog/openai-api)
-  - [FastAPI](https://fastapi.tiangolo.com/)
+Tools are explicit capabilities rather than framework-specific tool calls:
+
+```python
+from causalrag import ToolSpec, create_agent
+
+
+def read_co2(room: str):
+    # Replace with a sensor/API call.
+    return {"room": room, "co2_ppm": 1180}
+
+
+agent = create_agent(
+    tools=[
+        ToolSpec(
+            name="read_co2",
+            description="Read the current CO2 concentration in a room.",
+            handler=read_co2,
+            cost=0.01,
+            risk=0.0,
+            reversible=True,
+            metadata={"kind": "observe"},
+        )
+    ]
+)
+
+result = agent.run("Determine whether the bedroom needs more ventilation")
+```
+
+The model may propose the capability, but the runtime chooses among candidates using causal utility:
+
+```text
+utility =
+    expected goal gain
+  + expected information gain
+  - cost
+  - risk
+  - irreversibility
+```
+
+`WAIT` and `STOP` are first-class actions. This matters for causal reasoning: after an intervention, the correct next action may be to wait for its expected effect instead of immediately changing another variable.
+
+## Core primitives
+
+### Goal
+
+The desired state or question the agent is trying to resolve.
+
+### CausalWorldModel
+
+An explicit store for causal beliefs, evidence, and observed transitions. The current implementation is intentionally lightweight so the backend can later be replaced by a Bayesian SCM, temporal causal model, simulator, neural world model, or hybrid system without changing the agent loop.
+
+### CandidateAction
+
+Every proposal declares:
+
+```text
+kind
+name
+arguments
+expected_goal_gain
+expected_information_gain
+cost
+risk
+irreversibility
+rationale
+```
+
+Supported action kinds:
+
+```text
+observe
+retrieve
+ask
+intervene
+wait
+stop
+```
+
+### DecisionRecord
+
+Each step stores the uncertainty, all candidate actions, the selected action, and the belief snapshot before action. Explanations therefore come from an actual decision record rather than being reconstructed after the fact.
+
+### Transition
+
+Executed actions and their observations are stored as transitions. This is the foundation for causal memory and future experiment-driven belief learning.
+
+## Architecture
+
+```text
+┌─────────────────────────────────────────┐
+│              CausalAgent                │
+│ Goal → Decide → Act → Observe → Learn  │
+└────────────────────┬────────────────────┘
+                     │
+┌────────────────────▼────────────────────┐
+│          Explicit World Model           │
+│ beliefs · evidence · transitions        │
+│ future: SCM · temporal · experiments   │
+└────────────────────┬────────────────────┘
+                     │
+┌────────────────────▼────────────────────┐
+│             Capabilities                │
+│ retrieval · APIs · sensors · humans     │
+│ simulators · software · robots          │
+└─────────────────────────────────────────┘
+```
+
+The LLM is a `Reasoner`: it proposes hypotheses/actions and explains them. It is **not** treated as the world model or the final action authority.
+
+## Current repository layout
+
+```text
+causalrag/
+├── agent/
+│   ├── actions.py       # action kinds + decision records
+│   ├── state.py         # persistent runtime state
+│   ├── loop.py          # thin causal learning/action loop
+│   └── runtime.py       # CausalAgent + create_agent
+├── world_model/
+│   └── models.py        # beliefs, evidence, transitions
+├── reasoning/
+│   ├── base.py          # model-agnostic Reasoner protocol
+│   ├── llm.py           # schema-constrained LLM proposer
+│   └── policy.py        # causal utility selection
+├── tools/
+│   └── base.py          # capability registry
+├── causal_graph/        # existing extraction + graph layer
+├── retriever/           # existing vector/hybrid retrieval
+├── reranker/            # causal reranking
+├── interface/
+│   ├── api.py           # compatibility API
+│   └── agent_api.py     # /agent/run
+└── pipeline.py          # legacy one-shot RAG compatibility
+```
+
+## Legacy one-shot RAG
+
+Existing code can continue to use:
+
+```python
+from causalrag import create_pipeline
+
+pipeline = create_pipeline()
+pipeline.index([
+    "Climate change causes rising sea levels.",
+    "Rising sea levels increase coastal flooding."
+])
+
+result = pipeline.run("How can climate change lead to coastal flooding?")
+print(result["answer"])
+print(result["causal_paths"])
+```
+
+For new projects, prefer `create_agent()`.
+
+## What v0.2 already changes
+
+- explicit `CausalWorldModel`
+- persistent `AgentState`
+- `observe / retrieve / ask / intervene / wait / stop`
+- schema-constrained model-backed action proposals
+- causal utility action selection
+- explicit decision records
+- action → observation transition memory
+- built-in hybrid causal evidence retrieval
+- Python `create_agent()` API
+- CLI agent entry point
+- HTTP `/agent/run`
+- legacy pipeline compatibility fixes
+
+## Next: from agent loop to causal learning loop
+
+The immediate roadmap is intentionally not “add more tools”. The next layers are:
+
+1. **Hypothesis + falsification engine** — represent competing explanations and actively look for evidence that separates them.
+2. **Experiment contracts** — intervention, prediction, observation window, confounders, result, prediction error.
+3. **Belief updates** — update explicit causal beliefs from evidence and experiments rather than only accumulating text context.
+4. **HiddenWorld benchmark** — agents must discover an unknown SCM through limited observations/interventions and reach a goal under a budget.
+5. **Causal regret + calibration metrics** — evaluate whether actions were informative and effective, not just whether final prose looked correct.
+6. **Temporal effects and drift** — model delays, waiting, regime change, and non-stationary mechanisms.
+7. **Protocol adapters** — capabilities can later be exposed through MCP/A2A without making those protocols part of the core ontology.
+
+The long-term invariant is:
+
+```text
+experience → causal belief → leverage → action → new experience
+```
+
+## License
+
+MIT. See `LICENSE`.
