@@ -1,4 +1,4 @@
-# CausalRAG v0.2 runtime
+# CausalRAG v0.3 full/legacy development environment
 numpy>=1.20.0
 networkx>=2.6.0
 sentence-transformers>=2.2.0
