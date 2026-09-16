@@ -18,7 +18,7 @@ class CausalRAGPipeline:
 
     def __init__(
         self,
-        model_name="gpt-4o-mini",
+        model_name="gpt-5.6-terra",
         embedding_model="all-MiniLM-L6-v2",
         graph_path=None,
         index_path=None,
