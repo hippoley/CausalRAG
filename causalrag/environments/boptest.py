@@ -96,9 +96,14 @@ class BOPTESTClient:
         url = f"{self.base_url}/{str(path).lstrip('/')}"
         raw = self.transport(method.upper(), url, payload, self.timeout)
 
+        # Service-level responses such as {"status": "Running"} are direct
+        # domain objects. Testcase operation envelopes are identified by the
+        # documented `payload` field and then validate their numeric HTTP-like
+        # application status. This prevents conflating worker state with the
+        # envelope's success code.
         if not isinstance(raw, Mapping):
             return BOPTESTResponse(payload=raw)
-        if "status" not in raw and "payload" not in raw:
+        if "payload" not in raw:
             return BOPTESTResponse(payload=dict(raw))
 
         status = raw.get("status")
@@ -106,7 +111,7 @@ class BOPTESTClient:
             status_int = int(status)
         except (TypeError, ValueError):
             raise BOPTESTProtocolError(
-                f"BOPTEST response has invalid status: {status!r}"
+                f"BOPTEST response envelope has invalid status: {status!r}"
             )
         message = str(raw.get("message") or "")
         if status_int != 200:
