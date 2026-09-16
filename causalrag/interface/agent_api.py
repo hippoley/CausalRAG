@@ -1,17 +1,22 @@
-"""FastAPI surface for the v0.2 causal-agent runtime.
+"""Standalone FastAPI surface for the v0.2 causal-agent runtime.
 
-This module reuses the legacy API app and adds the new goal-directed endpoint.
-Run with: uvicorn causalrag.interface.agent_api:app --reload
+Run with:
+    uvicorn causalrag.interface.agent_api:app --reload
 """
 
 from typing import List, Optional
 
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from causalrag import create_agent
+from causalrag import __version__, create_agent
 
-from .api import app
+
+app = FastAPI(
+    title="CausalRAG Agent API",
+    description="Goal-directed causal agent runtime with explicit beliefs and decision traces.",
+    version=__version__,
+)
 
 
 class AgentRunRequest(BaseModel):
@@ -23,6 +28,11 @@ class AgentRunRequest(BaseModel):
         None,
         description="Optional documents to index for this run. Prefer a persistent index for production.",
     )
+
+
+@app.get("/health")
+def health():
+    return {"status": "healthy", "version": __version__, "runtime": "causal-agent"}
 
 
 @app.post("/agent/run")
