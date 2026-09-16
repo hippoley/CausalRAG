@@ -1,6 +1,8 @@
 import json
 
 from causalrag.agent.actions import ActionKind, CandidateAction, DecisionRecord
+from causalrag.agent.loop import CausalAgentLoop
+from causalrag.agent.runtime import AgentRunResult, CausalAgent
 from causalrag.agent.state import AgentState, Observation
 from causalrag.reasoning.belief import LLMBeliefUpdater
 from causalrag.reasoning.llm import LLMCausalReasoner
@@ -14,6 +16,21 @@ class FakeLLM:
 
     def generate(self, *args, **kwargs):
         return json.dumps(self.payload)
+
+
+class StopReasoner:
+    def propose(self, state, world_model):
+        return [
+            CandidateAction(
+                kind=ActionKind.STOP,
+                name="stop",
+                arguments={"answer": "final causal answer"},
+                rationale="enough evidence",
+            )
+        ]
+
+    def uncertainty(self, state, world_model):
+        return None
 
 
 def test_reasoner_enforces_tool_metadata():
@@ -94,3 +111,18 @@ def test_belief_updater_persists_defeasible_claim():
     assert belief.probability > 0.5
     assert belief.mechanism == "increased air exchange"
     assert belief.temporal_lag == "5 min"
+
+
+def test_direct_runtime_returns_serializable_final_answer():
+    world = CausalWorldModel()
+    loop = CausalAgentLoop(reasoner=StopReasoner(), world_model=world)
+    agent = CausalAgent(loop=loop)
+
+    result = agent.run("answer this", max_steps=2)
+    payload = result.to_dict()
+
+    assert isinstance(result, AgentRunResult)
+    assert payload["answer"] == "final causal answer"
+    assert payload["stop_reason"] == "enough evidence"
+    assert payload["decisions"][0]["selected"]["kind"] == "stop"
+    json.dumps(payload)
