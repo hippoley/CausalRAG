@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from causalrag.experiments import ExperimentContract
 
 
 @dataclass
@@ -13,6 +16,7 @@ class ToolSpec:
     cost: float = 0.0
     reversible: bool = True
     metadata: Dict[str, Any] = field(default_factory=dict)
+    experiment_contract: Optional["ExperimentContract"] = None
 
 
 class ToolRegistry:
