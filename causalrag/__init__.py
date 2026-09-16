@@ -11,6 +11,7 @@ __author__ = "CausalRAG Team"
 
 from .agent import (
     ActionKind,
+    ActionScore,
     AgentState,
     CandidateAction,
     CausalAgentLoop,
@@ -118,6 +119,7 @@ __all__ = [
     "HypothesisProposal",
     "create_pipeline",
     "ActionKind",
+    "ActionScore",
     "AgentState",
     "CandidateAction",
     "CausalAgentLoop",
