@@ -28,6 +28,15 @@ class AgentRunRequest(BaseModel):
         None,
         description="Optional documents to index for this run. Prefer a persistent index for production.",
     )
+    embedding_provider: str = Field(
+        "openai",
+        description="Embedding provider: 'openai' or opt-in 'local'.",
+    )
+    embedding_model: str = Field("text-embedding-3-small")
+    vector_backend: str = Field(
+        "memory",
+        description="Vector backend: 'memory' or opt-in 'faiss'.",
+    )
 
 
 @app.get("/health")
@@ -43,6 +52,9 @@ def run_agent(payload: AgentRunRequest):
             model_name=payload.model,
             provider=payload.provider,
             documents=payload.documents,
+            embedding_provider_name=payload.embedding_provider,
+            embedding_model=payload.embedding_model,
+            vector_backend=payload.vector_backend,
         )
         return agent.run(payload.goal, max_steps=payload.max_steps).to_dict()
     except Exception as exc:
