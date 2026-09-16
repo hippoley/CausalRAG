@@ -1,4 +1,4 @@
-"""No-key demo: competing hypotheses -> diagnostic action -> falsification.
+"""No-key demo: competing hypotheses -> runtime rescoring -> falsification.
 
 Run:
     python examples/hypothesis_falsification_demo.py
@@ -20,17 +20,29 @@ class HVACReasoner:
     def propose(self, state, world_model):
         if not state.observations:
             return [
+                # The proposer claims this generic observation is highly useful,
+                # but gives it no explicit relationship to H1/H2.
+                CandidateAction(
+                    kind=ActionKind.OBSERVE,
+                    name="read_room_temperature",
+                    expected_information_gain=0.80,
+                    cost=0.01,
+                    rationale="A generic environmental reading may be useful.",
+                ),
+                # The proposer under-rates this action, while its explicit test
+                # contract shows that it separates the live hypotheses.
                 CandidateAction(
                     kind=ActionKind.OBSERVE,
                     name="read_filter_pressure",
-                    expected_information_gain=0.9,
+                    expected_information_gain=0.05,
                     tests_hypotheses=["H1", "H2"],
                     falsification_target="H1",
+                    cost=0.01,
                     rationale=(
                         "Filter pressure is diagnostic: a normal reading counts "
                         "against the clogged-filter hypothesis."
                     ),
-                )
+                ),
             ]
 
         h1 = world_model.get_hypothesis("H1")
@@ -44,7 +56,7 @@ class HVACReasoner:
                 kind=ActionKind.STOP,
                 name="stop",
                 arguments={"answer": answer},
-                rationale="The first diagnostic observation changed the hypothesis ranking.",
+                rationale="The first diagnostic observation changed the hypothesis state.",
             )
         ]
 
@@ -69,7 +81,10 @@ class HVACReasoner:
 
 
 def update_hypotheses(state, world_model, decision, observation):
-    """Deterministic domain evaluator for this demo's sensor result."""
+    """Deterministic domain evaluator for this demo's diagnostic sensor."""
+    if observation.action_name != "read_filter_pressure":
+        return
+
     pressure = float(observation.result["pressure_pa"])
     if pressure < 20:
         world_model.update_hypothesis(
@@ -98,6 +113,15 @@ def main():
         hypothesis_updater=update_hypotheses,
         tools=[
             ToolSpec(
+                name="read_room_temperature",
+                description="Read current room temperature.",
+                handler=lambda: {"temperature_c": 26.1},
+                cost=0.01,
+                risk=0.0,
+                reversible=True,
+                metadata={"kind": "observe"},
+            ),
+            ToolSpec(
                 name="read_filter_pressure",
                 description="Read pressure drop across the HVAC filter.",
                 handler=lambda: {"pressure_pa": 12, "status": "normal"},
@@ -105,7 +129,7 @@ def main():
                 risk=0.0,
                 reversible=True,
                 metadata={"kind": "observe"},
-            )
+            ),
         ],
     )
 
@@ -120,11 +144,21 @@ def main():
             f"status={hypothesis['status']} — {hypothesis['statement']}"
         )
 
-    first_action = payload["decisions"][0]["selected"]
-    print("\nFirst diagnostic action:")
+    first_decision = payload["decisions"][0]
+    first_action = first_decision["selected"]
+    print("\nFirst diagnostic action selected by runtime:")
     print(f"  {first_action['name']}")
     print(f"  tests={first_action['tests_hypotheses']}")
     print(f"  falsification_target={first_action['falsification_target']}")
+
+    print("\nRuntime score breakdown:")
+    for score in first_decision["action_scores"]:
+        print(
+            f"  {score['action_name']}: total={score['total_utility']:.3f} "
+            f"model_info={score['model_information_gain']:.3f} "
+            f"runtime_info={score['information_gain']:.3f} "
+            f"source={score['information_source']}"
+        )
 
 
 if __name__ == "__main__":

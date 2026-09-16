@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from causalrag.reasoning.policy import select_action
+from causalrag.reasoning.policy import rank_actions, select_action
 from causalrag.tools.base import ToolRegistry
 from causalrag.world_model.models import CausalWorldModel, Transition
 
@@ -50,7 +50,16 @@ class CausalAgentLoop:
                     proposal_method(state, self.world_model)
                 )
 
-            selected = select_action(candidates)
+            ranked = rank_actions(candidates, world_model=self.world_model)
+            if ranked:
+                selected = ranked[0][0]
+                action_scores = [score for _action, score in ranked]
+                selected_score = ranked[0][1]
+            else:
+                selected = select_action(candidates, world_model=self.world_model)
+                action_scores = []
+                selected_score = None
+
             uncertainty = self.reasoner.uncertainty(state, self.world_model)
 
             decision = DecisionRecord(
@@ -60,6 +69,7 @@ class CausalAgentLoop:
                 selected=selected,
                 beliefs_before=self.world_model.snapshot(),
                 rationale=selected.rationale,
+                action_scores=action_scores,
             )
             state.decisions.append(decision)
 
@@ -79,14 +89,31 @@ class CausalAgentLoop:
             observation = Observation(action_name=selected.name, result=result)
             state.observations.append(observation)
 
+            runtime_information_gain = (
+                selected_score.information_gain
+                if selected_score is not None
+                else selected.expected_information_gain
+            )
+            information_source = (
+                selected_score.information_source
+                if selected_score is not None
+                else "model_estimate"
+            )
+
             self.world_model.record_transition(
                 Transition(
                     action=selected.name,
                     arguments=selected.arguments,
                     observation=result,
                     expected_effects={
-                        "goal_gain": selected.expected_goal_gain,
-                        "information_gain": selected.expected_information_gain,
+                        "goal_gain": (
+                            selected_score.goal_gain
+                            if selected_score is not None
+                            else selected.expected_goal_gain
+                        ),
+                        "information_gain": runtime_information_gain,
+                        "information_source": information_source,
+                        "model_information_gain": selected.expected_information_gain,
                         "tests_hypotheses": list(selected.tests_hypotheses),
                         "falsification_target": selected.falsification_target,
                     },
