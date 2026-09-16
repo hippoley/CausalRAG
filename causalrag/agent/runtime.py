@@ -103,11 +103,12 @@ def create_agent(
     provider: str = "openai",
     api_key: Optional[str] = None,
     world_model: Optional[CausalWorldModel] = None,
+    extractor_method: str = "hybrid",
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
 
-    The default agent can retrieve evidence from CausalRAG's existing hybrid
-    retriever. Additional environment tools can be supplied as ToolSpec values.
+    By default, indexing combines rule-based and model-based causal extraction.
+    Set ``extractor_method='rule'`` for offline/low-cost indexing.
     """
     pipeline = CausalRAGPipeline(
         model_name=model_name,
@@ -116,6 +117,7 @@ def create_agent(
         index_path=index_path,
         provider=provider,
         api_key=api_key,
+        extractor_method=extractor_method,
     )
     if documents:
         pipeline.index(list(documents))
