@@ -34,9 +34,9 @@ The runtime is designed around three ideas:
 2. **Beliefs are explicit.** The system keeps a causal world model and a trace of action → observation transitions instead of hiding all state inside the model context.
 3. **Retrieval is one capability, not the identity of the system.** RAG remains useful for gathering evidence, but agents can also observe, ask, intervene, wait, and stop.
 
-> v0.2 is an active architectural transition. The legacy `CausalRAGPipeline` remains available, but new applications should start with `create_agent()`.
+> v0.2 is currently on `feature/causal-agent-v2` and PR #3 while install/CI checks are completed. The legacy `CausalRAGPipeline` remains available, but new applications should start with `create_agent()`.
 
-## Install
+## Install the latest v0.2 branch
 
 ```bash
 git clone https://github.com/hippoley/CausalRAG.git
@@ -51,7 +51,7 @@ For the default OpenAI-backed reasoner:
 export OPENAI_API_KEY=...
 ```
 
-Python 3.8+ is supported.
+Python 3.8+ is supported by the runtime API. CI currently exercises Python 3.10 and 3.12.
 
 ## 30-second quickstart
 
@@ -75,7 +75,7 @@ print(result.answer)
 print(result.to_dict()["decisions"])
 ```
 
-A fresh agent automatically gets a `retrieve_evidence` capability backed by the existing hybrid vector + causal graph retrieval stack.
+A fresh agent automatically gets a `retrieve_evidence` capability backed by the existing hybrid vector + causal graph retrieval stack. Extracted graph edges seed the explicit belief state, and later observations can revise those beliefs.
 
 ## CLI
 
@@ -113,13 +113,19 @@ causalrag agent \
 
 ## HTTP API
 
-Start the server:
+Start the standalone v0.2 server:
 
 ```bash
 causalrag serve --host 0.0.0.0 --port 8000
 ```
 
-The v0.2 endpoint is:
+Health check:
+
+```http
+GET /health
+```
+
+Run the agent:
 
 ```http
 POST /agent/run
@@ -179,6 +185,8 @@ utility =
   - irreversibility
 ```
 
+Tool metadata is enforced by the runtime: model output cannot lower a capability's declared cost/risk or relabel an irreversible intervention as an observation.
+
 `WAIT` and `STOP` are first-class actions. This matters for causal reasoning: after an intervention, the correct next action may be to wait for its expected effect instead of immediately changing another variable.
 
 ## Core primitives
@@ -226,6 +234,10 @@ Each step stores the uncertainty, all candidate actions, the selected action, an
 
 Executed actions and their observations are stored as transitions. This is the foundation for causal memory and future experiment-driven belief learning.
 
+### Belief update
+
+After a new observation, the v0.2 runtime can extract conservative, defeasible directional causal updates. Evidence can strengthen or weaken a belief, and retrieved claims are kept distinct from an actual intervention performed by the agent.
+
 ## Architecture
 
 ```text
@@ -263,6 +275,7 @@ causalrag/
 ├── reasoning/
 │   ├── base.py          # model-agnostic Reasoner protocol
 │   ├── llm.py           # schema-constrained LLM proposer
+│   ├── belief.py        # observation → defeasible belief updates
 │   └── policy.py        # causal utility selection
 ├── tools/
 │   └── base.py          # capability registry
@@ -270,8 +283,7 @@ causalrag/
 ├── retriever/           # existing vector/hybrid retrieval
 ├── reranker/            # causal reranking
 ├── interface/
-│   ├── api.py           # compatibility API
-│   └── agent_api.py     # /agent/run
+│   └── agent_api.py     # standalone /health + /agent/run
 └── pipeline.py          # legacy one-shot RAG compatibility
 ```
 
@@ -301,14 +313,18 @@ For new projects, prefer `create_agent()`.
 - persistent `AgentState`
 - `observe / retrieve / ask / intervene / wait / stop`
 - schema-constrained model-backed action proposals
+- runtime-enforced capability risk/cost/reversibility
 - causal utility action selection
 - explicit decision records
 - action → observation transition memory
+- graph → initial belief synchronization
+- observation → defeasible belief updates
 - built-in hybrid causal evidence retrieval
 - Python `create_agent()` API
 - CLI agent entry point
-- HTTP `/agent/run`
-- legacy pipeline compatibility fixes
+- standalone HTTP `/agent/run`
+- legacy pipeline and dependency compatibility fixes
+- install/compile/agent-test CI
 
 ## Next: from agent loop to causal learning loop
 
@@ -316,11 +332,10 @@ The immediate roadmap is intentionally not “add more tools”. The next layers
 
 1. **Hypothesis + falsification engine** — represent competing explanations and actively look for evidence that separates them.
 2. **Experiment contracts** — intervention, prediction, observation window, confounders, result, prediction error.
-3. **Belief updates** — update explicit causal beliefs from evidence and experiments rather than only accumulating text context.
-4. **HiddenWorld benchmark** — agents must discover an unknown SCM through limited observations/interventions and reach a goal under a budget.
-5. **Causal regret + calibration metrics** — evaluate whether actions were informative and effective, not just whether final prose looked correct.
-6. **Temporal effects and drift** — model delays, waiting, regime change, and non-stationary mechanisms.
-7. **Protocol adapters** — capabilities can later be exposed through MCP/A2A without making those protocols part of the core ontology.
+3. **HiddenWorld benchmark** — agents must discover an unknown SCM through limited observations/interventions and reach a goal under a budget.
+4. **Causal regret + calibration metrics** — evaluate whether actions were informative and effective, not just whether final prose looked correct.
+5. **Temporal effects and drift** — model delays, waiting, regime change, and non-stationary mechanisms.
+6. **Protocol adapters** — capabilities can later be exposed through MCP/A2A without making those protocols part of the core ontology.
 
 The long-term invariant is:
 
