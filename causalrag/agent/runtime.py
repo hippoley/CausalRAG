@@ -27,7 +27,6 @@ def _jsonable(value: Any) -> Any:
 
 
 def _sync_graph_beliefs(pipeline: Any, world_model: CausalWorldModel) -> None:
-    """Seed explicit beliefs from an optional extracted causal graph."""
     graph = pipeline.graph_builder.get_graph()
     node_text = pipeline.graph_builder.node_text
     for cause_id, effect_id, data in graph.edges(data=True):
@@ -50,9 +49,6 @@ class AgentRunResult:
         return {
             "answer": self.answer,
             "goal": self.state.goal,
-            # User-facing steps are decision rounds, including the terminal STOP
-            # decision. ``executed_actions`` preserves the runtime's internal
-            # count of non-STOP actions that actually changed/queried the world.
             "steps": len(self.state.decisions),
             "executed_actions": self.state.step,
             "stop_reason": self.state.stop_reason,
@@ -64,12 +60,7 @@ class AgentRunResult:
 
 
 class CausalAgent:
-    """User-facing causal agent.
-
-    The core runtime has no retrieval dependency. RAG is attached lazily when
-    the agent is created with documents/index/graph input or
-    ``enable_retrieval=True``.
-    """
+    """User-facing causal agent with optional retrieval capabilities."""
 
     def __init__(self, loop: CausalAgentLoop, pipeline: Optional[Any] = None) -> None:
         self.loop = loop
@@ -115,7 +106,7 @@ def _load_rag_pipeline():
 
 def create_agent(
     model_name: str = "gpt-5.6-terra",
-    embedding_model: str = "all-MiniLM-L6-v2",
+    embedding_model: str = "text-embedding-3-small",
     graph_path: Optional[str] = None,
     index_path: Optional[str] = None,
     documents: Optional[Iterable[str]] = None,
@@ -128,15 +119,17 @@ def create_agent(
     llm: Optional[Any] = None,
     reasoner: Optional[Any] = None,
     belief_updater: Optional[Any] = None,
+    embedding_provider_name: Optional[str] = None,
+    embedding_api_key: Optional[str] = None,
+    embedding_provider: Optional[Any] = None,
+    vector_backend: str = "memory",
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
 
-    Core-only usage is lightweight and does not import the RAG/embedding stack.
-    Retrieval is enabled automatically when documents, graph_path or index_path
-    are supplied, or explicitly with ``enable_retrieval=True``.
-
-    ``reasoner`` and ``llm`` are injectable so local/custom policies can use the
-    runtime without an OpenAI key or vendor-specific orchestration layer.
+    The core runtime remains retrieval-free. When retrieval is enabled, hosted
+    OpenAI embeddings are the default for OpenAI-backed agents and local
+    sentence-transformers are opt-in through ``embedding_provider_name='local'``.
+    A custom embedding provider can be injected directly.
     """
     registry = ToolRegistry(tools)
     model_state = world_model or CausalWorldModel()
@@ -158,6 +151,10 @@ def create_agent(
             provider=provider,
             api_key=api_key,
             extractor_method=extractor_method,
+            embedding_provider_name=embedding_provider_name,
+            embedding_api_key=embedding_api_key,
+            embedding_provider=embedding_provider,
+            vector_backend=vector_backend,
         )
         if documents:
             pipeline.index(list(documents))
