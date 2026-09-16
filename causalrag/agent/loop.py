@@ -9,11 +9,12 @@ from causalrag.experiments import (
     expanded_experiment_contract,
     maybe_resolve_model_mismatch,
 )
-from causalrag.reasoning.policy import rank_actions, select_action
+from causalrag.reasoning.policy import rank_actions
 from causalrag.tools.base import ToolRegistry
 from causalrag.world_model.models import CausalWorldModel, Evidence, Transition
 
 from .actions import ActionKind, CandidateAction, DecisionRecord
+from .capabilities import RuntimeCapabilities
 from .state import AgentState, Observation
 from .temporal import TimeDriver, VirtualTimeDriver, pending_effect_from_contract
 
@@ -35,6 +36,7 @@ class CausalAgentLoop:
         goal_evaluator: Optional[GoalEvaluator] = None,
         time_driver: Optional[TimeDriver] = None,
         mismatch_policy: Optional[ModelMismatchPolicy] = None,
+        capabilities: Optional[RuntimeCapabilities] = None,
     ) -> None:
         self.reasoner = reasoner
         self.tools = tools or ToolRegistry()
@@ -44,6 +46,7 @@ class CausalAgentLoop:
         self.goal_evaluator = goal_evaluator
         self.time_driver = time_driver or VirtualTimeDriver()
         self.mismatch_policy = mismatch_policy or ModelMismatchPolicy()
+        self.capabilities = capabilities or RuntimeCapabilities.full()
 
     def _sync_state_time(self, state: AgentState) -> None:
         state.virtual_time_seconds = float(self.time_driver.now_seconds)
@@ -51,6 +54,8 @@ class CausalAgentLoop:
             effect.refresh(state.virtual_time_seconds)
 
     def _record_expired_effects(self, state: AgentState) -> None:
+        if not self.capabilities.temporal_attribution:
+            return
         now = state.virtual_time_seconds
         for effect in state.pending_effects:
             effect.refresh(now)
@@ -106,6 +111,8 @@ class CausalAgentLoop:
         return min(effects, key=lambda effect: (effect.expires_at, effect.ready_at))
 
     def _temporal_guard(self, selected: CandidateAction, state: AgentState) -> CandidateAction:
+        if not self.capabilities.temporal_attribution:
+            return selected
         now = state.virtual_time_seconds
 
         matching = [
@@ -155,6 +162,8 @@ class CausalAgentLoop:
         return selected
 
     def _schedule_temporal_effect(self, tool_spec, selected: CandidateAction, state: AgentState) -> None:
+        if not self.capabilities.temporal_attribution:
+            return
         contract = None if tool_spec is None else tool_spec.temporal_effect_contract
         if selected.kind != ActionKind.INTERVENE or contract is None:
             return
@@ -172,6 +181,8 @@ class CausalAgentLoop:
         state.schedule_effect(effect)
 
     def _evaluate_temporal_observation(self, selected: CandidateAction, result, state: AgentState):
+        if not self.capabilities.temporal_attribution:
+            return []
         evaluations = []
         now = state.virtual_time_seconds
         for effect in state.pending_effects:
@@ -200,7 +211,7 @@ class CausalAgentLoop:
                 "within_window": effect.ready_at <= now <= effect.expires_at,
             }
             evaluations.append(evaluation)
-            if hypothesis_id and expected is not None:
+            if hypothesis_id and expected is not None and self.capabilities.causal_updates:
                 weight = effect.falsification_weight if matched else -effect.falsification_weight
                 self.world_model.update_hypothesis(
                     str(hypothesis_id),
@@ -218,6 +229,8 @@ class CausalAgentLoop:
         return evaluations
 
     def _discover_after_mismatch(self, state: AgentState, assessment) -> list[str]:
+        if not self.capabilities.open_world:
+            return []
         discover = getattr(self.reasoner, "discover_hypotheses", None)
         if not callable(discover) or assessment is None or not assessment.escalate:
             return []
@@ -264,6 +277,7 @@ class CausalAgentLoop:
 
     def run(self, goal: str, max_steps: int = 10) -> AgentState:
         state = AgentState(goal=goal, max_steps=max_steps)
+        state.scratch["runtime_capabilities"] = self.capabilities.to_dict()
         self._sync_state_time(state)
         while not state.done and state.step < state.max_steps:
             self._sync_state_time(state)
@@ -275,16 +289,38 @@ class CausalAgentLoop:
 
             candidates = list(self.reasoner.propose(state, self.world_model))
             proposal_method = getattr(self.reasoner, "hypothesis_proposals", None)
-            if callable(proposal_method):
+            if self.capabilities.causal_updates and callable(proposal_method):
                 self.world_model.sync_hypotheses(proposal_method(state, self.world_model))
 
-            ranked = rank_actions(candidates, world_model=self.world_model, tools=self.tools)
-            if ranked:
-                proposed_selected = ranked[0][0]
-                selected_score = ranked[0][1]
-                action_scores = [score for _action, score in ranked]
+            if self.capabilities.causal_selection:
+                ranked = rank_actions(
+                    candidates,
+                    world_model=self.world_model,
+                    tools=self.tools,
+                    capabilities=self.capabilities,
+                )
+                if ranked:
+                    proposed_selected = ranked[0][0]
+                    selected_score = ranked[0][1]
+                    action_scores = [score for _action, score in ranked]
+                else:
+                    proposed_selected = CandidateAction(
+                        kind=ActionKind.STOP,
+                        name="stop",
+                        rationale="No valid candidate actions were proposed.",
+                    )
+                    selected_score = None
+                    action_scores = []
             else:
-                proposed_selected = select_action(candidates, world_model=self.world_model, tools=self.tools)
+                proposed_selected = (
+                    candidates[0]
+                    if candidates
+                    else CandidateAction(
+                        kind=ActionKind.STOP,
+                        name="stop",
+                        rationale="No valid candidate actions were proposed.",
+                    )
+                )
                 selected_score = None
                 action_scores = []
 
@@ -293,7 +329,15 @@ class CausalAgentLoop:
                 selected_score = None
 
             uncertainty = self.reasoner.uncertainty(state, self.world_model)
-            decision = DecisionRecord(step=state.step, uncertainty=uncertainty, candidates=candidates, selected=selected, beliefs_before=self.world_model.snapshot(), rationale=selected.rationale, action_scores=action_scores)
+            decision = DecisionRecord(
+                step=state.step,
+                uncertainty=uncertainty,
+                candidates=candidates,
+                selected=selected,
+                beliefs_before=self.world_model.snapshot(),
+                rationale=selected.rationale,
+                action_scores=action_scores,
+            )
             state.decisions.append(decision)
 
             if selected.kind == ActionKind.STOP:
@@ -326,7 +370,11 @@ class CausalAgentLoop:
             observation_metadata = {}
             if temporal_evaluations:
                 observation_metadata["temporal_effects"] = temporal_evaluations
-            observation = Observation(action_name=selected.name, result=result, metadata=observation_metadata)
+            observation = Observation(
+                action_name=selected.name,
+                result=result,
+                metadata=observation_metadata,
+            )
             state.observations.append(observation)
 
             experiment_update = None
@@ -337,27 +385,29 @@ class CausalAgentLoop:
                     tool_spec.experiment_contract,
                     self.world_model,
                 )
-                mismatch_assessment = assess_model_mismatch(
-                    experiment_contract,
-                    self.world_model,
-                    result,
-                    policy=self.mismatch_policy,
-                    metadata={"step": state.step, "action": selected.name},
-                )
-                if mismatch_assessment is not None:
-                    observation.metadata["model_mismatch"] = {
-                        "predictive_probability": mismatch_assessment.predictive_probability,
-                        "surprisal": mismatch_assessment.surprisal,
-                        "suspicious": mismatch_assessment.suspicious,
-                        "hard_mismatch": mismatch_assessment.hard_mismatch,
-                        "escalate": mismatch_assessment.escalate,
-                        "mismatch_id": mismatch_assessment.mismatch_id,
-                    }
+                if self.capabilities.open_world:
+                    mismatch_assessment = assess_model_mismatch(
+                        experiment_contract,
+                        self.world_model,
+                        result,
+                        policy=self.mismatch_policy,
+                        metadata={"step": state.step, "action": selected.name},
+                    )
+                    if mismatch_assessment is not None:
+                        observation.metadata["model_mismatch"] = {
+                            "predictive_probability": mismatch_assessment.predictive_probability,
+                            "surprisal": mismatch_assessment.surprisal,
+                            "suspicious": mismatch_assessment.suspicious,
+                            "hard_mismatch": mismatch_assessment.hard_mismatch,
+                            "escalate": mismatch_assessment.escalate,
+                            "mismatch_id": mismatch_assessment.mismatch_id,
+                        }
 
-                if not (
+                posterior_suppressed = bool(
                     mismatch_assessment is not None
                     and mismatch_assessment.suppress_closed_world_posterior
-                ):
+                )
+                if self.capabilities.bayesian_updates and not posterior_suppressed:
                     experiment_update = apply_experiment_observation(
                         experiment_contract,
                         self.world_model,
@@ -365,16 +415,28 @@ class CausalAgentLoop:
                         source=selected.name,
                         metadata={"step": state.step},
                     )
-                    if experiment_update is not None:
+                    if experiment_update is not None and self.capabilities.open_world:
                         maybe_resolve_model_mismatch(self.world_model)
-                else:
+                elif posterior_suppressed:
                     discovered_hypotheses = self._discover_after_mismatch(
                         state,
                         mismatch_assessment,
                     )
 
-            runtime_information_gain = selected_score.information_gain if selected_score is not None else selected.expected_information_gain
-            information_source = selected_score.information_source if selected_score is not None else "model_estimate"
+            runtime_information_gain = (
+                selected_score.information_gain
+                if selected_score is not None
+                else (0.0 if not self.capabilities.eig else selected.expected_information_gain)
+            )
+            information_source = (
+                selected_score.information_source
+                if selected_score is not None
+                else (
+                    "ablation_eig_disabled"
+                    if not self.capabilities.eig
+                    else "model_estimate"
+                )
+            )
             expected_effects = {
                 "goal_gain": selected_score.goal_gain if selected_score is not None else selected.expected_goal_gain,
                 "information_gain": runtime_information_gain,
@@ -383,6 +445,7 @@ class CausalAgentLoop:
                 "tests_hypotheses": list(selected.tests_hypotheses),
                 "falsification_target": selected.falsification_target,
                 "virtual_time_seconds": state.virtual_time_seconds,
+                "runtime_capabilities": self.capabilities.to_dict(),
             }
             if experiment_update is not None:
                 expected_effects["experiment_id"] = experiment_update.experiment_id
@@ -403,12 +466,25 @@ class CausalAgentLoop:
             if temporal_evaluations:
                 expected_effects["temporal_effects"] = temporal_evaluations
 
-            self.world_model.record_transition(Transition(action=selected.name, arguments=selected.arguments, observation=result, expected_effects=expected_effects))
+            self.world_model.record_transition(
+                Transition(
+                    action=selected.name,
+                    arguments=selected.arguments,
+                    observation=result,
+                    expected_effects=expected_effects,
+                )
+            )
 
-            if self.belief_updater:
+            if self.capabilities.causal_updates and self.belief_updater:
                 self.belief_updater(state, self.world_model, decision, observation)
             mismatch_escalated = bool(mismatch_assessment and mismatch_assessment.escalate)
-            if self.hypothesis_updater and experiment_update is None and not temporal_evaluations and not mismatch_escalated:
+            if (
+                self.capabilities.causal_updates
+                and self.hypothesis_updater
+                and experiment_update is None
+                and not temporal_evaluations
+                and not mismatch_escalated
+            ):
                 self.hypothesis_updater(state, self.world_model, decision, observation)
 
             state.step += 1
