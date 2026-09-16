@@ -33,7 +33,7 @@ jobs:
           causalrag --version
           causalrag --help
       - name: Agent and LLM adapter tests
-        run: pytest -q tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_llm_interface.py
+        run: pytest -q tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_llm_interface.py tests/test_user_quickstart.py
 
   api:
     runs-on: ubuntu-latest
