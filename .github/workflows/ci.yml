@@ -23,5 +23,10 @@ jobs:
           pip install -e ".[dev]"
       - name: Compile
         run: python -m compileall -q causalrag
-      - name: Agent loop tests
+      - name: Import smoke
+        run: |
+          python -c "import causalrag; from causalrag import CausalAgent, create_agent; print(causalrag.__version__)"
+          causalrag --version
+          causalrag --help
+      - name: Agent tests
         run: pytest -q tests/test_agent_loop.py tests/test_agent_reasoning.py
