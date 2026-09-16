@@ -4,7 +4,7 @@ import math
 from typing import List, Optional, Sequence, Tuple
 
 from causalrag.agent.actions import ActionKind, ActionScore, CandidateAction
-from causalrag.experiments import expected_information_gain
+from causalrag.experiments import contract_applicable, expected_information_gain
 from causalrag.tools.base import ToolRegistry
 from causalrag.world_model.models import CausalWorldModel, Hypothesis
 
@@ -66,7 +66,7 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
     discrimination = hypothesis_discrimination_score(action, world_model)
     bayesian_information_gain = None
     contract = _contract_for_action(action, tools)
-    if contract is not None and world_model is not None:
+    if contract is not None and world_model is not None and contract_applicable(contract, world_model):
         bayesian_information_gain = expected_information_gain(contract, world_model)
         information_gain = bayesian_information_gain
         information_source = "runtime_bayesian_eig"
