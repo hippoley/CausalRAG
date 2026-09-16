@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 
 with open(os.path.join("causalrag", "__init__.py"), "r", encoding="utf-8") as f:
     version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", f.read(), re.M)
-    version = version_match.group(1) if version_match else "0.2.0"
+    version = version_match.group(1) if version_match else "0.3.0"
 
 with open("README.MD", "r", encoding="utf-8") as f:
     long_description = f.read()
