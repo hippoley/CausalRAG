@@ -24,6 +24,7 @@ rag_requirements = [
     "networkx>=2.6.0",
     "sentence-transformers>=2.2.0",
     "faiss-cpu>=1.7.0",
+    "jinja2>=3.0.0",
     "pyyaml>=6.0.0",
     "tqdm>=4.62.0",
 ]
