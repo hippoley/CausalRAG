@@ -30,6 +30,12 @@ from .temporal_hidden_world import (
     compare_temporal_guard,
     run_temporal_hidden_world,
 )
+from .temporal_suite import (
+    TemporalEpisodeMetrics,
+    TemporalSuiteReport,
+    compare_temporal_suite,
+    run_temporal_suite,
+)
 
 __all__ = [
     "HiddenWorldEnvironment",
@@ -56,4 +62,8 @@ __all__ = [
     "TemporalHiddenWorldMetrics",
     "run_temporal_hidden_world",
     "compare_temporal_guard",
+    "TemporalEpisodeMetrics",
+    "TemporalSuiteReport",
+    "run_temporal_suite",
+    "compare_temporal_suite",
 ]
