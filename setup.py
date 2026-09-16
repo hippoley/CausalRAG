@@ -12,31 +12,53 @@ with open(os.path.join("causalrag", "__init__.py"), "r", encoding="utf-8") as f:
 with open("README.MD", "r", encoding="utf-8") as f:
     long_description = f.read()
 
+# Keep the default install focused on the causal-agent runtime.
+# Heavy retrieval, web serving, evaluation and visualization stacks are opt-in.
 core_requirements = [
+    "openai>=1.0.0",
+    "python-dotenv>=0.19.0",
+]
+
+rag_requirements = [
     "numpy>=1.20.0",
     "networkx>=2.6.0",
     "sentence-transformers>=2.2.0",
-    "torch>=1.10.0",
     "faiss-cpu>=1.7.0",
-    "openai>=1.0.0",
-    "pydantic>=1.10.0",
+    "pyyaml>=6.0.0",
+    "tqdm>=4.62.0",
+]
+
+api_requirements = [
     "fastapi>=0.95.0",
     "uvicorn>=0.20.0",
-    "python-dotenv>=0.19.0",
-    "tqdm>=4.62.0",
-    "matplotlib>=3.4.0",
-    "pyyaml>=6.0.0",
+    "pydantic>=1.10.0",
 ]
 
 extra_requirements = {
-    "dev": ["pytest>=7.0", "pytest-cov>=4.0", "black>=23.0", "isort>=5.10", "flake8>=6.0", "mypy>=1.0"],
+    "rag": rag_requirements,
+    "api": api_requirements,
     "evaluation": ["pandas>=1.3.0", "ragas>=0.0.16"],
+    "dev": [
+        "pytest>=7.0",
+        "pytest-cov>=4.0",
+        "black>=23.0",
+        "isort>=5.10",
+        "flake8>=6.0",
+        "mypy>=1.0",
+    ],
     "weaviate": ["weaviate-client>=3.0.0"],
     "gpu": ["faiss-gpu>=1.7.0"],
     "anthropic": ["anthropic>=0.25.0"],
-    "visualization": ["plotly>=5.3.0", "pyvis>=0.2.0"],
+    "visualization": ["matplotlib>=3.4.0", "plotly>=5.3.0", "pyvis>=0.2.0"],
 }
-extra_requirements["all"] = [req for key, reqs in extra_requirements.items() if key != "all" for req in reqs]
+extra_requirements["full"] = sorted(
+    {
+        req
+        for key, reqs in extra_requirements.items()
+        if key not in {"dev", "full", "gpu"}
+        for req in reqs
+    }
+)
 
 setup(
     name="causalrag",
