@@ -22,7 +22,7 @@ app = FastAPI(
 class AgentRunRequest(BaseModel):
     goal: str = Field(..., min_length=1, description="Goal for the causal agent")
     max_steps: int = Field(8, ge=1, le=50)
-    model: str = Field("gpt-4o-mini")
+    model: str = Field("gpt-5.6-terra")
     provider: str = Field("openai")
     documents: Optional[List[str]] = Field(
         None,
