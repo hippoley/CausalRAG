@@ -1,6 +1,11 @@
 import pytest
 
 from causalrag.agent import ActionKind, CandidateAction
+from causalrag.benchmarks import (
+    DecisionValuePolicy,
+    build_hvac_hidden_world,
+    run_policy_episode,
+)
 from causalrag.experiments import (
     ExperimentContract,
     InterventionContract,
@@ -121,3 +126,25 @@ def test_decision_value_ignores_model_self_scores_when_contracts_are_available()
 
     assert ranked[0][0].name == "diagnose"
     assert ranked[0][1].decision_value is not None
+
+
+def test_hiddenworld_decision_value_policy_is_runtime_arbitrated_not_thresholded():
+    metrics, result = run_policy_episode(
+        DecisionValuePolicy,
+        build_hvac_hidden_world("H2"),
+        seed=0,
+        max_steps=7,
+    )
+
+    first = result.state.decisions[0]
+    selected_score = next(
+        score for score in first.action_scores if score.action_name == first.selected.name
+    )
+    assert first.selected.kind == ActionKind.OBSERVE
+    assert selected_score.decision_value_source == "runtime_expected_decision_value_after_sampling"
+    assert selected_score.expected_value_of_sample_information is not None
+    assert any(
+        decision.selected.kind == ActionKind.INTERVENE
+        for decision in result.state.decisions
+    )
+    assert metrics.interventions == 1
