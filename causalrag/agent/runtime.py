@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from causalrag.generator.llm_interface import LLMInterface
 from causalrag.pipeline import CausalRAGPipeline
+from causalrag.reasoning.belief import LLMBeliefUpdater
 from causalrag.reasoning.llm import LLMCausalReasoner
 from causalrag.tools.base import ToolRegistry, ToolSpec
 from causalrag.world_model.models import CausalWorldModel
@@ -24,6 +25,20 @@ def _jsonable(value: Any) -> Any:
     if hasattr(value, "__dataclass_fields__"):
         return _jsonable(asdict(value))
     return value
+
+
+def _sync_graph_beliefs(pipeline: CausalRAGPipeline, world_model: CausalWorldModel) -> None:
+    """Seed explicit beliefs from the current extracted causal graph."""
+    graph = pipeline.graph_builder.get_graph()
+    node_text = pipeline.graph_builder.node_text
+    for cause_id, effect_id, data in graph.edges(data=True):
+        cause = node_text.get(cause_id, str(cause_id))
+        effect = node_text.get(effect_id, str(effect_id))
+        try:
+            probability = float(data.get("weight", 0.5))
+        except (TypeError, ValueError):
+            probability = 0.5
+        world_model.upsert_belief(cause, effect, probability=probability)
 
 
 @dataclass
@@ -60,6 +75,7 @@ class CausalAgent:
         if self.pipeline is None:
             raise RuntimeError("This agent was created without a retrieval pipeline")
         self.pipeline.index(list(documents))
+        _sync_graph_beliefs(self.pipeline, self.loop.world_model)
         return self
 
     def run(self, goal: str, max_steps: int = 8) -> AgentRunResult:
@@ -105,6 +121,9 @@ def create_agent(
     if documents:
         pipeline.index(list(documents))
 
+    model_state = world_model or CausalWorldModel()
+    _sync_graph_beliefs(pipeline, model_state)
+
     registry = ToolRegistry(tools)
 
     def retrieve_evidence(query: str, top_k: int = 5) -> Dict[str, Any]:
@@ -132,9 +151,11 @@ def create_agent(
 
     llm = LLMInterface(model=model_name, provider=provider, api_key=api_key)
     reasoner = LLMCausalReasoner(llm=llm, tools=registry)
+    belief_updater = LLMBeliefUpdater(llm=llm)
     loop = CausalAgentLoop(
         reasoner=reasoner,
         tools=registry,
-        world_model=world_model or CausalWorldModel(),
+        world_model=model_state,
+        belief_updater=belief_updater,
     )
     return CausalAgent(loop=loop, pipeline=pipeline)
