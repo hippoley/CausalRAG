@@ -60,7 +60,9 @@ def test_soft_model_mismatch_requires_distinct_experiments():
     assert first is not None
     assert first.suspicious is True
     assert first.escalate is False
-    assert world.model_mismatch_active is True
+    assert world.model_mismatch_active is False
+    assert world.snapshot()["open_world"]["none_of_the_above"] is False
+    assert world.snapshot()["open_world"]["mismatch_warning_count"] == 1
 
     second_same = assess_model_mismatch(
         _sensor_a_contract(),
@@ -69,6 +71,7 @@ def test_soft_model_mismatch_requires_distinct_experiments():
         policy=policy,
     )
     assert second_same.escalate is False
+    assert world.model_mismatch_active is False
 
     second_sensor = assess_model_mismatch(
         _sensor_b_contract(),
@@ -78,6 +81,8 @@ def test_soft_model_mismatch_requires_distinct_experiments():
     )
     assert second_sensor.escalate is True
     assert second_sensor.suppress_closed_world_posterior is True
+    assert world.model_mismatch_active is True
+    assert world.snapshot()["open_world"]["none_of_the_above"] is True
     assert len(world.unresolved_model_mismatches()) == 3
 
 
@@ -99,6 +104,7 @@ def test_hard_model_mismatch_can_escalate_from_one_near_impossible_outcome():
     assert assessment is not None
     assert assessment.hard_mismatch is True
     assert assessment.escalate is True
+    assert world.model_mismatch_active is True
 
 
 def test_discovered_hypothesis_prediction_expands_contract_and_requires_evidence_to_validate():
@@ -133,7 +139,7 @@ def test_discovered_hypothesis_prediction_expands_contract_and_requires_evidence
     assert update.posterior["H4"] > 0.5
     assert world.get_hypothesis("H4").validated is True
 
-    world.model_mismatch_active = True
+    world.activate_model_mismatch()
     assert maybe_resolve_model_mismatch(world) is True
     assert world.model_mismatch_active is False
 
@@ -265,16 +271,12 @@ def test_agent_loop_detects_none_of_the_above_discovers_and_validates_new_hypoth
     assert discovered.probability > 0.5
     assert world.model_mismatch_active is False
 
-    # The second low-likelihood outcome triggers none-of-the-above rather than
-    # forcing another closed-world posterior onto H1/H2.
     second_transition = world.transitions[1]
     assert second_transition.expected_effects["model_mismatch"]["escalate"] is True
     assert second_transition.expected_effects["model_mismatch"]["posterior_suppressed"] is True
     assert second_transition.expected_effects["model_mismatch"]["discovered_hypotheses"] == ["H4"]
     assert "posterior" not in second_transition.expected_effects
 
-    # The next experiment uses H4's falsifiable prediction and validates it by
-    # evidence rather than accepting the proposer's claimed 0.99 confidence.
     third_transition = world.transitions[2]
     assert third_transition.expected_effects["information_source"] == "runtime_bayesian_eig"
     assert third_transition.expected_effects["posterior"]["H4"] > 0.5
