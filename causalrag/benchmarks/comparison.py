@@ -1,0 +1,179 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Dict, Iterable, List, Mapping, Sequence, Tuple, Type
+
+from causalrag import create_agent
+
+from .hidden_world import (
+    HiddenWorldEnvironment,
+    HiddenWorldMetrics,
+    HiddenWorldScenario,
+    build_hvac_hidden_world,
+)
+from .policies import (
+    CheapestProbePolicy,
+    ConservativeEIGPolicy,
+    GreedyEIGPolicy,
+    RandomProbePolicy,
+)
+
+
+PolicyType = Type[GreedyEIGPolicy]
+
+
+@dataclass
+class PolicyReport:
+    policy_id: str
+    episodes: int
+    success_rate: float
+    identification_accuracy: float
+    mean_true_hypothesis_posterior: float
+    mean_brier_score: float
+    mean_probes: float
+    mean_total_cost: float
+    mean_causal_regret: float
+    per_hidden: Dict[str, Dict[str, float]]
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "policy_id": self.policy_id,
+            "episodes": self.episodes,
+            "success_rate": self.success_rate,
+            "identification_accuracy": self.identification_accuracy,
+            "mean_true_hypothesis_posterior": self.mean_true_hypothesis_posterior,
+            "mean_brier_score": self.mean_brier_score,
+            "mean_probes": self.mean_probes,
+            "mean_total_cost": self.mean_total_cost,
+            "mean_causal_regret": self.mean_causal_regret,
+            "per_hidden": self.per_hidden,
+        }
+
+
+@dataclass
+class PolicyComparisonReport:
+    seeds: List[int]
+    hidden_hypotheses: List[str]
+    reports: Dict[str, PolicyReport]
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "seeds": self.seeds,
+            "hidden_hypotheses": self.hidden_hypotheses,
+            "policies": {
+                policy_id: report.to_dict()
+                for policy_id, report in self.reports.items()
+            },
+        }
+
+
+def _mean(values: Iterable[float]) -> float:
+    rows = list(values)
+    return sum(rows) / len(rows) if rows else 0.0
+
+
+def run_policy_episode(
+    policy_type,
+    scenario: HiddenWorldScenario,
+    seed: int,
+    max_steps: int = 7,
+) -> Tuple[HiddenWorldMetrics, object]:
+    environment = HiddenWorldEnvironment(
+        scenario,
+        outcome_mode="stochastic",
+        seed=seed,
+    )
+    world = environment.world_model()
+    # Keep the policy RNG reproducible but independent from the environment RNG.
+    policy = policy_type(scenario, seed=100_000 + int(seed))
+    agent = create_agent(
+        world_model=world,
+        reasoner=policy,
+        tools=environment.tools(),
+    )
+    result = agent.run(
+        "Identify the hidden causal mechanism and apply the successful intervention.",
+        max_steps=max_steps,
+    )
+    return environment.metrics(result), result
+
+
+def _summarize(
+    policy_id: str,
+    metrics: Sequence[HiddenWorldMetrics],
+    hidden_hypotheses: Sequence[str],
+) -> PolicyReport:
+    per_hidden: Dict[str, Dict[str, float]] = {}
+    for hidden in hidden_hypotheses:
+        rows = [row for row in metrics if row.hidden_hypothesis == hidden]
+        per_hidden[hidden] = {
+            "episodes": float(len(rows)),
+            "success_rate": _mean(1.0 if row.success else 0.0 for row in rows),
+            "identification_accuracy": _mean(
+                1.0 if row.identification_correct else 0.0 for row in rows
+            ),
+            "mean_true_hypothesis_posterior": _mean(
+                row.true_hypothesis_posterior for row in rows
+            ),
+            "mean_brier_score": _mean(row.brier_score for row in rows),
+            "mean_probes": _mean(float(row.probes) for row in rows),
+            "mean_total_cost": _mean(row.total_cost for row in rows),
+            "mean_causal_regret": _mean(row.causal_regret for row in rows),
+        }
+    return PolicyReport(
+        policy_id=policy_id,
+        episodes=len(metrics),
+        success_rate=_mean(1.0 if row.success else 0.0 for row in metrics),
+        identification_accuracy=_mean(
+            1.0 if row.identification_correct else 0.0 for row in metrics
+        ),
+        mean_true_hypothesis_posterior=_mean(
+            row.true_hypothesis_posterior for row in metrics
+        ),
+        mean_brier_score=_mean(row.brier_score for row in metrics),
+        mean_probes=_mean(float(row.probes) for row in metrics),
+        mean_total_cost=_mean(row.total_cost for row in metrics),
+        mean_causal_regret=_mean(row.causal_regret for row in metrics),
+        per_hidden=per_hidden,
+    )
+
+
+def compare_hidden_world_policies(
+    seeds: Iterable[int] = range(20),
+    hidden_hypotheses: Sequence[str] = ("H1", "H2", "H3"),
+    policy_types: Sequence[type] = (
+        GreedyEIGPolicy,
+        ConservativeEIGPolicy,
+        CheapestProbePolicy,
+        RandomProbePolicy,
+    ),
+    max_steps: int = 7,
+) -> Tuple[PolicyComparisonReport, Dict[str, List[HiddenWorldMetrics]]]:
+    seeds = [int(seed) for seed in seeds]
+    hidden_hypotheses = list(hidden_hypotheses)
+    all_metrics: Dict[str, List[HiddenWorldMetrics]] = {}
+    reports: Dict[str, PolicyReport] = {}
+
+    for policy_type in policy_types:
+        policy_id = str(policy_type.policy_id)
+        rows: List[HiddenWorldMetrics] = []
+        for hidden in hidden_hypotheses:
+            for seed in seeds:
+                metrics, _result = run_policy_episode(
+                    policy_type,
+                    build_hvac_hidden_world(hidden),
+                    seed=seed,
+                    max_steps=max_steps,
+                )
+                rows.append(metrics)
+        all_metrics[policy_id] = rows
+        reports[policy_id] = _summarize(policy_id, rows, hidden_hypotheses)
+
+    return (
+        PolicyComparisonReport(
+            seeds=seeds,
+            hidden_hypotheses=hidden_hypotheses,
+            reports=reports,
+        ),
+        all_metrics,
+    )
