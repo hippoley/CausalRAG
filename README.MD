@@ -51,7 +51,7 @@ For the default OpenAI-backed reasoner:
 export OPENAI_API_KEY=...
 ```
 
-Python 3.8+ is supported by the runtime API. CI currently exercises Python 3.10 and 3.12.
+Python **3.10+** is required for the v0.2 agent runtime. CI exercises Python 3.10 and 3.12.
 
 ## 30-second quickstart
 
