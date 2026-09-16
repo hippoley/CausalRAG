@@ -1,10 +1,12 @@
 from causalrag.agent.actions import ActionKind, CandidateAction
+from causalrag.agent.loop import CausalAgentLoop
 from causalrag.reasoning.policy import (
     hypothesis_discrimination_score,
     rank_actions,
     score_action,
     select_action,
 )
+from causalrag.tools.base import ToolRegistry, ToolSpec
 from causalrag.world_model.models import CausalWorldModel
 
 
@@ -109,3 +111,54 @@ def test_model_goal_and_information_scores_are_bounded():
     assert score.model_information_gain == 1.0
     assert score.information_gain == 1.0
     assert score.total_utility == 2.0
+
+
+class RuntimePolicyReasoner:
+    def propose(self, state, world_model):
+        return [
+            CandidateAction(
+                kind=ActionKind.OBSERVE,
+                name="generic_sensor",
+                expected_information_gain=0.8,
+                cost=0.05,
+            ),
+            CandidateAction(
+                kind=ActionKind.OBSERVE,
+                name="diagnostic_sensor",
+                expected_information_gain=0.01,
+                tests_hypotheses=["H1", "H2"],
+                falsification_target="H1",
+                cost=0.05,
+            ),
+        ]
+
+    def uncertainty(self, state, world_model):
+        return "fault source"
+
+
+def test_agent_loop_records_runtime_score_and_information_source():
+    world = _world()
+    tools = ToolRegistry(
+        [
+            ToolSpec(name="generic_sensor", description="generic", handler=lambda: "generic"),
+            ToolSpec(name="diagnostic_sensor", description="diagnostic", handler=lambda: "diagnostic"),
+        ]
+    )
+    loop = CausalAgentLoop(
+        reasoner=RuntimePolicyReasoner(),
+        tools=tools,
+        world_model=world,
+    )
+
+    state = loop.run("diagnose", max_steps=1)
+
+    assert state.observations[0].action_name == "diagnostic_sensor"
+    assert state.decisions[0].action_scores[0].action_name == "diagnostic_sensor"
+    assert (
+        state.decisions[0].action_scores[0].information_source
+        == "runtime_hypothesis_discrimination"
+    )
+    transition = world.transitions[0]
+    assert transition.expected_effects["information_source"] == "runtime_hypothesis_discrimination"
+    assert transition.expected_effects["model_information_gain"] == 0.01
+    assert transition.expected_effects["information_gain"] > 0.9
