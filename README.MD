@@ -38,7 +38,7 @@ The legacy `CausalRAGPipeline` remains available as an optional compatibility la
 
 ## Install v0.2
 
-The default install is the lightweight causal-agent runtime. It does **not** install the embedding/Torch/FAISS stack.
+The default install is the lightweight causal-agent runtime. It does **not** install Torch, sentence-transformers, or FAISS.
 
 ```bash
 git clone https://github.com/hippoley/CausalRAG.git
@@ -49,19 +49,21 @@ pip install -e .
 Add capabilities only when you need them:
 
 ```bash
-pip install -e ".[rag]"          # document indexing + hybrid causal retrieval
-pip install -e ".[api]"          # FastAPI / HTTP server
-pip install -e ".[evaluation]"   # pandas + Ragas evaluation
-pip install -e ".[full]"         # all normal runtime capability layers
+pip install -e ".[rag]"               # lightweight document + causal retrieval
+pip install -e ".[api]"               # FastAPI / HTTP server
+pip install -e ".[local-embeddings]"  # sentence-transformers + PyTorch
+pip install -e ".[faiss]"             # FAISS vector backend
+pip install -e ".[evaluation]"        # pandas + Ragas evaluation
+pip install -e ".[full]"              # hosted-runtime capability layers
 ```
 
-For the default OpenAI-backed reasoner:
+For the default OpenAI-backed reasoner and hosted embedding provider:
 
 ```bash
 export OPENAI_API_KEY=...
 ```
 
-The default OpenAI reasoning model is `gpt-5.6-terra`, using the Responses API. You can override `model_name` or `--model` when you need a different model.
+The default reasoning model is `gpt-5.6-terra` and the default embedding model is `text-embedding-3-small`. The hosted RAG path uses NumPy in-memory cosine search by default, so installing `[rag]` does not imply a local ML runtime.
 
 Python **3.10+** is required for the v0.2 agent runtime. Core CI exercises Python 3.10 and 3.12 independently from optional RAG/API checks.
 
@@ -104,13 +106,13 @@ The model proposes actions; the runtime selects among them and records decision,
 
 ## Add causal retrieval
 
-Install the RAG capability layer first:
+Install the lightweight RAG capability layer:
 
 ```bash
 pip install -e ".[rag]"
 ```
 
-Then documents can become an evidence capability:
+Then documents can become an evidence capability without installing Torch or FAISS:
 
 ```python
 from causalrag import create_agent
@@ -130,6 +132,41 @@ result = agent.run(
 
 print(result.answer)
 ```
+
+By default, vector retrieval and causal-graph node normalization share one hosted OpenAI embedding provider using `text-embedding-3-small`, with NumPy cosine search as the vector backend.
+
+### Run embeddings locally
+
+If you want an offline/local embedding model:
+
+```bash
+pip install -e ".[rag,local-embeddings]"
+```
+
+```python
+agent = create_agent(
+    documents=my_documents,
+    embedding_provider_name="local",
+    embedding_model="all-MiniLM-L6-v2",
+)
+```
+
+### Use FAISS explicitly
+
+FAISS is also opt-in:
+
+```bash
+pip install -e ".[rag,faiss]"
+```
+
+```python
+agent = create_agent(
+    documents=my_documents,
+    vector_backend="faiss",
+)
+```
+
+You can also inject your own `EmbeddingProvider` into `create_agent(..., embedding_provider=...)` or `create_pipeline(...)`. This keeps the causal graph and vector retrieval on the same embedding space without tying the runtime to a specific embedding vendor or local framework.
 
 When retrieval is enabled, the agent gets a `retrieve_evidence` capability backed by the hybrid vector + causal graph retrieval stack. Extracted graph edges seed the explicit belief state, and later observations can revise those beliefs.
 
@@ -156,28 +193,36 @@ causalrag --version
 causalrag --help
 ```
 
-To run against a text file or directory, install `causalrag[rag]` and then:
+To run against a text file or directory using hosted embeddings:
 
 ```bash
 causalrag agent \
   --goal "What should I change to reduce indoor CO2, and what should I verify first?" \
   --input ./docs \
+  --embedding-provider openai \
+  --embedding-model text-embedding-3-small \
+  --vector-backend memory \
   --max-steps 8
 ```
 
-Print the complete decision trace:
+Use local embeddings instead:
 
 ```bash
 causalrag agent \
   --goal "Find the most plausible causal explanation" \
   --input ./docs \
+  --embedding-provider local \
+  --embedding-model all-MiniLM-L6-v2 \
   --json
 ```
 
-Create a reusable index:
+Create a reusable hosted-embedding index:
 
 ```bash
-causalrag index --input ./docs --output ./index
+causalrag index \
+  --input ./docs \
+  --output ./index \
+  --embedding-provider openai
 ```
 
 Use that index later:
@@ -218,7 +263,10 @@ Content-Type: application/json
   "goal": "Find the safest leverage point for reducing indoor CO2",
   "max_steps": 8,
   "model": "gpt-5.6-terra",
-  "provider": "openai"
+  "provider": "openai",
+  "embedding_provider": "openai",
+  "embedding_model": "text-embedding-3-small",
+  "vector_backend": "memory"
 }
 ```
 
@@ -365,7 +413,8 @@ causalrag/
 │   └── policy.py        # causal utility selection
 ├── tools/
 │   └── base.py          # capability registry
-├── causal_graph/        # optional RAG causal extraction + graph layer
+├── embeddings/          # hosted/local/custom provider abstraction
+├── causal_graph/        # optional causal extraction + graph layer
 ├── retriever/           # optional vector/hybrid retrieval
 ├── reranker/            # optional causal reranking
 ├── interface/
@@ -407,9 +456,12 @@ For new projects, prefer `create_agent()`.
 - graph → initial belief synchronization
 - observation → defeasible belief updates
 - built-in hybrid causal evidence retrieval as an optional capability
+- shared `EmbeddingProvider` abstraction across vector and causal graph retrieval
+- lightweight hosted `[rag]` install with no Torch / sentence-transformers / FAISS
+- opt-in local embeddings and FAISS backends
 - lightweight default core install
-- lazy-loaded RAG/API/evaluation layers
-- injectable custom reasoner / LLM / belief updater
+- lazy-loaded RAG/API/evaluation/visualization layers
+- injectable custom reasoner / LLM / belief updater / embedding provider
 - Python `create_agent()` API
 - CLI agent entry point
 - standalone HTTP `/agent/run`
