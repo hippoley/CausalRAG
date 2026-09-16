@@ -3,8 +3,10 @@ from .hidden_world import (
     HiddenWorldMetrics,
     HiddenWorldReasoner,
     HiddenWorldScenario,
+    HiddenWorldSuiteReport,
     build_hvac_hidden_world,
     run_hidden_world,
+    run_hidden_world_suite,
 )
 
 __all__ = [
@@ -12,6 +14,8 @@ __all__ = [
     "HiddenWorldMetrics",
     "HiddenWorldReasoner",
     "HiddenWorldScenario",
+    "HiddenWorldSuiteReport",
     "build_hvac_hidden_world",
     "run_hidden_world",
+    "run_hidden_world_suite",
 ]
