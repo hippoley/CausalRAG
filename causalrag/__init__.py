@@ -19,6 +19,13 @@ from .agent import (
     Observation,
 )
 from .agent.runtime import AgentRunResult, CausalAgent, create_agent
+from .experiments import (
+    ExperimentContract,
+    ExperimentUpdate,
+    OutcomeLikelihood,
+    expected_information_gain,
+    posterior_for_outcome,
+)
 from .reasoning.hypothesis import HypothesisProposal, LLMHypothesisUpdater
 from .reasoning.llm import LLMCausalReasoner
 from .tools import ToolRegistry, ToolSpec
@@ -32,68 +39,35 @@ def __getattr__(name):
         try:
             from .evaluation.evaluator import CausalEvaluator, EvaluationResult
         except (ImportError, ModuleNotFoundError) as exc:
-            raise RuntimeError(
-                "Evaluation requires optional dependencies. Install them with: "
-                "pip install 'causalrag[evaluation]'"
-            ) from exc
+            raise RuntimeError("Evaluation requires optional dependencies. Install them with: pip install 'causalrag[evaluation]'") from exc
         return {"CausalEvaluator": CausalEvaluator, "EvaluationResult": EvaluationResult}[name]
-
     if name == "CausalRAGPipeline":
         try:
             from .pipeline import CausalRAGPipeline
         except (ImportError, ModuleNotFoundError) as exc:
-            raise RuntimeError(
-                "CausalRAGPipeline requires optional RAG dependencies. Install "
-                "them with: pip install 'causalrag[rag]'"
-            ) from exc
+            raise RuntimeError("CausalRAGPipeline requires optional RAG dependencies. Install them with: pip install 'causalrag[rag]'") from exc
         return CausalRAGPipeline
-
     if name == "CausalGraphBuilder":
         try:
             from .causal_graph.builder import CausalGraphBuilder
         except (ImportError, ModuleNotFoundError) as exc:
-            raise RuntimeError(
-                "CausalGraphBuilder requires optional RAG dependencies. Install "
-                "them with: pip install 'causalrag[rag]'"
-            ) from exc
+            raise RuntimeError("CausalGraphBuilder requires optional RAG dependencies. Install them with: pip install 'causalrag[rag]'") from exc
         return CausalGraphBuilder
-
     if name == "CausalPathRetriever":
         try:
             from .causal_graph.retriever import CausalPathRetriever
         except (ImportError, ModuleNotFoundError) as exc:
-            raise RuntimeError(
-                "CausalPathRetriever requires optional RAG dependencies. Install "
-                "them with: pip install 'causalrag[rag]'"
-            ) from exc
+            raise RuntimeError("CausalPathRetriever requires optional RAG dependencies. Install them with: pip install 'causalrag[rag]'") from exc
         return CausalPathRetriever
-
     raise AttributeError("module 'causalrag' has no attribute %r" % name)
 
 
-def create_pipeline(
-    model_name="gpt-5.6-terra",
-    embedding_model="text-embedding-3-small",
-    graph_path=None,
-    index_path=None,
-    config_path=None,
-    provider="openai",
-    api_key=None,
-    extractor_method="rule",
-    embedding_provider_name=None,
-    embedding_api_key=None,
-    embedding_provider=None,
-    vector_backend="memory",
-):
+def create_pipeline(model_name="gpt-5.6-terra", embedding_model="text-embedding-3-small", graph_path=None, index_path=None, config_path=None, provider="openai", api_key=None, extractor_method="rule", embedding_provider_name=None, embedding_api_key=None, embedding_provider=None, vector_backend="memory"):
     """Create the legacy one-shot RAG pipeline on demand."""
     try:
         from .pipeline import CausalRAGPipeline
     except (ImportError, ModuleNotFoundError) as exc:
-        raise RuntimeError(
-            "The legacy RAG pipeline requires optional dependencies. "
-            "Install them with: pip install 'causalrag[rag]'"
-        ) from exc
-
+        raise RuntimeError("The legacy RAG pipeline requires optional dependencies. Install them with: pip install 'causalrag[rag]'") from exc
     return CausalRAGPipeline(
         model_name=model_name,
         embedding_model=embedding_model,
@@ -111,25 +85,8 @@ def create_pipeline(
 
 
 __all__ = [
-    "CausalAgent",
-    "AgentRunResult",
-    "create_agent",
-    "LLMCausalReasoner",
-    "LLMHypothesisUpdater",
-    "HypothesisProposal",
-    "create_pipeline",
-    "ActionKind",
-    "ActionScore",
-    "AgentState",
-    "CandidateAction",
-    "CausalAgentLoop",
-    "DecisionRecord",
-    "Observation",
-    "ToolRegistry",
-    "ToolSpec",
-    "CausalBelief",
-    "CausalWorldModel",
-    "Evidence",
-    "Hypothesis",
-    "Transition",
+    "CausalAgent", "AgentRunResult", "create_agent", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
+    "ActionKind", "ActionScore", "AgentState", "CandidateAction", "CausalAgentLoop", "DecisionRecord", "Observation",
+    "ToolRegistry", "ToolSpec", "CausalBelief", "CausalWorldModel", "Evidence", "Hypothesis", "Transition",
+    "OutcomeLikelihood", "ExperimentContract", "ExperimentUpdate", "expected_information_gain", "posterior_for_outcome",
 ]

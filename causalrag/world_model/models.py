@@ -69,6 +69,14 @@ class Hypothesis:
     version: int = 1
     updated_at: str = field(default_factory=_now)
 
+    def _refresh_status(self) -> None:
+        if self.probability >= 0.9:
+            self.status = "supported"
+        elif self.probability <= 0.1:
+            self.status = "rejected"
+        else:
+            self.status = "active"
+
     def update(self, evidence: Evidence) -> None:
         weight = max(-1.0, min(1.0, evidence.weight))
         if weight >= 0:
@@ -79,12 +87,26 @@ class Hypothesis:
             self.probability += self.probability * weight
 
         self.probability = max(0.001, min(0.999, self.probability))
-        if self.probability >= 0.9:
-            self.status = "supported"
-        elif self.probability <= 0.1:
-            self.status = "rejected"
-        else:
-            self.status = "active"
+        self._refresh_status()
+        self.version += 1
+        self.updated_at = _now()
+
+    def set_probability(self, probability: float, evidence: Optional[Evidence] = None) -> None:
+        """Set an externally computed probability while preserving evidence direction.
+
+        For exact posterior updates, ``evidence.weight`` is authoritative about
+        whether the observation supported or conflicted with the hypothesis.
+        This matters when the external estimator normalizes a set of operational
+        credences before computing a posterior: comparing the posterior to the
+        raw pre-normalized credence can give the wrong evidence direction.
+        """
+        self.probability = max(0.001, min(0.999, float(probability)))
+        if evidence is not None:
+            if float(evidence.weight) >= 0.0:
+                self.supporting_evidence.append(evidence)
+            else:
+                self.conflicting_evidence.append(evidence)
+        self._refresh_status()
         self.version += 1
         self.updated_at = _now()
 
@@ -109,21 +131,10 @@ class CausalWorldModel:
         self._hypotheses: Dict[str, Hypothesis] = {}
         self.transitions: List[Transition] = []
 
-    def upsert_belief(
-        self,
-        cause: str,
-        effect: str,
-        probability: float = 0.5,
-        **kwargs: Any,
-    ) -> CausalBelief:
+    def upsert_belief(self, cause: str, effect: str, probability: float = 0.5, **kwargs: Any) -> CausalBelief:
         key = (cause, effect)
         if key not in self._beliefs:
-            self._beliefs[key] = CausalBelief(
-                cause=cause,
-                effect=effect,
-                probability=max(0.001, min(0.999, probability)),
-                **kwargs,
-            )
+            self._beliefs[key] = CausalBelief(cause=cause, effect=effect, probability=max(0.001, min(0.999, probability)), **kwargs)
         return self._beliefs[key]
 
     def beliefs(self) -> List[CausalBelief]:
@@ -132,38 +143,18 @@ class CausalWorldModel:
     def get(self, cause: str, effect: str) -> Optional[CausalBelief]:
         return self._beliefs.get((cause, effect))
 
-    def update_belief(
-        self,
-        cause: str,
-        effect: str,
-        evidence: Evidence,
-        prior: float = 0.5,
-    ) -> CausalBelief:
+    def update_belief(self, cause: str, effect: str, evidence: Evidence, prior: float = 0.5) -> CausalBelief:
         belief = self.upsert_belief(cause, effect, probability=prior)
         belief.update(evidence)
         return belief
 
-    def upsert_hypothesis(
-        self,
-        hypothesis_id: str,
-        statement: str,
-        probability: float = 0.5,
-        rationale: str = "",
-        falsifiers: Optional[Iterable[str]] = None,
-    ) -> Hypothesis:
+    def upsert_hypothesis(self, hypothesis_id: str, statement: str, probability: float = 0.5, rationale: str = "", falsifiers: Optional[Iterable[str]] = None) -> Hypothesis:
         hypothesis_id = str(hypothesis_id).strip()
         if not hypothesis_id:
             raise ValueError("hypothesis_id must be non-empty")
-
         existing = self._hypotheses.get(hypothesis_id)
         if existing is None:
-            existing = Hypothesis(
-                hypothesis_id=hypothesis_id,
-                statement=str(statement).strip(),
-                probability=max(0.001, min(0.999, float(probability))),
-                rationale=str(rationale or ""),
-                falsifiers=[str(item) for item in (falsifiers or []) if str(item).strip()],
-            )
+            existing = Hypothesis(hypothesis_id=hypothesis_id, statement=str(statement).strip(), probability=max(0.001, min(0.999, float(probability))), rationale=str(rationale or ""), falsifiers=[str(item) for item in (falsifiers or []) if str(item).strip()])
             self._hypotheses[hypothesis_id] = existing
         else:
             if statement:
@@ -177,37 +168,35 @@ class CausalWorldModel:
 
     def hypotheses(self, include_rejected: bool = True) -> List[Hypothesis]:
         values = list(self._hypotheses.values())
-        if include_rejected:
-            return values
-        return [hypothesis for hypothesis in values if hypothesis.status != "rejected"]
+        return values if include_rejected else [h for h in values if h.status != "rejected"]
 
     def get_hypothesis(self, hypothesis_id: str) -> Optional[Hypothesis]:
         return self._hypotheses.get(hypothesis_id)
 
-    def update_hypothesis(
-        self,
-        hypothesis_id: str,
-        evidence: Evidence,
-    ) -> Optional[Hypothesis]:
+    def update_hypothesis(self, hypothesis_id: str, evidence: Evidence) -> Optional[Hypothesis]:
         hypothesis = self._hypotheses.get(hypothesis_id)
         if hypothesis is None:
             return None
         hypothesis.update(evidence)
         return hypothesis
 
+    def set_hypothesis_probability(self, hypothesis_id: str, probability: float, evidence: Optional[Evidence] = None) -> Optional[Hypothesis]:
+        """Set an exact externally-computed posterior while preserving evidence history."""
+        hypothesis = self._hypotheses.get(hypothesis_id)
+        if hypothesis is None:
+            return None
+        hypothesis.set_probability(probability, evidence=evidence)
+        return hypothesis
+
     def sync_hypotheses(self, proposals: Iterable[Any]) -> None:
-        """Persist reasoner proposals without erasing accumulated evidence."""
         for proposal in proposals:
-            if isinstance(proposal, dict):
-                data = proposal
-            else:
-                data = {
-                    "id": getattr(proposal, "hypothesis_id", None),
-                    "statement": getattr(proposal, "statement", ""),
-                    "probability": getattr(proposal, "probability", 0.5),
-                    "rationale": getattr(proposal, "rationale", ""),
-                    "falsifiers": getattr(proposal, "falsifiers", []),
-                }
+            data = proposal if isinstance(proposal, dict) else {
+                "id": getattr(proposal, "hypothesis_id", None),
+                "statement": getattr(proposal, "statement", ""),
+                "probability": getattr(proposal, "probability", 0.5),
+                "rationale": getattr(proposal, "rationale", ""),
+                "falsifiers": getattr(proposal, "falsifiers", []),
+            }
             hypothesis_id = data.get("id") or data.get("hypothesis_id")
             statement = data.get("statement")
             if not hypothesis_id or not statement:
@@ -216,13 +205,7 @@ class CausalWorldModel:
                 probability = float(data.get("probability", 0.5))
             except (TypeError, ValueError):
                 probability = 0.5
-            self.upsert_hypothesis(
-                hypothesis_id=str(hypothesis_id),
-                statement=str(statement),
-                probability=probability,
-                rationale=str(data.get("rationale") or ""),
-                falsifiers=data.get("falsifiers") or [],
-            )
+            self.upsert_hypothesis(str(hypothesis_id), str(statement), probability, str(data.get("rationale") or ""), data.get("falsifiers") or [])
 
     def record_transition(self, transition: Transition) -> None:
         self.transitions.append(transition)
@@ -233,31 +216,7 @@ class CausalWorldModel:
 
     def snapshot(self) -> Dict[str, Any]:
         return {
-            "beliefs": [
-                {
-                    "cause": b.cause,
-                    "effect": b.effect,
-                    "probability": b.probability,
-                    "context": b.context,
-                    "mechanism": b.mechanism,
-                    "temporal_lag": b.temporal_lag,
-                    "version": b.version,
-                }
-                for b in self.beliefs()
-            ],
-            "hypotheses": [
-                {
-                    "id": h.hypothesis_id,
-                    "statement": h.statement,
-                    "probability": h.probability,
-                    "rationale": h.rationale,
-                    "falsifiers": h.falsifiers,
-                    "status": h.status,
-                    "support_count": len(h.supporting_evidence),
-                    "conflict_count": len(h.conflicting_evidence),
-                    "version": h.version,
-                }
-                for h in self.hypotheses()
-            ],
+            "beliefs": [{"cause": b.cause, "effect": b.effect, "probability": b.probability, "context": b.context, "mechanism": b.mechanism, "temporal_lag": b.temporal_lag, "version": b.version} for b in self.beliefs()],
+            "hypotheses": [{"id": h.hypothesis_id, "statement": h.statement, "probability": h.probability, "rationale": h.rationale, "falsifiers": h.falsifiers, "status": h.status, "support_count": len(h.supporting_evidence), "conflict_count": len(h.conflicting_evidence), "version": h.version} for h in self.hypotheses()],
             "transition_count": len(self.transitions),
         }

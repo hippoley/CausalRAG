@@ -30,14 +30,7 @@ class CandidateAction:
 
     @property
     def utility(self) -> float:
-        """Legacy/model-proposed utility before runtime epistemic rescoring."""
-        return (
-            self.expected_goal_gain
-            + self.expected_information_gain
-            - self.cost
-            - self.risk
-            - self.irreversibility
-        )
+        return self.expected_goal_gain + self.expected_information_gain - self.cost - self.risk - self.irreversibility
 
 
 @dataclass
@@ -53,6 +46,7 @@ class ActionScore:
     information_source: str
     model_information_gain: float
     discrimination_score: Optional[float]
+    bayesian_information_gain: Optional[float]
     cost: float
     risk: float
     irreversibility: float

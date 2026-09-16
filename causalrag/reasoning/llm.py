@@ -27,13 +27,8 @@ class LLMCausalReasoner:
         self._last_uncertainty = payload.get("uncertainty")
         self._last_hypotheses = self._parse_hypotheses(payload)
 
-        known_hypothesis_ids = {
-            hypothesis.hypothesis_id for hypothesis in world_model.hypotheses()
-        }
-        known_hypothesis_ids.update(
-            hypothesis.hypothesis_id for hypothesis in self._last_hypotheses
-        )
-
+        known_hypothesis_ids = {h.hypothesis_id for h in world_model.hypotheses()}
+        known_hypothesis_ids.update(h.hypothesis_id for h in self._last_hypotheses)
         candidates: List[CandidateAction] = []
         specs = self.tools.specs()
         for item in payload.get("candidates", [])[: self.max_candidates]:
@@ -100,11 +95,7 @@ class LLMCausalReasoner:
     def uncertainty(self, state: AgentState, world_model: CausalWorldModel) -> Optional[str]:
         return self._last_uncertainty
 
-    def hypothesis_proposals(
-        self,
-        state: AgentState,
-        world_model: CausalWorldModel,
-    ) -> Sequence[HypothesisProposal]:
+    def hypothesis_proposals(self, state: AgentState, world_model: CausalWorldModel) -> Sequence[HypothesisProposal]:
         return list(self._last_hypotheses)
 
     def _parse_hypotheses(self, payload: Dict[str, Any]) -> List[HypothesisProposal]:
@@ -125,11 +116,7 @@ class LLMCausalReasoner:
                     statement=statement,
                     probability=max(0.001, min(0.999, probability)),
                     rationale=str(item.get("rationale") or ""),
-                    falsifiers=[
-                        str(value)
-                        for value in (item.get("falsifiers") or [])
-                        if str(value).strip()
-                    ],
+                    falsifiers=[str(value) for value in (item.get("falsifiers") or []) if str(value).strip()],
                 )
             )
             seen.add(hypothesis_id)
@@ -138,21 +125,19 @@ class LLMCausalReasoner:
     def _build_prompt(self, state: AgentState, world_model: CausalWorldModel) -> str:
         tools: List[Dict[str, Any]] = []
         for name, spec in self.tools.specs().items():
-            tools.append(
-                {
-                    "name": name,
-                    "description": spec.description,
-                    "cost": spec.cost,
-                    "risk": spec.risk,
-                    "reversible": spec.reversible,
-                    "metadata": spec.metadata,
-                }
-            )
+            tool = {
+                "name": name,
+                "description": spec.description,
+                "cost": spec.cost,
+                "risk": spec.risk,
+                "reversible": spec.reversible,
+                "metadata": spec.metadata,
+            }
+            if spec.experiment_contract is not None:
+                tool["experiment_contract"] = spec.experiment_contract.summary()
+            tools.append(tool)
 
-        observations = [
-            {"action": obs.action_name, "result": obs.result}
-            for obs in state.observations[-6:]
-        ]
+        observations = [{"action": obs.action_name, "result": obs.result} for obs in state.observations[-6:]]
         context = {
             "goal": state.goal,
             "step": state.step,
@@ -171,6 +156,8 @@ Maintain explicit competing hypotheses when there is unresolved causal uncertain
 - Do not raise a hypothesis probability merely because evidence is compatible with it.
 - Prefer actions whose possible outcomes discriminate among hypotheses or could falsify the current leader.
 
+Some tools expose an experiment_contract summary. That means the runtime owns a validated outcome model for those hypotheses and will calculate Bayesian information gain and posterior updates itself. Do not invent or rewrite those likelihoods. Prefer such tools when their modeled hypotheses match the current uncertainty and their cost/risk is acceptable.
+
 Propose up to {self.max_candidates} candidate actions.
 Optimize for goal progress and information gain while minimizing cost, risk, and irreversible commitments.
 Prefer observing/retrieving evidence when uncertainty is high. Use intervene only when evidence is sufficient.
@@ -184,30 +171,8 @@ For every information-seeking action, list the hypothesis IDs it tests. Set fals
 Return ONLY a JSON object of this exact shape:
 {{
   "uncertainty": "largest decision-relevant uncertainty or null",
-  "hypotheses": [
-    {{
-      "id": "H1",
-      "statement": "specific falsifiable explanation",
-      "probability": 0.5,
-      "rationale": "why it remains plausible",
-      "falsifiers": ["concrete observation that would count against it"]
-    }}
-  ],
-  "candidates": [
-    {{
-      "kind": "observe|retrieve|ask|intervene|wait|stop",
-      "name": "tool name, wait, or stop",
-      "arguments": {{}},
-      "expected_goal_gain": 0.0,
-      "expected_information_gain": 0.0,
-      "cost": 0.0,
-      "risk": 0.0,
-      "irreversibility": 0.0,
-      "tests_hypotheses": ["H1", "H2"],
-      "falsification_target": "H1 or null",
-      "rationale": "short reason including how outcomes would change the decision"
-    }}
-  ],
+  "hypotheses": [{{"id":"H1","statement":"specific falsifiable explanation","probability":0.5,"rationale":"why it remains plausible","falsifiers":["concrete observation that would count against it"]}}],
+  "candidates": [{{"kind":"observe|retrieve|ask|intervene|wait|stop","name":"tool name, wait, or stop","arguments":{{}},"expected_goal_gain":0.0,"expected_information_gain":0.0,"cost":0.0,"risk":0.0,"irreversibility":0.0,"tests_hypotheses":["H1","H2"],"falsification_target":"H1 or null","rationale":"short reason including how outcomes would change the decision"}}],
   "answer": "optional fallback final answer"
 }}
 
