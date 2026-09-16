@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-from causalrag import CausalRAGPipeline, __version__, create_agent, create_pipeline
+from causalrag import __version__, create_agent, create_pipeline
 from causalrag.utils.logging import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,17 @@ def _load_documents(path: str) -> List[str]:
             if text:
                 documents.append(text)
     return documents
+
+
+def _require_api():
+    try:
+        import uvicorn
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RuntimeError(
+            "The HTTP server requires optional API dependencies. "
+            "Install them with: pip install 'causalrag[api]'"
+        ) from exc
+    return uvicorn
 
 
 def parse_args():
@@ -99,7 +110,7 @@ def main():
         if not documents:
             logger.error("No non-empty .txt documents found")
             return 1
-        pipeline = CausalRAGPipeline(
+        pipeline = create_pipeline(
             embedding_model=args.embedding_model,
             index_path=args.output,
             provider="local",
@@ -121,8 +132,7 @@ def main():
         return 0
 
     if args.command == "serve":
-        import uvicorn
-
+        uvicorn = _require_api()
         uvicorn.run(
             "causalrag.interface.agent_api:app",
             host=args.host,
