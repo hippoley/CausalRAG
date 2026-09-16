@@ -25,9 +25,11 @@ class CausalRAGPipeline:
     ):
         self.graph_builder = CausalGraphBuilder(graph_path=graph_path)
         self.vector_retriever = VectorStoreRetriever(
-            embedding_model=embedding_model,
-            index_path=index_path,
+            model_name=embedding_model,
+            cache_dir=index_path,
         )
+        if index_path:
+            self.vector_retriever.load_cached(index_path)
         self.graph_retriever = CausalPathRetriever(self.graph_builder)
         self.hybrid_retriever = HybridRetriever(self.vector_retriever, self.graph_retriever)
         self.reranker = CausalPathReranker(self.graph_retriever)
@@ -37,7 +39,6 @@ class CausalRAGPipeline:
             self._load_config(config_path)
 
     def _load_config(self, config_path):
-        # Configuration loading remains a compatibility hook.
         return None
 
     def index(self, documents):
