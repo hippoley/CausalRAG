@@ -66,7 +66,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    setup_logging(level=logging.INFO)
+    setup_logging()
 
     if args.version:
         print(f"CausalRAG version {__version__}")
