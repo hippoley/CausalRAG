@@ -16,6 +16,7 @@ class HypothesisProposal:
     probability: float = 0.5
     rationale: str = ""
     falsifiers: List[str] = field(default_factory=list)
+    experiment_predictions: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
 
 class LLMHypothesisUpdater:
