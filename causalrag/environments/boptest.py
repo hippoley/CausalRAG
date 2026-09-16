@@ -63,11 +63,11 @@ class BOPTESTResponse:
 
 
 class BOPTESTClient:
-    """Small, dependency-free client for the official BOPTEST REST API.
+    """Dependency-free client for the official BOPTEST REST API.
 
-    The client supports both the public service (``https://api.boptest.net``)
-    and a local BOPTEST deployment. A custom transport can be injected for
-    deterministic tests, record/replay, or enterprise networking layers.
+    Supports both the public service (``https://api.boptest.net``) and local
+    deployments. A custom transport can be injected for deterministic tests,
+    record/replay, or enterprise networking layers.
     """
 
     def __init__(
@@ -95,15 +95,11 @@ class BOPTESTClient:
     ) -> BOPTESTResponse:
         url = f"{self.base_url}/{str(path).lstrip('/')}"
         raw = self.transport(method.upper(), url, payload, self.timeout)
-        if not isinstance(raw, Mapping):
-            raise BOPTESTProtocolError(
-                f"BOPTEST response must be a JSON object; got {type(raw).__name__}"
-            )
 
-        # Deployed testcase endpoints use the documented envelope:
-        # {"status": ..., "message": ..., "payload": ...}. The testcase
-        # selection endpoint is documented as returning {"testid": ...} and is
-        # accepted directly for compatibility with both public and local service.
+        # Service-level APIs may return a direct JSON object or array. Running
+        # testcase APIs use the documented status/message/payload envelope.
+        if not isinstance(raw, Mapping):
+            return BOPTESTResponse(payload=raw)
         if "status" not in raw and "payload" not in raw:
             return BOPTESTResponse(payload=dict(raw))
 
@@ -132,6 +128,13 @@ class BOPTESTClient:
             )
         return f"{operation}/{parse.quote(str(self.testid), safe='')}"
 
+    # --- Service-level lifecycle -------------------------------------------------
+    def version(self) -> Any:
+        return self._request("GET", "version").payload
+
+    def testcases(self) -> Any:
+        return self._request("GET", "testcases").payload
+
     def select_testcase(self, testcase_name: str) -> str:
         name = str(testcase_name).strip()
         if not name:
@@ -146,14 +149,15 @@ class BOPTESTClient:
         self.testid = str(data["testid"])
         return self.testid
 
+    def status(self) -> Any:
+        return self._request("GET", self._instance_path("status")).payload
+
     def stop(self) -> Any:
         response = self._request("PUT", self._instance_path("stop"))
         self.testid = None
         return response.payload
 
-    def version(self) -> Any:
-        return self._request("GET", self._instance_path("version")).payload
-
+    # --- Running testcase introspection ------------------------------------------
     def name(self) -> Any:
         return self._request("GET", self._instance_path("name")).payload
 
@@ -163,6 +167,10 @@ class BOPTESTClient:
 
     def inputs(self) -> Dict[str, Any]:
         payload = self._request("GET", self._instance_path("inputs")).payload
+        return dict(payload or {})
+
+    def forecast_points(self) -> Dict[str, Any]:
+        payload = self._request("GET", self._instance_path("forecast_points")).payload
         return dict(payload or {})
 
     def get_step(self) -> float:
@@ -186,6 +194,7 @@ class BOPTESTClient:
         except (TypeError, ValueError) as exc:
             raise BOPTESTProtocolError(f"Invalid BOPTEST step response: {payload!r}") from exc
 
+    # --- Scenario and simulation -------------------------------------------------
     def initialize(self, start_time: float, warmup_period: float) -> Dict[str, Any]:
         if float(start_time) < 0 or float(warmup_period) < 0:
             raise ValueError("start_time and warmup_period must be non-negative")
@@ -306,6 +315,5 @@ class BOPTESTClient:
             try:
                 self.stop()
             except BOPTESTError:
-                # Context cleanup should not hide the original exception.
                 if exc is None:
                     raise
