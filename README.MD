@@ -38,11 +38,22 @@ The runtime is designed around three ideas:
 
 ## Install the latest v0.2 branch
 
+The default install is the lightweight causal-agent runtime. It does **not** install the embedding/Torch/FAISS stack.
+
 ```bash
 git clone https://github.com/hippoley/CausalRAG.git
 cd CausalRAG
 git checkout feature/causal-agent-v2
 pip install -e .
+```
+
+Add capabilities only when you need them:
+
+```bash
+pip install -e ".[rag]"          # document indexing + hybrid causal retrieval
+pip install -e ".[api]"          # FastAPI / HTTP server
+pip install -e ".[evaluation]"   # pandas + Ragas evaluation
+pip install -e ".[full]"         # all normal runtime capability layers
 ```
 
 For the default OpenAI-backed reasoner:
@@ -51,9 +62,54 @@ For the default OpenAI-backed reasoner:
 export OPENAI_API_KEY=...
 ```
 
-Python **3.10+** is required for the v0.2 agent runtime. CI exercises Python 3.10 and 3.12.
+Python **3.10+** is required for the v0.2 agent runtime. Core CI exercises Python 3.10 and 3.12 independently from optional RAG/API checks.
 
-## 30-second quickstart
+## 30-second core quickstart
+
+You can use the causal agent runtime without RAG or embeddings:
+
+```python
+from causalrag import ToolSpec, create_agent
+
+
+def read_co2(room: str):
+    return {"room": room, "co2_ppm": 1180}
+
+
+agent = create_agent(
+    tools=[
+        ToolSpec(
+            name="read_co2",
+            description="Read the current CO2 concentration in a room.",
+            handler=read_co2,
+            cost=0.01,
+            risk=0.0,
+            reversible=True,
+            metadata={"kind": "observe"},
+        )
+    ]
+)
+
+result = agent.run(
+    "Determine whether the bedroom needs more ventilation and what to verify first",
+    max_steps=6,
+)
+
+print(result.answer)
+print(result.to_dict()["decisions"])
+```
+
+The model proposes actions; the runtime selects among them and records decision, observation and belief state separately.
+
+## Add causal retrieval
+
+Install the RAG capability layer first:
+
+```bash
+pip install -e ".[rag]"
+```
+
+Then documents can become an evidence capability:
 
 ```python
 from causalrag import create_agent
@@ -72,14 +128,34 @@ result = agent.run(
 )
 
 print(result.answer)
-print(result.to_dict()["decisions"])
 ```
 
-A fresh agent automatically gets a `retrieve_evidence` capability backed by the existing hybrid vector + causal graph retrieval stack. Extracted graph edges seed the explicit belief state, and later observations can revise those beliefs.
+When retrieval is enabled, the agent gets a `retrieve_evidence` capability backed by the hybrid vector + causal graph retrieval stack. Extracted graph edges seed the explicit belief state, and later observations can revise those beliefs.
+
+## Bring your own reasoner
+
+The runtime does not require a vendor-specific model contract. You can inject a custom reasoner directly:
+
+```python
+agent = create_agent(
+    tools=my_tools,
+    reasoner=my_reasoner,
+    belief_updater=my_belief_updater,
+)
+```
+
+This is useful for deterministic policies, local models, test doubles, domain-specific planners, or a future non-LLM causal policy.
 
 ## CLI
 
-Run directly against a text file or directory:
+Core commands such as version/help do not load the RAG stack:
+
+```bash
+causalrag --version
+causalrag --help
+```
+
+To run against a text file or directory, install `causalrag[rag]` and then:
 
 ```bash
 causalrag agent \
@@ -113,6 +189,12 @@ causalrag agent \
 
 ## HTTP API
 
+Install the API layer:
+
+```bash
+pip install -e ".[api]"
+```
+
 Start the standalone v0.2 server:
 
 ```bash
@@ -135,11 +217,14 @@ Content-Type: application/json
   "goal": "Find the safest leverage point for reducing indoor CO2",
   "max_steps": 8,
   "model": "gpt-4o-mini",
-  "provider": "openai",
-  "documents": [
-    "Opening a window increases air exchange and can lower indoor CO2."
-  ]
+  "provider": "openai"
 }
+```
+
+If the request includes `documents`, install both optional layers:
+
+```bash
+pip install -e ".[api,rag]"
 ```
 
 The response contains the final answer plus the decision trace, observations, current beliefs, and recorded transitions.
@@ -279,17 +364,17 @@ causalrag/
 │   └── policy.py        # causal utility selection
 ├── tools/
 │   └── base.py          # capability registry
-├── causal_graph/        # existing extraction + graph layer
-├── retriever/           # existing vector/hybrid retrieval
-├── reranker/            # causal reranking
+├── causal_graph/        # optional RAG causal extraction + graph layer
+├── retriever/           # optional vector/hybrid retrieval
+├── reranker/            # optional causal reranking
 ├── interface/
-│   └── agent_api.py     # standalone /health + /agent/run
-└── pipeline.py          # legacy one-shot RAG compatibility
+│   └── agent_api.py     # optional /health + /agent/run
+└── pipeline.py          # optional legacy one-shot RAG compatibility
 ```
 
 ## Legacy one-shot RAG
 
-Existing code can continue to use:
+Install the RAG layer and existing code can continue to use:
 
 ```python
 from causalrag import create_pipeline
@@ -319,12 +404,15 @@ For new projects, prefer `create_agent()`.
 - action → observation transition memory
 - graph → initial belief synchronization
 - observation → defeasible belief updates
-- built-in hybrid causal evidence retrieval
+- built-in hybrid causal evidence retrieval as an optional capability
+- lightweight default core install
+- lazy-loaded RAG/API/evaluation layers
+- injectable custom reasoner / LLM / belief updater
 - Python `create_agent()` API
 - CLI agent entry point
 - standalone HTTP `/agent/run`
 - legacy pipeline and dependency compatibility fixes
-- install/compile/agent-test CI
+- separate core / API / RAG CI gates
 
 ## Next: from agent loop to causal learning loop
 
