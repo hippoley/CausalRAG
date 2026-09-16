@@ -6,6 +6,7 @@ from typing import List, Optional, Sequence, Tuple
 from causalrag.agent.actions import ActionKind, ActionScore, CandidateAction
 from causalrag.experiments import (
     contract_applicable,
+    expanded_experiment_contract,
     expected_information_gain,
     experiment_decision_value,
     intervention_value,
@@ -70,15 +71,31 @@ def _tool_spec_for_action(action: CandidateAction, tools: Optional[ToolRegistry]
         return None
 
 
+def _contract_covers_declared_tests(action: CandidateAction, contract) -> bool:
+    if contract is None or not action.tests_hypotheses:
+        return contract is not None
+    return set(str(value) for value in action.tests_hypotheses).issubset(set(contract.hypothesis_ids()))
+
+
 def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel] = None, candidate_index: int = 0, tools: Optional[ToolRegistry] = None) -> ActionScore:
     model_information_gain = _clamp01(action.expected_information_gain)
     discrimination = hypothesis_discrimination_score(action, world_model)
     bayesian_information_gain = None
     tool_spec = _tool_spec_for_action(action, tools)
-    experiment_contract = None if tool_spec is None else tool_spec.experiment_contract
+    base_experiment_contract = None if tool_spec is None else tool_spec.experiment_contract
+    experiment_contract = base_experiment_contract
+    if experiment_contract is not None and world_model is not None:
+        experiment_contract = expanded_experiment_contract(experiment_contract, world_model)
     intervention_contract = None if tool_spec is None else tool_spec.intervention_contract
 
-    if experiment_contract is not None and world_model is not None and contract_applicable(experiment_contract, world_model):
+    can_use_bayes = bool(
+        experiment_contract is not None
+        and world_model is not None
+        and contract_applicable(experiment_contract, world_model)
+        and _contract_covers_declared_tests(action, experiment_contract)
+    )
+
+    if can_use_bayes:
         bayesian_information_gain = expected_information_gain(experiment_contract, world_model)
         information_gain = bayesian_information_gain
         information_source = "runtime_bayesian_eig"
@@ -117,7 +134,7 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
         if intervention is not None:
             decision_value = intervention.net_value - risk - irreversibility
             decision_value_source = "runtime_expected_intervention_utility"
-    elif world_model is not None and tools is not None and experiment_contract is not None:
+    elif world_model is not None and tools is not None and can_use_bayes:
         experiment_value = experiment_decision_value(
             action.name,
             experiment_contract,

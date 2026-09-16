@@ -11,7 +11,7 @@ from causalrag.world_model.models import CausalWorldModel
 
 
 class LLMCausalReasoner:
-    """Model-backed reasoner that proposes hypotheses and actions, but executes neither."""
+    """Model-backed proposer; execution and final action authority stay in runtime."""
 
     def __init__(self, llm, tools: ToolRegistry, max_candidates: int = 5) -> None:
         self.llm = llm
@@ -98,6 +98,112 @@ class LLMCausalReasoner:
     def hypothesis_proposals(self, state: AgentState, world_model: CausalWorldModel) -> Sequence[HypothesisProposal]:
         return list(self._last_hypotheses)
 
+    def discover_hypotheses(
+        self,
+        state: AgentState,
+        world_model: CausalWorldModel,
+        mismatch_context: Dict[str, Any],
+        max_new: int = 3,
+    ) -> Sequence[HypothesisProposal]:
+        """Propose *new* explanations after runtime-owned model mismatch detection.
+
+        The runtime ignores proposer confidence for newly discovered hypotheses.
+        The model must instead make normalized, falsifiable outcome predictions
+        for existing experiment tools. Invalid or incomplete prediction tables
+        are discarded here before the proposal reaches persistent state.
+        """
+        existing_ids = {hypothesis.hypothesis_id for hypothesis in world_model.hypotheses()}
+        tools = self._available_tool_summaries()
+        experiment_shapes = {
+            name: spec.experiment_contract.summary()
+            for name, spec in self.tools.specs().items()
+            if spec.experiment_contract is not None
+        }
+        prompt = f"""The causal runtime detected that the current hypothesis set predicts recent observations poorly.
+Do not defend the existing hypotheses. Generate genuinely new, falsifiable causal explanations that could account for the residual evidence.
+
+For each new hypothesis:
+- use a new hypothesis id not already present;
+- state a concrete mechanism, not a restatement of the observation;
+- list observations that would falsify it;
+- for any existing experiment you claim can test it, provide a complete probability distribution over that experiment's listed outcomes;
+- probabilities for each experiment must sum to exactly 1.0;
+- do not invent experiment ids or outcome labels;
+- proposer confidence is advisory only and will be ignored by runtime.
+
+Return ONLY JSON:
+{{
+  "new_hypotheses": [
+    {{
+      "id": "H_new",
+      "statement": "specific causal mechanism",
+      "rationale": "why the mismatch suggests it",
+      "falsifiers": ["specific observation"],
+      "experiment_predictions": {{
+        "experiment_id": {{"outcome_a": 0.8, "outcome_b": 0.2}}
+      }}
+    }}
+  ]
+}}
+
+Goal: {state.goal}
+Mismatch context: {json.dumps(mismatch_context, ensure_ascii=False, default=str)}
+Current world model: {json.dumps(world_model.snapshot(), ensure_ascii=False, default=str)}
+Experiment shapes: {json.dumps(experiment_shapes, ensure_ascii=False, default=str)}
+Available tools: {json.dumps(tools, ensure_ascii=False, default=str)}
+"""
+        raw = self.llm.generate(prompt, temperature=0.2, max_tokens=1800, json_mode=True)
+        payload = self._parse_json(raw)
+        proposals: List[HypothesisProposal] = []
+        seen = set(existing_ids)
+        for item in payload.get("new_hypotheses", [])[: max(1, int(max_new))]:
+            hypothesis_id = str(item.get("id") or "").strip()
+            statement = str(item.get("statement") or "").strip()
+            if not hypothesis_id or not statement or hypothesis_id in seen:
+                continue
+            predictions = self._validated_experiment_predictions(item.get("experiment_predictions") or {})
+            if not predictions:
+                continue
+            proposals.append(
+                HypothesisProposal(
+                    hypothesis_id=hypothesis_id,
+                    statement=statement,
+                    probability=0.2,
+                    rationale=str(item.get("rationale") or ""),
+                    falsifiers=[str(value) for value in (item.get("falsifiers") or []) if str(value).strip()],
+                    experiment_predictions=predictions,
+                )
+            )
+            seen.add(hypothesis_id)
+        return proposals
+
+    def _validated_experiment_predictions(self, raw_predictions: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+        valid: Dict[str, Dict[str, float]] = {}
+        specs = self.tools.specs()
+        for experiment_id, raw_distribution in raw_predictions.items():
+            experiment_id = str(experiment_id)
+            matching = None
+            for spec in specs.values():
+                contract = spec.experiment_contract
+                if contract is not None and contract.experiment_id == experiment_id:
+                    matching = contract
+                    break
+            if matching is None or not isinstance(raw_distribution, dict):
+                continue
+            labels = matching.outcome_labels()
+            if set(str(key) for key in raw_distribution) != set(labels):
+                continue
+            try:
+                distribution = {label: float(raw_distribution[label]) for label in labels}
+            except (TypeError, ValueError, KeyError):
+                continue
+            if any(value < 0.0 or value > 1.0 for value in distribution.values()):
+                continue
+            if abs(sum(distribution.values()) - 1.0) > matching.tolerance:
+                continue
+            valid[experiment_id] = distribution
+        return valid
+
     def _parse_hypotheses(self, payload: Dict[str, Any]) -> List[HypothesisProposal]:
         proposals: List[HypothesisProposal] = []
         seen = set()
@@ -122,7 +228,7 @@ class LLMCausalReasoner:
             seen.add(hypothesis_id)
         return proposals
 
-    def _build_prompt(self, state: AgentState, world_model: CausalWorldModel) -> str:
+    def _available_tool_summaries(self) -> List[Dict[str, Any]]:
         tools: List[Dict[str, Any]] = []
         for name, spec in self.tools.specs().items():
             tool = {
@@ -136,7 +242,9 @@ class LLMCausalReasoner:
             if spec.experiment_contract is not None:
                 tool["experiment_contract"] = spec.experiment_contract.summary()
             tools.append(tool)
+        return tools
 
+    def _build_prompt(self, state: AgentState, world_model: CausalWorldModel) -> str:
         observations = [{"action": obs.action_name, "result": obs.result} for obs in state.observations[-6:]]
         context = {
             "goal": state.goal,
@@ -144,7 +252,7 @@ class LLMCausalReasoner:
             "budget_remaining": state.budget_remaining(),
             "world_model": world_model.snapshot(),
             "recent_observations": observations,
-            "available_tools": tools,
+            "available_tools": self._available_tool_summaries(),
         }
         return f"""You are the decision proposer inside a causal agent runtime.
 You do NOT execute tools and you do NOT get final authority over actions.
@@ -155,6 +263,7 @@ Maintain explicit competing hypotheses when there is unresolved causal uncertain
 - Every hypothesis must include concrete falsifiers: observations that would count against it.
 - Do not raise a hypothesis probability merely because evidence is compatible with it.
 - Prefer actions whose possible outcomes discriminate among hypotheses or could falsify the current leader.
+- If world_model.open_world.model_mismatch is true, do not force a known explanation. Prefer experiments that can test discovered provisional hypotheses.
 
 Some tools expose an experiment_contract summary. That means the runtime owns a validated outcome model for those hypotheses and will calculate Bayesian information gain and posterior updates itself. Do not invent or rewrite those likelihoods. Prefer such tools when their modeled hypotheses match the current uncertainty and their cost/risk is acceptable.
 
