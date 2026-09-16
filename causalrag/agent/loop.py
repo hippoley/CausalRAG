@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from causalrag.experiments import apply_experiment_observation
+from causalrag.experiments import (
+    TemporalDecisionPreferences,
+    apply_experiment_observation,
+    best_temporal_observation_value,
+)
 from causalrag.reasoning.policy import rank_actions, select_action
 from causalrag.tools.base import ToolRegistry
 from causalrag.world_model.models import CausalWorldModel, Evidence, Transition
@@ -19,7 +23,7 @@ GoalEvaluator = Callable[[AgentState, CausalWorldModel], bool]
 class CausalAgentLoop:
     """Thin runtime for goal-directed causal learning and action."""
 
-    def __init__(self, reasoner, tools: Optional[ToolRegistry] = None, world_model: Optional[CausalWorldModel] = None, belief_updater: Optional[BeliefUpdater] = None, hypothesis_updater: Optional[HypothesisUpdater] = None, goal_evaluator: Optional[GoalEvaluator] = None, time_driver: Optional[TimeDriver] = None) -> None:
+    def __init__(self, reasoner, tools: Optional[ToolRegistry] = None, world_model: Optional[CausalWorldModel] = None, belief_updater: Optional[BeliefUpdater] = None, hypothesis_updater: Optional[HypothesisUpdater] = None, goal_evaluator: Optional[GoalEvaluator] = None, time_driver: Optional[TimeDriver] = None, temporal_decision_preferences: Optional[TemporalDecisionPreferences] = None) -> None:
         self.reasoner = reasoner
         self.tools = tools or ToolRegistry()
         self.world_model = world_model or CausalWorldModel()
@@ -27,6 +31,7 @@ class CausalAgentLoop:
         self.hypothesis_updater = hypothesis_updater
         self.goal_evaluator = goal_evaluator
         self.time_driver = time_driver or VirtualTimeDriver()
+        self.temporal_decision_preferences = temporal_decision_preferences or TemporalDecisionPreferences()
 
     def _sync_state_time(self, state: AgentState) -> None:
         state.virtual_time_seconds = float(self.time_driver.now_seconds)
@@ -54,13 +59,17 @@ class CausalAgentLoop:
                     action="missed_observation_window",
                     arguments={"effect_id": effect.effect_id},
                     observation=event,
-                    expected_effects={
-                        "temporal_failure": True,
-                        "belief_update": False,
-                    },
+                    expected_effects={"temporal_failure": True, "belief_update": False},
                 )
             )
             effect.expiry_recorded = True
+
+    def _planned_observation_at(self, effect) -> float:
+        return (
+            float(effect.planned_observation_at)
+            if effect.planned_observation_at is not None
+            else float(effect.ready_at)
+        )
 
     def _observation_for_effect(self, effect, rationale: str) -> CandidateAction:
         return CandidateAction(
@@ -71,48 +80,47 @@ class CausalAgentLoop:
         )
 
     def _wait_for_effect(self, effect, state: AgentState, rationale: str) -> CandidateAction:
+        target = self._planned_observation_at(effect)
         return CandidateAction(
             kind=ActionKind.WAIT,
             name="wait_for_effect_window",
-            arguments={"seconds": effect.seconds_until_ready(state.virtual_time_seconds)},
+            arguments={"seconds": max(0.0, target - state.virtual_time_seconds)},
             rationale=rationale,
         )
 
     def _protected_effect(self, state: AgentState):
-        effects = [
-            effect
-            for effect in state.active_pending_effects()
-            if effect.protect_attribution
-        ]
+        effects = [effect for effect in state.active_pending_effects() if effect.protect_attribution]
         if not effects:
             return None
-        return min(effects, key=lambda effect: (effect.expires_at, effect.ready_at))
+        return min(
+            effects,
+            key=lambda effect: (self._planned_observation_at(effect), effect.expires_at),
+        )
 
     def _temporal_guard(self, selected: CandidateAction, state: AgentState) -> CandidateAction:
         now = state.virtual_time_seconds
 
-        # A requested measurement of a delayed effect is invalid before its window.
         matching = [
             effect
             for effect in state.active_pending_effects()
-            if effect.observe_with == selected.name and effect.is_premature(now)
+            if effect.observe_with == selected.name
+            and now < self._planned_observation_at(effect)
         ]
         if matching:
-            effect = min(matching, key=lambda item: item.ready_at)
+            effect = min(matching, key=self._planned_observation_at)
             return self._wait_for_effect(
                 effect,
                 state,
-                f"Runtime temporal guard: {selected.name} is premature; wait for the causal observation window.",
+                f"Runtime temporal decision: {selected.name} is more valuable at the planned causal observation time.",
             )
 
         protected = self._protected_effect(state)
         if protected is None:
             return selected
 
-        # Once the effect is measurable, preserve attribution before another
-        # intervention or terminal decision can hide/contaminate the outcome.
+        target = self._planned_observation_at(protected)
         if selected.kind in (ActionKind.INTERVENE, ActionKind.STOP):
-            if protected.is_ready(now):
+            if now >= target:
                 return self._observation_for_effect(
                     protected,
                     "Runtime attribution guard: observe the unresolved intervention effect before another intervention or stop.",
@@ -120,44 +128,64 @@ class CausalAgentLoop:
             return self._wait_for_effect(
                 protected,
                 state,
-                "Runtime attribution guard: wait for the unresolved intervention effect before another intervention or stop.",
+                "Runtime attribution guard: wait until the selected causal observation time before another intervention or stop.",
             )
 
-        # A model may explicitly ask to wait too long. Cap that wait at the
-        # first useful observation time so a protected causal window is not
-        # skipped by planner timing error.
         if selected.kind == ActionKind.WAIT:
-            if protected.is_ready(now):
+            if now >= target:
                 return self._observation_for_effect(
                     protected,
-                    "Runtime attribution guard: the protected effect is ready; observe it before waiting longer.",
+                    "Runtime temporal decision: the selected observation time has arrived.",
                 )
             requested = float(selected.arguments.get("seconds", 0) or 0)
-            until_ready = protected.seconds_until_ready(now)
-            if requested <= 0.0 or requested > until_ready:
+            until_target = max(0.0, target - now)
+            if requested <= 0.0 or requested > until_target:
                 return self._wait_for_effect(
                     protected,
                     state,
-                    "Runtime attribution guard: cap WAIT at the first valid observation time.",
+                    "Runtime temporal decision: cap WAIT at the selected observation time.",
                 )
 
         return selected
+
+    def _plan_temporal_effect(self, effect, state: AgentState) -> None:
+        if not effect.observation_points:
+            return
+        plan = best_temporal_observation_value(
+            effect=effect,
+            world_model=self.world_model,
+            tools=self.tools,
+            now=state.virtual_time_seconds,
+            preferences=self.temporal_decision_preferences,
+        )
+        if plan is None:
+            return
+        effect.planned_observation_at = plan.observation_at
+        effect.planned_experiment_contract = plan.experiment_contract
+        effect.planned_temporal_value = plan.net_value
+        effect.metadata["temporal_decision"] = {
+            "experiment_id": plan.experiment_id,
+            "offset_seconds": plan.offset_seconds,
+            "observation_at": plan.observation_at,
+            "wait_seconds": plan.wait_seconds,
+            "evsi": plan.evsi,
+            "measurement_cost": plan.measurement_cost,
+            "wait_cost": plan.wait_cost,
+            "net_value": plan.net_value,
+        }
 
     def _schedule_temporal_effect(self, tool_spec, selected: CandidateAction, state: AgentState) -> None:
         contract = None if tool_spec is None else tool_spec.temporal_effect_contract
         if selected.kind != ActionKind.INTERVENE or contract is None:
             return
-        effect = pending_effect_from_contract(
-            selected.name,
-            contract,
-            state.virtual_time_seconds,
-        )
+        effect = pending_effect_from_contract(selected.name, contract, state.virtual_time_seconds)
         active = self.world_model.hypotheses(include_rejected=False)
         if active:
             prediction = max(active, key=lambda item: item.probability)
             effect.metadata["prediction_hypothesis"] = prediction.hypothesis_id
             effect.metadata["prediction_probability"] = prediction.probability
             effect.metadata["expected_outcome"] = effect.expected_for(prediction.hypothesis_id)
+        self._plan_temporal_effect(effect, state)
         state.schedule_effect(effect)
 
     def _evaluate_temporal_observation(self, selected: CandidateAction, result, state: AgentState):
@@ -167,10 +195,12 @@ class CausalAgentLoop:
             effect.refresh(now)
             if effect.observed or effect.expired or effect.observe_with != selected.name:
                 continue
-            if not effect.is_ready(now):
+            target = self._planned_observation_at(effect)
+            if now < target:
                 continue
             if not isinstance(result, dict) or effect.observation_key not in result:
                 continue
+
             observed = result[effect.observation_key]
             hypothesis_id = effect.metadata.get("prediction_hypothesis")
             expected = effect.expected_for(str(hypothesis_id)) if hypothesis_id else None
@@ -187,9 +217,29 @@ class CausalAgentLoop:
                 "matched_prediction": matched,
                 "lag_seconds": now - effect.started_at,
                 "within_window": effect.ready_at <= now <= effect.expires_at,
+                "planned_observation_at": effect.planned_observation_at,
+                "planned_temporal_value": effect.planned_temporal_value,
             }
-            evaluations.append(evaluation)
-            if hypothesis_id and expected is not None:
+
+            bayesian_update = None
+            if effect.planned_experiment_contract is not None:
+                bayesian_update = apply_experiment_observation(
+                    effect.planned_experiment_contract,
+                    self.world_model,
+                    result,
+                    source=selected.name,
+                    metadata={
+                        "effect_id": effect.effect_id,
+                        "lag_seconds": now - effect.started_at,
+                        "temporal_decision": True,
+                    },
+                )
+                if bayesian_update is not None:
+                    evaluation["experiment_id"] = bayesian_update.experiment_id
+                    evaluation["posterior"] = bayesian_update.posterior
+                    evaluation["expected_information_gain"] = bayesian_update.expected_information_gain
+
+            if bayesian_update is None and hypothesis_id and expected is not None:
                 weight = effect.falsification_weight if matched else -effect.falsification_weight
                 self.world_model.update_hypothesis(
                     str(hypothesis_id),
@@ -204,6 +254,7 @@ class CausalAgentLoop:
                         metadata=evaluation,
                     ),
                 )
+            evaluations.append(evaluation)
         return evaluations
 
     def run(self, goal: str, max_steps: int = 10) -> AgentState:
@@ -255,10 +306,7 @@ class CausalAgentLoop:
                 waited = float(self.time_driver.advance(requested))
                 self._sync_state_time(state)
                 self._record_expired_effects(state)
-                result = {
-                    "waited": waited,
-                    "virtual_time_seconds": state.virtual_time_seconds,
-                }
+                result = {"waited": waited, "virtual_time_seconds": state.virtual_time_seconds}
                 tool_spec = None
             else:
                 tool_spec = self.tools.get(selected.name)
@@ -274,7 +322,14 @@ class CausalAgentLoop:
             state.observations.append(observation)
 
             experiment_update = None
-            if tool_spec is not None and tool_spec.experiment_contract is not None:
+            temporal_bayesian_update = any(
+                "posterior" in evaluation for evaluation in temporal_evaluations
+            )
+            if (
+                not temporal_bayesian_update
+                and tool_spec is not None
+                and tool_spec.experiment_contract is not None
+            ):
                 experiment_update = apply_experiment_observation(
                     tool_spec.experiment_contract,
                     self.world_model,
