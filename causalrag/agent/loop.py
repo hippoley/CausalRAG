@@ -55,6 +55,9 @@ class CausalAgentLoop:
             state.decisions.append(decision)
 
             if selected.kind == ActionKind.STOP:
+                answer = selected.arguments.get("answer")
+                if answer is not None:
+                    state.scratch["answer"] = answer
                 state.done = True
                 state.stop_reason = selected.rationale or "reasoner_stopped"
                 break
