@@ -33,10 +33,11 @@ class VirtualTimeDriver:
 class TemporalEffectContract:
     """Expected delayed observation after an intervention.
 
-    The contract belongs to runtime/capability semantics. It states when an
-    intervention can first be evaluated, when that observation becomes stale,
-    which capability measures the effect, and which outcome is expected under
-    each causal hypothesis.
+    The contract states when an intervention can be evaluated, how it should be
+    measured, and whether another intervention should be blocked until this
+    effect has been observed. `protect_attribution` is intentionally local to
+    the effect: independent interventions may opt out instead of inheriting a
+    global serialization rule.
     """
 
     effect_id: str
@@ -47,6 +48,8 @@ class TemporalEffectContract:
     expected_outcomes: Mapping[str, Any]
     falsification_weight: float = 0.5
     description: str = ""
+    observe_arguments: Mapping[str, Any] = field(default_factory=dict)
+    protect_attribution: bool = True
 
     def __post_init__(self) -> None:
         if not str(self.effect_id).strip():
@@ -79,8 +82,11 @@ class PendingEffect:
     expires_at: float
     expected_outcomes: Dict[str, Any]
     falsification_weight: float = 0.5
+    observe_arguments: Dict[str, Any] = field(default_factory=dict)
+    protect_attribution: bool = True
     observed: bool = False
     expired: bool = False
+    expiry_recorded: bool = False
     matched_prediction: Optional[bool] = None
     observed_value: Any = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -98,6 +104,9 @@ class PendingEffect:
     def seconds_until_ready(self, now: float) -> float:
         return max(0.0, self.ready_at - float(now))
 
+    def seconds_until_expiry(self, now: float) -> float:
+        return max(0.0, self.expires_at - float(now))
+
     def expected_for(self, hypothesis_id: str) -> Optional[Any]:
         return self.expected_outcomes.get(str(hypothesis_id))
 
@@ -110,6 +119,8 @@ class PendingEffect:
             "started_at": self.started_at,
             "ready_at": self.ready_at,
             "expires_at": self.expires_at,
+            "observe_arguments": dict(self.observe_arguments),
+            "protect_attribution": self.protect_attribution,
             "observed": self.observed,
             "expired": self.expired,
             "matched_prediction": self.matched_prediction,
@@ -133,5 +144,7 @@ def pending_effect_from_contract(
         expires_at=now + float(contract.latest_seconds),
         expected_outcomes=dict(contract.expected_outcomes),
         falsification_weight=float(contract.falsification_weight),
+        observe_arguments=dict(contract.observe_arguments),
+        protect_attribution=bool(contract.protect_attribution),
         metadata={"description": contract.description},
     )
