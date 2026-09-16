@@ -37,6 +37,12 @@ from .experiments import (
     posterior_for_outcome,
     predictive_probability,
 )
+from .observability import (
+    CAUSAL_TRACE_SCHEMA_VERSION,
+    CausalTelemetry,
+    configure_otlp_telemetry,
+    replay_trace,
+)
 from .reasoning.hypothesis import HypothesisProposal, LLMHypothesisUpdater
 from .reasoning.llm import LLMCausalReasoner
 from .tools import ToolRegistry, ToolSpec
@@ -102,4 +108,5 @@ __all__ = [
     "ToolRegistry", "ToolSpec", "CausalBelief", "CausalWorldModel", "Evidence", "Hypothesis", "ModelMismatch", "Transition",
     "DecisionPreferences", "OutcomeLikelihood", "ExperimentContract", "ExperimentUpdate", "expected_information_gain", "posterior_for_outcome",
     "ModelMismatchPolicy", "ModelMismatchAssessment", "assess_model_mismatch", "predictive_probability", "outcome_surprisal", "expanded_experiment_contract",
+    "CAUSAL_TRACE_SCHEMA_VERSION", "CausalTelemetry", "configure_otlp_telemetry", "replay_trace",
 ]
