@@ -4,7 +4,7 @@ Run with:
     uvicorn causalrag.interface.agent_api:app --reload
 """
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -23,19 +23,19 @@ class AgentRunRequest(BaseModel):
     goal: str = Field(..., min_length=1, description="Goal for the causal agent")
     max_steps: int = Field(8, ge=1, le=50)
     model: str = Field("gpt-5.6-terra")
-    provider: str = Field("openai")
+    provider: Literal["openai", "anthropic", "local"] = Field("openai")
     documents: Optional[List[str]] = Field(
         None,
         description="Optional documents to index for this run. Prefer a persistent index for production.",
     )
-    embedding_provider: str = Field(
+    embedding_provider: Literal["openai", "local"] = Field(
         "openai",
-        description="Embedding provider: 'openai' or opt-in 'local'.",
+        description="Embedding provider. Local requires causalrag[local-embeddings].",
     )
     embedding_model: str = Field("text-embedding-3-small")
-    vector_backend: str = Field(
+    vector_backend: Literal["memory", "faiss"] = Field(
         "memory",
-        description="Vector backend: 'memory' or opt-in 'faiss'.",
+        description="Vector backend. FAISS requires causalrag[faiss].",
     )
 
 
