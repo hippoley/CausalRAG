@@ -92,10 +92,17 @@ class Hypothesis:
         self.updated_at = _now()
 
     def set_probability(self, probability: float, evidence: Optional[Evidence] = None) -> None:
-        previous = self.probability
+        """Set an externally computed probability while preserving evidence direction.
+
+        For exact posterior updates, ``evidence.weight`` is authoritative about
+        whether the observation supported or conflicted with the hypothesis.
+        This matters when the external estimator normalizes a set of operational
+        credences before computing a posterior: comparing the posterior to the
+        raw pre-normalized credence can give the wrong evidence direction.
+        """
         self.probability = max(0.001, min(0.999, float(probability)))
         if evidence is not None:
-            if self.probability >= previous:
+            if float(evidence.weight) >= 0.0:
                 self.supporting_evidence.append(evidence)
             else:
                 self.conflicting_evidence.append(evidence)
