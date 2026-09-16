@@ -23,6 +23,13 @@ from .policies import (
     RandomProbePolicy,
     RiskSensitiveDecisionValuePolicy,
 )
+from .temporal_hidden_world import (
+    DelayedEffectEnvironment,
+    ImmediateReadReasoner,
+    TemporalHiddenWorldMetrics,
+    compare_temporal_guard,
+    run_temporal_hidden_world,
+)
 
 __all__ = [
     "HiddenWorldEnvironment",
@@ -44,4 +51,9 @@ __all__ = [
     "run_policy_episode",
     "compare_hidden_world_policies",
     "compare_risk_sensitivity",
+    "DelayedEffectEnvironment",
+    "ImmediateReadReasoner",
+    "TemporalHiddenWorldMetrics",
+    "run_temporal_hidden_world",
+    "compare_temporal_guard",
 ]

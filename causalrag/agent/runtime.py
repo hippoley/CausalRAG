@@ -14,6 +14,7 @@ from causalrag.world_model.models import CausalWorldModel
 
 from .loop import CausalAgentLoop
 from .state import AgentState
+from .temporal import TimeDriver
 
 
 def _jsonable(value: Any) -> Any:
@@ -129,12 +130,17 @@ def create_agent(
     embedding_provider: Optional[Any] = None,
     vector_backend: str = "memory",
     decision_preferences: Optional[DecisionPreferences] = None,
+    time_driver: Optional[TimeDriver] = None,
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
 
     ``decision_preferences`` is deployment-owned consequence utility. It can
     override intervention utilities without changing the reasoner or capability
     implementation. Capability cost/risk/reversibility remain on ToolSpec.
+
+    ``time_driver`` lets a simulator or deployment scheduler share the same
+    causal clock used by runtime WAIT semantics. The default is deterministic
+    virtual time and never blocks wall-clock execution.
 
     The core runtime remains retrieval-free. When retrieval is enabled, hosted
     OpenAI embeddings are the default for OpenAI-backed agents and local
@@ -214,5 +220,6 @@ def create_agent(
         world_model=model_state,
         belief_updater=belief_updater,
         hypothesis_updater=hypothesis_updater,
+        time_driver=time_driver,
     )
     return CausalAgent(loop=loop, pipeline=pipeline)
