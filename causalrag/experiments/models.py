@@ -160,12 +160,11 @@ def apply_experiment_observation(contract: ExperimentContract, world_model: Caus
     posterior = posterior_for_outcome(contract, world_model, outcome)
     information_gain = expected_information_gain(contract, world_model)
     for hypothesis_id, probability in posterior.items():
-        hypothesis = world_model.get_hypothesis(hypothesis_id)
-        previous = hypothesis.probability
+        prior_probability = prior[hypothesis_id]
         evidence = Evidence(
             source=source,
-            statement=f"Experiment {contract.experiment_id} observed outcome '{outcome}': {hypothesis_id} {previous:.4f} -> {probability:.4f}",
-            weight=probability - previous,
+            statement=f"Experiment {contract.experiment_id} observed outcome '{outcome}': normalized prior {prior_probability:.4f} -> posterior {probability:.4f}",
+            weight=probability - prior_probability,
             kind="bayesian_experiment",
             metadata={"experiment_id": contract.experiment_id, "outcome": outcome, **(metadata or {})},
         )
