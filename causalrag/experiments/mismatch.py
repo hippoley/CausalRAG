@@ -60,10 +60,12 @@ def assess_model_mismatch(
 ) -> Optional[ModelMismatchAssessment]:
     """Assess whether an outcome is evidence for ``none of the above``.
 
-    This check intentionally happens before a closed-world posterior is
-    committed. When escalation fires, the runtime can preserve uncertainty
-    rather than forcing probability mass onto explanations that jointly made
-    the observation implausible.
+    Suspicious observations are retained as warning evidence. The first soft
+    surprise does not activate ``none_of_the_above``; escalation requires either
+    a near-impossible outcome or corroborating surprises across distinct
+    experiments. This check happens before a closed-world posterior is
+    committed so escalation can preserve uncertainty instead of forcing mass
+    onto an inadequate model class.
     """
     policy = policy or ModelMismatchPolicy()
     outcome = contract.resolve_outcome(observation)
@@ -99,6 +101,8 @@ def assess_model_mismatch(
             and len(distinct_experiments) >= int(policy.min_distinct_experiments)
         )
     )
+    if escalate:
+        world_model.activate_model_mismatch()
 
     return ModelMismatchAssessment(
         experiment_id=contract.experiment_id,
