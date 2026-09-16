@@ -17,18 +17,17 @@ def hypothesis_discrimination_score(
 ) -> Optional[float]:
     """Estimate how much an action can discriminate among explicit hypotheses.
 
-    This is deliberately a deterministic baseline rather than a claim of true
-    expected information gain. It uses only runtime-owned hypothesis state and
-    action test metadata:
+    This is a deterministic baseline, not a claim of true expected information
+    gain. It uses only runtime-owned hypothesis state and declared test intent:
 
     - coverage: how much active hypothesis credence the action tests;
     - ambiguity: normalized entropy among the tested hypotheses;
-    - falsification leverage: whether the action challenges a high-credence
-      hypothesis explicitly named as its falsification target.
+    - falsification leverage: whether the action explicitly challenges a
+      high-credence hypothesis.
 
-    Returns ``None`` only when the action did not declare hypothesis tests. If
-    it declared tests but none resolve to active hypotheses, the score is 0.0
-    so the runtime does not fall back to an ungrounded model self-score.
+    Returns ``None`` only when no hypothesis test was declared. If tests were
+    declared but do not resolve to active hypotheses, it returns 0.0 rather
+    than trusting an ungrounded model self-score.
     """
     if not action.tests_hypotheses:
         return None
@@ -87,7 +86,7 @@ def score_action(
     world_model: Optional[CausalWorldModel] = None,
     candidate_index: int = 0,
 ) -> ActionScore:
-    """Score one candidate using runtime evidence when it is available."""
+    """Score one candidate using runtime evidence whenever available."""
     model_information_gain = _clamp01(action.expected_information_gain)
     discrimination = hypothesis_discrimination_score(action, world_model)
 
@@ -98,7 +97,10 @@ def score_action(
         information_gain = discrimination
         information_source = "runtime_hypothesis_discrimination"
 
-    goal_gain = float(action.expected_goal_gain)
+    # These are model-proposed normalized heuristics, not unbounded utility.
+    # Bounding them prevents a proposer from defeating runtime cost/risk policy
+    # simply by emitting an arbitrarily large self-score.
+    goal_gain = _clamp01(action.expected_goal_gain)
     total_utility = (
         goal_gain
         + information_gain
