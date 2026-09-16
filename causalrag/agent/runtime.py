@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, Iterable, Optional
 
-from causalrag.experiments import DecisionPreferences
+from causalrag.experiments import DecisionPreferences, ModelMismatchPolicy
 from causalrag.generator.llm_interface import LLMInterface
 from causalrag.reasoning.belief import LLMBeliefUpdater
 from causalrag.reasoning.hypothesis import LLMHypothesisUpdater
@@ -60,6 +60,7 @@ class AgentRunResult:
             "observations": _jsonable(self.state.observations),
             "beliefs": _jsonable(snapshot),
             "hypotheses": _jsonable(snapshot.get("hypotheses", [])),
+            "open_world": _jsonable(snapshot.get("open_world", {})),
             "transitions": _jsonable(self.world_model.transitions),
         }
 
@@ -131,6 +132,7 @@ def create_agent(
     vector_backend: str = "memory",
     decision_preferences: Optional[DecisionPreferences] = None,
     time_driver: Optional[TimeDriver] = None,
+    mismatch_policy: Optional[ModelMismatchPolicy] = None,
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
 
@@ -141,6 +143,10 @@ def create_agent(
     ``time_driver`` lets a simulator or deployment scheduler share the same
     causal clock used by runtime WAIT semantics. The default is deterministic
     virtual time and never blocks wall-clock execution.
+
+    ``mismatch_policy`` controls runtime-owned open-world escalation. The model
+    may propose new explanations only after observed outcomes are sufficiently
+    improbable under the current modeled hypothesis set.
 
     The core runtime remains retrieval-free. When retrieval is enabled, hosted
     OpenAI embeddings are the default for OpenAI-backed agents and local
@@ -221,5 +227,6 @@ def create_agent(
         belief_updater=belief_updater,
         hypothesis_updater=hypothesis_updater,
         time_driver=time_driver,
+        mismatch_policy=mismatch_policy,
     )
     return CausalAgent(loop=loop, pipeline=pipeline)
