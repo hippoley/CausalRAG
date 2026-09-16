@@ -17,6 +17,8 @@ from .agent import (
     CausalAgentLoop,
     DecisionRecord,
     Observation,
+    PendingEffect,
+    TemporalEffectContract,
 )
 from .agent.runtime import AgentRunResult, CausalAgent, create_agent
 from .experiments import (
@@ -88,6 +90,7 @@ def create_pipeline(model_name="gpt-5.6-terra", embedding_model="text-embedding-
 __all__ = [
     "CausalAgent", "AgentRunResult", "create_agent", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
     "ActionKind", "ActionScore", "AgentState", "CandidateAction", "CausalAgentLoop", "DecisionRecord", "Observation",
+    "TemporalEffectContract", "PendingEffect",
     "ToolRegistry", "ToolSpec", "CausalBelief", "CausalWorldModel", "Evidence", "Hypothesis", "Transition",
     "DecisionPreferences", "OutcomeLikelihood", "ExperimentContract", "ExperimentUpdate", "expected_information_gain", "posterior_for_outcome",
 ]
