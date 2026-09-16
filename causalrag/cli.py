@@ -51,7 +51,7 @@ def parse_args():
     agent_parser.add_argument("--goal", "-g", required=True, help="Goal for the agent")
     agent_parser.add_argument("--input", "-i", help="Optional .txt file or directory to index")
     agent_parser.add_argument("--index", help="Optional persistent index directory")
-    agent_parser.add_argument("--model", default="gpt-4o-mini", help="Reasoning model")
+    agent_parser.add_argument("--model", default="gpt-5.6-terra", help="Reasoning model")
     agent_parser.add_argument("--provider", default="openai", choices=["openai", "anthropic", "local"])
     agent_parser.add_argument("--max-steps", type=int, default=8)
     agent_parser.add_argument("--json", action="store_true", help="Print complete JSON trace")
@@ -64,7 +64,7 @@ def parse_args():
     query_parser = subparsers.add_parser("query", help="Use the legacy one-shot causal RAG path")
     query_parser.add_argument("--index", "-i", required=True)
     query_parser.add_argument("--query", "-q", required=True)
-    query_parser.add_argument("--model", default="gpt-4o-mini")
+    query_parser.add_argument("--model", default="gpt-5.6-terra")
     query_parser.add_argument("--provider", default="openai", choices=["openai", "anthropic", "local"])
     query_parser.add_argument("--top-k", type=int, default=5)
 
