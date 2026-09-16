@@ -70,6 +70,19 @@ def test_contract_is_not_applicable_until_all_modeled_hypotheses_exist():
     assert score.bayesian_information_gain is None
 
 
+def test_unanchored_model_information_score_is_not_policy_utility_when_hypotheses_exist():
+    world = _world()
+    action = CandidateAction(
+        kind=ActionKind.OBSERVE,
+        name="generic_sensor",
+        expected_information_gain=0.99,
+    )
+    score = score_action(action, world_model=world)
+    assert score.model_information_gain == pytest.approx(0.99)
+    assert score.information_gain == 0.0
+    assert score.information_source == "unanchored_model_estimate"
+
+
 def test_policy_prefers_bayesian_eig_over_model_or_heuristic_information_scores():
     world = _world()
     contract = _contract()
