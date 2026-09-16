@@ -18,6 +18,7 @@ from .policies import (
     DecisionValuePolicy,
     GreedyEIGPolicy,
     RandomProbePolicy,
+    RiskSensitiveDecisionValuePolicy,
 )
 
 
@@ -71,16 +72,31 @@ def _mean(values: Iterable[float]) -> float:
     return sum(rows) / len(rows) if rows else 0.0
 
 
-def _attach_intervention_contracts(tools, scenario: HiddenWorldScenario) -> None:
+def _attach_intervention_contracts(
+    tools,
+    scenario: HiddenWorldScenario,
+    wrong_intervention_utility: float = 0.0,
+) -> None:
+    """Attach explicit intervention outcome utilities to runtime capabilities.
+
+    The benchmark world stays unchanged. Different decision-value policies can
+    express different domain loss models through the same InterventionContract.
+    A wrong action may be neutral (0.0) or harmful (negative utility); the
+    runtime EVSI math remains identical.
+    """
     hypothesis_ids = list(scenario.hypotheses)
     by_name = {tool.name: tool for tool in tools}
+    wrong_utility = float(wrong_intervention_utility)
     for action_name, target in scenario.interventions.items():
         tool = by_name[action_name]
         tool.intervention_contract = InterventionContract(
             intervention_id=action_name,
-            description=f"Successful only when {target} is the true hidden mechanism.",
+            description=(
+                f"Successful when {target} is the true hidden mechanism; "
+                f"wrong-intervention utility={wrong_utility:.3f}."
+            ),
             utilities={
-                hypothesis_id: 1.0 if hypothesis_id == target else 0.0
+                hypothesis_id: 1.0 if hypothesis_id == target else wrong_utility
                 for hypothesis_id in hypothesis_ids
             },
         )
@@ -101,7 +117,13 @@ def run_policy_episode(
     policy = policy_type(scenario, seed=100_000 + int(seed))
     tools = environment.tools()
     if getattr(policy_type, "requires_intervention_contracts", False):
-        _attach_intervention_contracts(tools, scenario)
+        _attach_intervention_contracts(
+            tools,
+            scenario,
+            wrong_intervention_utility=float(
+                getattr(policy_type, "wrong_intervention_utility", 0.0)
+            ),
+        )
     agent = create_agent(
         world_model=world,
         reasoner=policy,
@@ -161,6 +183,7 @@ def compare_hidden_world_policies(
         GreedyEIGPolicy,
         ConservativeEIGPolicy,
         DecisionValuePolicy,
+        RiskSensitiveDecisionValuePolicy,
         CheapestProbePolicy,
         RandomProbePolicy,
     ),
