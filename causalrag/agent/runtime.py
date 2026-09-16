@@ -4,7 +4,6 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, Iterable, Optional
 
-from causalrag.generator.llm_interface import LLMInterface
 from causalrag.pipeline import CausalRAGPipeline
 from causalrag.reasoning.belief import LLMBeliefUpdater
 from causalrag.reasoning.llm import LLMCausalReasoner
@@ -149,7 +148,7 @@ def create_agent(
             )
         )
 
-    llm = LLMInterface(model=model_name, provider=provider, api_key=api_key)
+    llm = pipeline.llm
     reasoner = LLMCausalReasoner(llm=llm, tools=registry)
     belief_updater = LLMBeliefUpdater(llm=llm)
     loop = CausalAgentLoop(
