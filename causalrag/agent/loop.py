@@ -9,7 +9,7 @@ from causalrag.world_model.models import CausalWorldModel, Evidence, Transition
 
 from .actions import ActionKind, CandidateAction, DecisionRecord
 from .state import AgentState, Observation
-from .temporal import pending_effect_from_contract
+from .temporal import TimeDriver, VirtualTimeDriver, pending_effect_from_contract
 
 BeliefUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
 HypothesisUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
@@ -19,13 +19,19 @@ GoalEvaluator = Callable[[AgentState, CausalWorldModel], bool]
 class CausalAgentLoop:
     """Thin runtime for goal-directed causal learning and action."""
 
-    def __init__(self, reasoner, tools: Optional[ToolRegistry] = None, world_model: Optional[CausalWorldModel] = None, belief_updater: Optional[BeliefUpdater] = None, hypothesis_updater: Optional[HypothesisUpdater] = None, goal_evaluator: Optional[GoalEvaluator] = None) -> None:
+    def __init__(self, reasoner, tools: Optional[ToolRegistry] = None, world_model: Optional[CausalWorldModel] = None, belief_updater: Optional[BeliefUpdater] = None, hypothesis_updater: Optional[HypothesisUpdater] = None, goal_evaluator: Optional[GoalEvaluator] = None, time_driver: Optional[TimeDriver] = None) -> None:
         self.reasoner = reasoner
         self.tools = tools or ToolRegistry()
         self.world_model = world_model or CausalWorldModel()
         self.belief_updater = belief_updater
         self.hypothesis_updater = hypothesis_updater
         self.goal_evaluator = goal_evaluator
+        self.time_driver = time_driver or VirtualTimeDriver()
+
+    def _sync_state_time(self, state: AgentState) -> None:
+        state.virtual_time_seconds = float(self.time_driver.now_seconds)
+        for effect in state.pending_effects:
+            effect.refresh(state.virtual_time_seconds)
 
     def _temporal_guard(self, selected: CandidateAction, state: AgentState) -> CandidateAction:
         if selected.kind in (ActionKind.STOP, ActionKind.WAIT):
@@ -97,11 +103,7 @@ class CausalAgentLoop:
             }
             evaluations.append(evaluation)
             if hypothesis_id and expected is not None:
-                weight = (
-                    effect.falsification_weight
-                    if matched
-                    else -effect.falsification_weight
-                )
+                weight = effect.falsification_weight if matched else -effect.falsification_weight
                 self.world_model.update_hypothesis(
                     str(hypothesis_id),
                     Evidence(
@@ -119,7 +121,9 @@ class CausalAgentLoop:
 
     def run(self, goal: str, max_steps: int = 10) -> AgentState:
         state = AgentState(goal=goal, max_steps=max_steps)
+        self._sync_state_time(state)
         while not state.done and state.step < state.max_steps:
+            self._sync_state_time(state)
             if self.goal_evaluator and self.goal_evaluator(state, self.world_model):
                 state.done = True
                 state.stop_reason = "goal_reached"
@@ -160,7 +164,8 @@ class CausalAgentLoop:
                 requested = float(selected.arguments.get("seconds", 0) or 0)
                 if requested <= 0.0:
                     requested = state.next_effect_ready_in() or 0.0
-                waited = state.advance_time(requested)
+                waited = float(self.time_driver.advance(requested))
+                self._sync_state_time(state)
                 result = {
                     "waited": waited,
                     "virtual_time_seconds": state.virtual_time_seconds,
@@ -171,18 +176,12 @@ class CausalAgentLoop:
                 result = self.tools.execute(selected.name, selected.arguments)
 
             self._schedule_temporal_effect(tool_spec, selected, state)
-            temporal_evaluations = self._evaluate_temporal_observation(
-                selected, result, state
-            )
+            temporal_evaluations = self._evaluate_temporal_observation(selected, result, state)
 
             observation_metadata = {}
             if temporal_evaluations:
                 observation_metadata["temporal_effects"] = temporal_evaluations
-            observation = Observation(
-                action_name=selected.name,
-                result=result,
-                metadata=observation_metadata,
-            )
+            observation = Observation(action_name=selected.name, result=result, metadata=observation_metadata)
             state.observations.append(observation)
 
             experiment_update = None
