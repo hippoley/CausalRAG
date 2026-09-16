@@ -25,12 +25,28 @@ class LLMCausalReasoner:
         self._last_uncertainty = payload.get("uncertainty")
 
         candidates: List[CandidateAction] = []
+        specs = self.tools.specs()
         for item in payload.get("candidates", [])[: self.max_candidates]:
             try:
-                kind = ActionKind(str(item.get("kind", "stop")))
-                name = str(item.get("name") or kind.value)
-                if kind not in (ActionKind.STOP, ActionKind.WAIT) and name not in self.tools.specs():
-                    continue
+                requested_kind = ActionKind(str(item.get("kind", "stop")))
+                name = str(item.get("name") or requested_kind.value)
+                kind = requested_kind
+                cost = float(item.get("cost", 0.0))
+                risk = float(item.get("risk", 0.0))
+                irreversibility = float(item.get("irreversibility", 0.0))
+
+                if kind not in (ActionKind.STOP, ActionKind.WAIT):
+                    if name not in specs:
+                        continue
+                    spec = specs[name]
+                    declared_kind = spec.metadata.get("kind")
+                    if declared_kind in {member.value for member in ActionKind}:
+                        kind = ActionKind(declared_kind)
+                    cost = max(cost, float(spec.cost))
+                    risk = max(risk, float(spec.risk))
+                    if not spec.reversible:
+                        irreversibility = max(irreversibility, 1.0)
+
                 candidates.append(
                     CandidateAction(
                         kind=kind,
@@ -38,9 +54,9 @@ class LLMCausalReasoner:
                         arguments=dict(item.get("arguments") or {}),
                         expected_goal_gain=float(item.get("expected_goal_gain", 0.0)),
                         expected_information_gain=float(item.get("expected_information_gain", 0.0)),
-                        cost=float(item.get("cost", 0.0)),
-                        risk=float(item.get("risk", 0.0)),
-                        irreversibility=float(item.get("irreversibility", 0.0)),
+                        cost=cost,
+                        risk=risk,
+                        irreversibility=irreversibility,
                         rationale=str(item.get("rationale") or ""),
                     )
                 )
@@ -95,6 +111,7 @@ Prefer observing/retrieving evidence when uncertainty is high. Use intervene onl
 WAIT is valid when an earlier intervention needs time to produce an observable effect.
 STOP when the goal can be answered/completed from current evidence; include the final user-facing answer in arguments.answer.
 Never invent a tool name. Non-WAIT/non-STOP actions must use one of available_tools.
+Do not try to lower a tool's declared cost/risk in order to make it win selection; capability metadata is enforced outside the model.
 
 Return ONLY a JSON object of this exact shape:
 {{
