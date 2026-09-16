@@ -1,3 +1,9 @@
+from .comparison import (
+    PolicyComparisonReport,
+    PolicyReport,
+    compare_hidden_world_policies,
+    run_policy_episode,
+)
 from .hidden_world import (
     HiddenWorldEnvironment,
     HiddenWorldMetrics,
@@ -8,6 +14,12 @@ from .hidden_world import (
     run_hidden_world,
     run_hidden_world_suite,
 )
+from .policies import (
+    CheapestProbePolicy,
+    ConservativeEIGPolicy,
+    GreedyEIGPolicy,
+    RandomProbePolicy,
+)
 
 __all__ = [
     "HiddenWorldEnvironment",
@@ -15,7 +27,15 @@ __all__ = [
     "HiddenWorldReasoner",
     "HiddenWorldScenario",
     "HiddenWorldSuiteReport",
+    "PolicyComparisonReport",
+    "PolicyReport",
+    "GreedyEIGPolicy",
+    "ConservativeEIGPolicy",
+    "CheapestProbePolicy",
+    "RandomProbePolicy",
     "build_hvac_hidden_world",
     "run_hidden_world",
     "run_hidden_world_suite",
+    "run_policy_episode",
+    "compare_hidden_world_policies",
 ]
