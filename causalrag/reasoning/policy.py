@@ -56,20 +56,26 @@ def hypothesis_discrimination_score(action: CandidateAction, world_model: Option
     return _clamp01(max(discrimination, falsification_leverage))
 
 
-def _contract_for_action(action: CandidateAction, tools: Optional[ToolRegistry]):
+def _tool_spec_for_action(action: CandidateAction, tools: Optional[ToolRegistry]):
     if tools is None or action.kind in (ActionKind.STOP, ActionKind.WAIT):
         return None
     try:
-        return tools.get(action.name).experiment_contract
+        return tools.get(action.name)
     except KeyError:
         return None
+
+
+def _contract_for_action(action: CandidateAction, tools: Optional[ToolRegistry]):
+    tool_spec = _tool_spec_for_action(action, tools)
+    return None if tool_spec is None else tool_spec.experiment_contract
 
 
 def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel] = None, candidate_index: int = 0, tools: Optional[ToolRegistry] = None) -> ActionScore:
     model_information_gain = _clamp01(action.expected_information_gain)
     discrimination = hypothesis_discrimination_score(action, world_model)
     bayesian_information_gain = None
-    contract = _contract_for_action(action, tools)
+    tool_spec = _tool_spec_for_action(action, tools)
+    contract = None if tool_spec is None else tool_spec.experiment_contract
 
     if contract is not None and world_model is not None and contract_applicable(contract, world_model):
         bayesian_information_gain = expected_information_gain(contract, world_model)
@@ -79,9 +85,6 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
         information_gain = discrimination
         information_source = "runtime_hypothesis_discrimination"
     elif _has_active_hypotheses(world_model) and action.kind in (ActionKind.OBSERVE, ActionKind.RETRIEVE, ActionKind.ASK):
-        # Once explicit competing hypotheses exist, epistemic utility must be
-        # anchored to those hypotheses or to a runtime-owned experiment model.
-        # The model's self-score is retained for audit but cannot drive policy.
         information_gain = 0.0
         information_source = "unanchored_model_estimate"
     else:
@@ -89,7 +92,16 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
         information_source = "model_estimate"
 
     goal_gain = _clamp01(action.expected_goal_gain)
-    total_utility = goal_gain + information_gain - float(action.cost) - float(action.risk) - float(action.irreversibility)
+    cost = float(action.cost)
+    risk = float(action.risk)
+    irreversibility = float(action.irreversibility)
+    if tool_spec is not None:
+        cost = max(cost, float(tool_spec.cost))
+        risk = max(risk, float(tool_spec.risk))
+        if not tool_spec.reversible:
+            irreversibility = max(irreversibility, 1.0)
+
+    total_utility = goal_gain + information_gain - cost - risk - irreversibility
     return ActionScore(
         candidate_index=candidate_index,
         action_name=action.name,
@@ -101,9 +113,9 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
         model_information_gain=model_information_gain,
         discrimination_score=discrimination,
         bayesian_information_gain=bayesian_information_gain,
-        cost=float(action.cost),
-        risk=float(action.risk),
-        irreversibility=float(action.irreversibility),
+        cost=cost,
+        risk=risk,
+        irreversibility=irreversibility,
     )
 
 
