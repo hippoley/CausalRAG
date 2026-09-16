@@ -1,4 +1,4 @@
-"""Standalone FastAPI surface for the v0.2 causal-agent runtime.
+"""Standalone FastAPI surface for the v0.3 causal decision runtime.
 
 Run with:
     uvicorn causalrag.interface.agent_api:app --reload
@@ -20,28 +20,19 @@ app = FastAPI(
 
 
 class AgentRunRequest(BaseModel):
-    goal: str = Field(..., min_length=1, description="Goal for the causal agent")
-    max_steps: int = Field(8, ge=1, le=50)
-    model: str = Field("gpt-5.6-terra")
-    provider: Literal["openai", "anthropic", "local"] = Field("openai")
-    documents: Optional[List[str]] = Field(
-        None,
-        description="Optional documents to index for this run. Prefer a persistent index for production.",
-    )
-    embedding_provider: Literal["openai", "local"] = Field(
-        "openai",
-        description="Embedding provider. Local requires causalrag[local-embeddings].",
-    )
-    embedding_model: str = Field("text-embedding-3-small")
-    vector_backend: Literal["memory", "faiss"] = Field(
-        "memory",
-        description="Vector backend. FAISS requires causalrag[faiss].",
-    )
+    goal: str = Field(..., min_length=1)
+    max_steps: int = Field(8, ge=1, le=64)
+    model: str = "gpt-5.6-terra"
+    provider: Literal["openai", "anthropic", "local"] = "openai"
+    documents: Optional[List[str]] = None
+    embedding_provider: Optional[Literal["openai", "local"]] = "openai"
+    embedding_model: str = "text-embedding-3-small"
+    vector_backend: Literal["memory", "faiss"] = "memory"
 
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "version": __version__, "runtime": "causal-agent"}
+    return {"status": "healthy", "version": __version__}
 
 
 @app.post("/agent/run")
@@ -58,4 +49,4 @@ def run_agent(payload: AgentRunRequest):
         )
         return agent.run(payload.goal, max_steps=payload.max_steps).to_dict()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
