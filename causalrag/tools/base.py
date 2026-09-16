@@ -4,7 +4,11 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from causalrag.experiments import ExperimentContract, InterventionContract
+    from causalrag.experiments import (
+        DecisionPreferences,
+        ExperimentContract,
+        InterventionContract,
+    )
 
 
 @dataclass
@@ -21,14 +25,21 @@ class ToolSpec:
 
 
 class ToolRegistry:
-    def __init__(self, tools: Optional[Iterable[ToolSpec]] = None) -> None:
+    def __init__(
+        self,
+        tools: Optional[Iterable[ToolSpec]] = None,
+        decision_preferences: Optional["DecisionPreferences"] = None,
+    ) -> None:
         self._tools: Dict[str, ToolSpec] = {}
+        self.decision_preferences = decision_preferences
         for tool in tools or []:
             self.register(tool)
 
     def register(self, tool: ToolSpec) -> None:
         if tool.name in self._tools:
             raise ValueError(f"tool already registered: {tool.name}")
+        if self.decision_preferences is not None:
+            tool = self.decision_preferences.apply_to_tool(tool)
         self._tools[tool.name] = tool
 
     def get(self, name: str) -> ToolSpec:

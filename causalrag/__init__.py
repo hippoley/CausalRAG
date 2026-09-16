@@ -20,6 +20,7 @@ from .agent import (
 )
 from .agent.runtime import AgentRunResult, CausalAgent, create_agent
 from .experiments import (
+    DecisionPreferences,
     ExperimentContract,
     ExperimentUpdate,
     OutcomeLikelihood,
@@ -88,5 +89,5 @@ __all__ = [
     "CausalAgent", "AgentRunResult", "create_agent", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
     "ActionKind", "ActionScore", "AgentState", "CandidateAction", "CausalAgentLoop", "DecisionRecord", "Observation",
     "ToolRegistry", "ToolSpec", "CausalBelief", "CausalWorldModel", "Evidence", "Hypothesis", "Transition",
-    "OutcomeLikelihood", "ExperimentContract", "ExperimentUpdate", "expected_information_gain", "posterior_for_outcome",
+    "DecisionPreferences", "OutcomeLikelihood", "ExperimentContract", "ExperimentUpdate", "expected_information_gain", "posterior_for_outcome",
 ]

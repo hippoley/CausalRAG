@@ -15,6 +15,7 @@ from .models import (
     expected_information_gain,
     posterior_for_outcome,
 )
+from .preferences import DecisionPreferences
 
 __all__ = [
     "OutcomeLikelihood",
@@ -23,6 +24,7 @@ __all__ = [
     "InterventionContract",
     "InterventionValue",
     "ExperimentDecisionValue",
+    "DecisionPreferences",
     "contract_applicable",
     "expected_information_gain",
     "posterior_for_outcome",

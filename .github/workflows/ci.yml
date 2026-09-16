@@ -25,19 +25,21 @@ jobs:
           python -c "import importlib.util as i; assert i.find_spec('sentence_transformers') is None; assert i.find_spec('faiss') is None; assert i.find_spec('torch') is None"
       - name: Compile runtime
         run: |
-          python -m py_compile causalrag/__init__.py causalrag/cli.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py
+          python -m py_compile causalrag/__init__.py causalrag/cli.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py
           python -m compileall -q causalrag/agent causalrag/world_model causalrag/reasoning causalrag/experiments causalrag/benchmarks causalrag/tools causalrag/generator causalrag/utils
       - name: Core import and CLI smoke
         run: |
-          python -c "import causalrag; from causalrag import CausalAgent, Hypothesis, ExperimentContract, create_agent; from causalrag.experiments import InterventionContract, experiment_decision_value; from causalrag.benchmarks import DecisionValuePolicy, compare_hidden_world_policies, compare_risk_sensitivity; print(causalrag.__version__)"
+          python -c "import causalrag; from causalrag import CausalAgent, DecisionPreferences, Hypothesis, ExperimentContract, create_agent; from causalrag.experiments import InterventionContract, experiment_decision_value; from causalrag.benchmarks import DecisionValuePolicy, compare_hidden_world_policies, compare_risk_sensitivity; print(causalrag.__version__)"
           causalrag --version
           causalrag --help
       - name: Agent, hypothesis, experiment, decision, benchmark, policy and CLI tests
-        run: pytest -q tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_hypothesis_falsification.py tests/test_discrimination_policy.py tests/test_experiment_contracts.py tests/test_decision_value.py tests/test_hidden_world.py tests/test_hidden_world_stochastic.py tests/test_hidden_world_policy_comparison.py tests/test_llm_interface.py tests/test_user_quickstart.py tests/test_cli_embedding_options.py
+        run: pytest -q tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_hypothesis_falsification.py tests/test_discrimination_policy.py tests/test_experiment_contracts.py tests/test_decision_value.py tests/test_decision_preferences.py tests/test_hidden_world.py tests/test_hidden_world_stochastic.py tests/test_hidden_world_policy_comparison.py tests/test_llm_interface.py tests/test_user_quickstart.py tests/test_cli_embedding_options.py
       - name: Run no-key falsification demo
         run: python examples/hypothesis_falsification_demo.py
       - name: Run no-key Bayesian experiment demo
         run: python examples/bayesian_experiment_demo.py
+      - name: Run deployment decision preferences demo
+        run: python examples/decision_preferences_demo.py
       - name: Run no-key HiddenWorld benchmark demo
         run: python examples/hidden_world_demo.py
       - name: Run seeded stochastic HiddenWorld suite

@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, Iterable, Optional
 
+from causalrag.experiments import DecisionPreferences
 from causalrag.generator.llm_interface import LLMInterface
 from causalrag.reasoning.belief import LLMBeliefUpdater
 from causalrag.reasoning.hypothesis import LLMHypothesisUpdater
@@ -56,8 +57,6 @@ class AgentRunResult:
             "stop_reason": self.state.stop_reason,
             "decisions": _jsonable(self.state.decisions),
             "observations": _jsonable(self.state.observations),
-            # Keep the existing compatibility field while exposing hypotheses
-            # explicitly for v0.3 clients.
             "beliefs": _jsonable(snapshot),
             "hypotheses": _jsonable(snapshot.get("hypotheses", [])),
             "transitions": _jsonable(self.world_model.transitions),
@@ -129,15 +128,20 @@ def create_agent(
     embedding_api_key: Optional[str] = None,
     embedding_provider: Optional[Any] = None,
     vector_backend: str = "memory",
+    decision_preferences: Optional[DecisionPreferences] = None,
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
+
+    ``decision_preferences`` is deployment-owned consequence utility. It can
+    override intervention utilities without changing the reasoner or capability
+    implementation. Capability cost/risk/reversibility remain on ToolSpec.
 
     The core runtime remains retrieval-free. When retrieval is enabled, hosted
     OpenAI embeddings are the default for OpenAI-backed agents and local
     sentence-transformers are opt-in through ``embedding_provider_name='local'``.
     Custom reasoners, belief updaters, and hypothesis updaters remain injectable.
     """
-    registry = ToolRegistry(tools)
+    registry = ToolRegistry(tools, decision_preferences=decision_preferences)
     model_state = world_model or CausalWorldModel()
     pipeline = None
 
