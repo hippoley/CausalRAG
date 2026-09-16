@@ -20,6 +20,7 @@ from .policies import (
     DecisionValuePolicy,
     GreedyEIGPolicy,
     RandomProbePolicy,
+    RiskSensitiveDecisionValuePolicy,
 )
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "GreedyEIGPolicy",
     "ConservativeEIGPolicy",
     "DecisionValuePolicy",
+    "RiskSensitiveDecisionValuePolicy",
     "CheapestProbePolicy",
     "RandomProbePolicy",
     "build_hvac_hidden_world",
