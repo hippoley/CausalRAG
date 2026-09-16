@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Mapping, Sequence, Tuple, Type
+from typing import Dict, Iterable, List, Sequence, Tuple
 
 from causalrag import create_agent
+from causalrag.experiments import InterventionContract
 
 from .hidden_world import (
     HiddenWorldEnvironment,
@@ -14,12 +15,10 @@ from .hidden_world import (
 from .policies import (
     CheapestProbePolicy,
     ConservativeEIGPolicy,
+    DecisionValuePolicy,
     GreedyEIGPolicy,
     RandomProbePolicy,
 )
-
-
-PolicyType = Type[GreedyEIGPolicy]
 
 
 @dataclass
@@ -72,6 +71,21 @@ def _mean(values: Iterable[float]) -> float:
     return sum(rows) / len(rows) if rows else 0.0
 
 
+def _attach_intervention_contracts(tools, scenario: HiddenWorldScenario) -> None:
+    hypothesis_ids = list(scenario.hypotheses)
+    by_name = {tool.name: tool for tool in tools}
+    for action_name, target in scenario.interventions.items():
+        tool = by_name[action_name]
+        tool.intervention_contract = InterventionContract(
+            intervention_id=action_name,
+            description=f"Successful only when {target} is the true hidden mechanism.",
+            utilities={
+                hypothesis_id: 1.0 if hypothesis_id == target else 0.0
+                for hypothesis_id in hypothesis_ids
+            },
+        )
+
+
 def run_policy_episode(
     policy_type,
     scenario: HiddenWorldScenario,
@@ -84,12 +98,14 @@ def run_policy_episode(
         seed=seed,
     )
     world = environment.world_model()
-    # Keep the policy RNG reproducible but independent from the environment RNG.
     policy = policy_type(scenario, seed=100_000 + int(seed))
+    tools = environment.tools()
+    if getattr(policy_type, "requires_intervention_contracts", False):
+        _attach_intervention_contracts(tools, scenario)
     agent = create_agent(
         world_model=world,
         reasoner=policy,
-        tools=environment.tools(),
+        tools=tools,
     )
     result = agent.run(
         "Identify the hidden causal mechanism and apply the successful intervention.",
@@ -144,6 +160,7 @@ def compare_hidden_world_policies(
     policy_types: Sequence[type] = (
         GreedyEIGPolicy,
         ConservativeEIGPolicy,
+        DecisionValuePolicy,
         CheapestProbePolicy,
         RandomProbePolicy,
     ),
