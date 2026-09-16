@@ -12,18 +12,16 @@ with open(os.path.join("causalrag", "__init__.py"), "r", encoding="utf-8") as f:
 with open("README.MD", "r", encoding="utf-8") as f:
     long_description = f.read()
 
-# Keep the default install focused on the causal-agent runtime.
-# Heavy retrieval, web serving, evaluation and visualization stacks are opt-in.
 core_requirements = [
     "openai>=1.0.0",
     "python-dotenv>=0.19.0",
 ]
 
+# Hosted embeddings + in-memory cosine search are the default RAG path.
+# Local neural embeddings and FAISS are intentionally separate extras.
 rag_requirements = [
     "numpy>=1.20.0",
     "networkx>=2.6.0",
-    "sentence-transformers>=2.2.0",
-    "faiss-cpu>=1.7.0",
     "jinja2>=3.0.0",
     "pyyaml>=6.0.0",
     "tqdm>=4.62.0",
@@ -37,6 +35,8 @@ api_requirements = [
 
 extra_requirements = {
     "rag": rag_requirements,
+    "local-embeddings": ["sentence-transformers>=2.2.0"],
+    "faiss": ["faiss-cpu>=1.7.0"],
     "api": api_requirements,
     "evaluation": ["pandas>=1.3.0", "ragas>=0.0.16"],
     "dev": [
@@ -48,15 +48,15 @@ extra_requirements = {
         "mypy>=1.0",
     ],
     "weaviate": ["weaviate-client>=3.0.0"],
-    "gpu": ["faiss-gpu>=1.7.0"],
     "anthropic": ["anthropic>=0.25.0"],
     "visualization": ["matplotlib>=3.4.0", "plotly>=5.3.0", "pyvis>=0.2.0"],
 }
+# "full" stays portable: local ML runtimes and FAISS remain explicit choices.
 extra_requirements["full"] = sorted(
     {
         req
         for key, reqs in extra_requirements.items()
-        if key not in {"dev", "full", "gpu"}
+        if key not in {"dev", "full", "local-embeddings", "faiss"}
         for req in reqs
     }
 )

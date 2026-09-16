@@ -26,7 +26,6 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 def __getattr__(name):
-    """Lazy-load optional compatibility surfaces."""
     if name in {"CausalEvaluator", "EvaluationResult"}:
         try:
             from .evaluation.evaluator import CausalEvaluator, EvaluationResult
@@ -35,10 +34,7 @@ def __getattr__(name):
                 "Evaluation requires optional dependencies. Install them with: "
                 "pip install 'causalrag[evaluation]'"
             ) from exc
-        return {
-            "CausalEvaluator": CausalEvaluator,
-            "EvaluationResult": EvaluationResult,
-        }[name]
+        return {"CausalEvaluator": CausalEvaluator, "EvaluationResult": EvaluationResult}[name]
 
     if name == "CausalRAGPipeline":
         try:
@@ -75,20 +71,19 @@ def __getattr__(name):
 
 def create_pipeline(
     model_name="gpt-5.6-terra",
-    embedding_model="all-MiniLM-L6-v2",
+    embedding_model="text-embedding-3-small",
     graph_path=None,
     index_path=None,
     config_path=None,
     provider="openai",
     api_key=None,
     extractor_method="rule",
+    embedding_provider_name=None,
+    embedding_api_key=None,
+    embedding_provider=None,
+    vector_backend="memory",
 ):
-    """Create the legacy one-shot RAG pipeline on demand.
-
-    Requires the optional retrieval dependencies::
-
-        pip install "causalrag[rag]"
-    """
+    """Create the legacy one-shot RAG pipeline on demand."""
     try:
         from .pipeline import CausalRAGPipeline
     except (ImportError, ModuleNotFoundError) as exc:
@@ -106,11 +101,13 @@ def create_pipeline(
         provider=provider,
         api_key=api_key,
         extractor_method=extractor_method,
+        embedding_provider_name=embedding_provider_name,
+        embedding_api_key=embedding_api_key,
+        embedding_provider=embedding_provider,
+        vector_backend=vector_backend,
     )
 
 
-# Star imports intentionally expose only the lightweight runtime. Optional
-# compatibility surfaces remain available via explicit attribute access.
 __all__ = [
     "CausalAgent",
     "AgentRunResult",

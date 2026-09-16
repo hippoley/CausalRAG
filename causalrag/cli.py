@@ -40,6 +40,26 @@ def _require_api():
     return uvicorn
 
 
+def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--embedding-provider",
+        default="openai",
+        choices=["openai", "local"],
+        help="Embedding provider. 'local' requires causalrag[local-embeddings].",
+    )
+    parser.add_argument(
+        "--embedding-model",
+        default="text-embedding-3-small",
+        help="Embedding model name for the selected provider.",
+    )
+    parser.add_argument(
+        "--vector-backend",
+        default="memory",
+        choices=["memory", "faiss"],
+        help="Vector backend. 'faiss' requires causalrag[faiss].",
+    )
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="CausalRAG: a causal world-model runtime for goal-directed agents"
@@ -55,11 +75,12 @@ def parse_args():
     agent_parser.add_argument("--provider", default="openai", choices=["openai", "anthropic", "local"])
     agent_parser.add_argument("--max-steps", type=int, default=8)
     agent_parser.add_argument("--json", action="store_true", help="Print complete JSON trace")
+    _add_embedding_args(agent_parser)
 
     index_parser = subparsers.add_parser("index", help="Build a reusable causal/vector index")
     index_parser.add_argument("--input", "-i", required=True)
     index_parser.add_argument("--output", "-o", required=True)
-    index_parser.add_argument("--embedding-model", default="all-MiniLM-L6-v2")
+    _add_embedding_args(index_parser)
 
     query_parser = subparsers.add_parser("query", help="Use the legacy one-shot causal RAG path")
     query_parser.add_argument("--index", "-i", required=True)
@@ -67,6 +88,7 @@ def parse_args():
     query_parser.add_argument("--model", default="gpt-5.6-terra")
     query_parser.add_argument("--provider", default="openai", choices=["openai", "anthropic", "local"])
     query_parser.add_argument("--top-k", type=int, default=5)
+    _add_embedding_args(query_parser)
 
     serve_parser = subparsers.add_parser("serve", help="Start API server with /agent/run")
     serve_parser.add_argument("--host", default="0.0.0.0")
@@ -95,6 +117,9 @@ def main():
             graph_path=graph_path,
             index_path=args.index,
             documents=documents,
+            embedding_provider_name=args.embedding_provider,
+            embedding_model=args.embedding_model,
+            vector_backend=args.vector_backend,
         )
         result = agent.run(args.goal, max_steps=args.max_steps)
         payload = result.to_dict()
@@ -102,7 +127,11 @@ def main():
             print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
         else:
             print(payload["answer"])
-            print(f"\nsteps={payload['steps']} stop_reason={payload['stop_reason']}")
+            print(
+                f"\nsteps={payload['steps']} "
+                f"executed_actions={payload['executed_actions']} "
+                f"stop_reason={payload['stop_reason']}"
+            )
         return 0
 
     if args.command == "index":
@@ -112,8 +141,9 @@ def main():
             return 1
         pipeline = create_pipeline(
             embedding_model=args.embedding_model,
+            embedding_provider_name=args.embedding_provider,
+            vector_backend=args.vector_backend,
             index_path=args.output,
-            provider="local",
         )
         pipeline.index(documents)
         print(f"Indexed {len(documents)} documents into {args.output}")
@@ -126,6 +156,9 @@ def main():
             provider=args.provider,
             graph_path=graph_path if os.path.exists(graph_path) else None,
             index_path=args.index,
+            embedding_provider_name=args.embedding_provider,
+            embedding_model=args.embedding_model,
+            vector_backend=args.vector_backend,
         )
         result = pipeline.run(args.query, top_k=args.top_k)
         print(result["answer"])
