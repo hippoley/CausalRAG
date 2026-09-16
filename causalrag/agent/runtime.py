@@ -50,7 +50,11 @@ class AgentRunResult:
         return {
             "answer": self.answer,
             "goal": self.state.goal,
-            "steps": self.state.step,
+            # User-facing steps are decision rounds, including the terminal STOP
+            # decision. ``executed_actions`` preserves the runtime's internal
+            # count of non-STOP actions that actually changed/queried the world.
+            "steps": len(self.state.decisions),
+            "executed_actions": self.state.step,
             "stop_reason": self.state.stop_reason,
             "decisions": _jsonable(self.state.decisions),
             "observations": _jsonable(self.state.observations),
