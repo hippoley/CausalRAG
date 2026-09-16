@@ -1,4 +1,4 @@
-"""Minimal v0.2 causal-agent example.
+"""Minimal v0.3 causal-agent example.
 
 Set OPENAI_API_KEY, then run:
     python examples/agent_quickstart.py
