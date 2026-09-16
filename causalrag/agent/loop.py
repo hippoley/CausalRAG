@@ -33,28 +33,115 @@ class CausalAgentLoop:
         for effect in state.pending_effects:
             effect.refresh(state.virtual_time_seconds)
 
-    def _temporal_guard(self, selected: CandidateAction, state: AgentState) -> CandidateAction:
-        if selected.kind in (ActionKind.STOP, ActionKind.WAIT):
-            return selected
-        matching = [
-            effect
-            for effect in state.active_pending_effects()
-            if effect.observe_with == selected.name and effect.is_premature(state.virtual_time_seconds)
-        ]
-        if not matching:
-            return selected
-        wait_seconds = min(
-            effect.seconds_until_ready(state.virtual_time_seconds) for effect in matching
+    def _record_expired_effects(self, state: AgentState) -> None:
+        now = state.virtual_time_seconds
+        for effect in state.pending_effects:
+            effect.refresh(now)
+            if not effect.expired or effect.expiry_recorded:
+                continue
+            event = {
+                "kind": "missed_observation_window",
+                "effect_id": effect.effect_id,
+                "intervention": effect.intervention,
+                "observe_with": effect.observe_with,
+                "ready_at": effect.ready_at,
+                "expires_at": effect.expires_at,
+                "detected_at": now,
+            }
+            state.scratch.setdefault("temporal_events", []).append(event)
+            self.world_model.record_transition(
+                Transition(
+                    action="missed_observation_window",
+                    arguments={"effect_id": effect.effect_id},
+                    observation=event,
+                    expected_effects={
+                        "temporal_failure": True,
+                        "belief_update": False,
+                    },
+                )
+            )
+            effect.expiry_recorded = True
+
+    def _observation_for_effect(self, effect, rationale: str) -> CandidateAction:
+        return CandidateAction(
+            kind=ActionKind.OBSERVE,
+            name=effect.observe_with,
+            arguments=dict(effect.observe_arguments),
+            rationale=rationale,
         )
+
+    def _wait_for_effect(self, effect, state: AgentState, rationale: str) -> CandidateAction:
         return CandidateAction(
             kind=ActionKind.WAIT,
             name="wait_for_effect_window",
-            arguments={"seconds": wait_seconds},
-            rationale=(
-                f"Runtime temporal guard: {selected.name} is premature; "
-                f"wait {wait_seconds:.3f}s for the causal observation window."
-            ),
+            arguments={"seconds": effect.seconds_until_ready(state.virtual_time_seconds)},
+            rationale=rationale,
         )
+
+    def _protected_effect(self, state: AgentState):
+        effects = [
+            effect
+            for effect in state.active_pending_effects()
+            if effect.protect_attribution
+        ]
+        if not effects:
+            return None
+        return min(effects, key=lambda effect: (effect.expires_at, effect.ready_at))
+
+    def _temporal_guard(self, selected: CandidateAction, state: AgentState) -> CandidateAction:
+        now = state.virtual_time_seconds
+
+        # A requested measurement of a delayed effect is invalid before its window.
+        matching = [
+            effect
+            for effect in state.active_pending_effects()
+            if effect.observe_with == selected.name and effect.is_premature(now)
+        ]
+        if matching:
+            effect = min(matching, key=lambda item: item.ready_at)
+            return self._wait_for_effect(
+                effect,
+                state,
+                f"Runtime temporal guard: {selected.name} is premature; wait for the causal observation window.",
+            )
+
+        protected = self._protected_effect(state)
+        if protected is None:
+            return selected
+
+        # Once the effect is measurable, preserve attribution before another
+        # intervention or terminal decision can hide/contaminate the outcome.
+        if selected.kind in (ActionKind.INTERVENE, ActionKind.STOP):
+            if protected.is_ready(now):
+                return self._observation_for_effect(
+                    protected,
+                    "Runtime attribution guard: observe the unresolved intervention effect before another intervention or stop.",
+                )
+            return self._wait_for_effect(
+                protected,
+                state,
+                "Runtime attribution guard: wait for the unresolved intervention effect before another intervention or stop.",
+            )
+
+        # A model may explicitly ask to wait too long. Cap that wait at the
+        # first useful observation time so a protected causal window is not
+        # skipped by planner timing error.
+        if selected.kind == ActionKind.WAIT:
+            if protected.is_ready(now):
+                return self._observation_for_effect(
+                    protected,
+                    "Runtime attribution guard: the protected effect is ready; observe it before waiting longer.",
+                )
+            requested = float(selected.arguments.get("seconds", 0) or 0)
+            until_ready = protected.seconds_until_ready(now)
+            if requested <= 0.0 or requested > until_ready:
+                return self._wait_for_effect(
+                    protected,
+                    state,
+                    "Runtime attribution guard: cap WAIT at the first valid observation time.",
+                )
+
+        return selected
 
     def _schedule_temporal_effect(self, tool_spec, selected: CandidateAction, state: AgentState) -> None:
         contract = None if tool_spec is None else tool_spec.temporal_effect_contract
@@ -124,6 +211,7 @@ class CausalAgentLoop:
         self._sync_state_time(state)
         while not state.done and state.step < state.max_steps:
             self._sync_state_time(state)
+            self._record_expired_effects(state)
             if self.goal_evaluator and self.goal_evaluator(state, self.world_model):
                 state.done = True
                 state.stop_reason = "goal_reached"
@@ -166,6 +254,7 @@ class CausalAgentLoop:
                     requested = state.next_effect_ready_in() or 0.0
                 waited = float(self.time_driver.advance(requested))
                 self._sync_state_time(state)
+                self._record_expired_effects(state)
                 result = {
                     "waited": waited,
                     "virtual_time_seconds": state.virtual_time_seconds,
