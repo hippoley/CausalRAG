@@ -28,33 +28,53 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 def __getattr__(name):
     """Lazy-load optional compatibility surfaces."""
     if name in {"CausalEvaluator", "EvaluationResult"}:
-        from .evaluation.evaluator import CausalEvaluator, EvaluationResult
-
+        try:
+            from .evaluation.evaluator import CausalEvaluator, EvaluationResult
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                "Evaluation requires optional dependencies. Install them with: "
+                "pip install 'causalrag[evaluation]'"
+            ) from exc
         return {
             "CausalEvaluator": CausalEvaluator,
             "EvaluationResult": EvaluationResult,
         }[name]
 
     if name == "CausalRAGPipeline":
-        from .pipeline import CausalRAGPipeline
-
+        try:
+            from .pipeline import CausalRAGPipeline
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                "CausalRAGPipeline requires optional RAG dependencies. Install "
+                "them with: pip install 'causalrag[rag]'"
+            ) from exc
         return CausalRAGPipeline
 
     if name == "CausalGraphBuilder":
-        from .causal_graph.builder import CausalGraphBuilder
-
+        try:
+            from .causal_graph.builder import CausalGraphBuilder
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                "CausalGraphBuilder requires optional RAG dependencies. Install "
+                "them with: pip install 'causalrag[rag]'"
+            ) from exc
         return CausalGraphBuilder
 
     if name == "CausalPathRetriever":
-        from .causal_graph.retriever import CausalPathRetriever
-
+        try:
+            from .causal_graph.retriever import CausalPathRetriever
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                "CausalPathRetriever requires optional RAG dependencies. Install "
+                "them with: pip install 'causalrag[rag]'"
+            ) from exc
         return CausalPathRetriever
 
     raise AttributeError("module 'causalrag' has no attribute %r" % name)
 
 
 def create_pipeline(
-    model_name="gpt-4o-mini",
+    model_name="gpt-5.6-terra",
     embedding_model="all-MiniLM-L6-v2",
     graph_path=None,
     index_path=None,
@@ -89,16 +109,13 @@ def create_pipeline(
     )
 
 
+# Star imports intentionally expose only the lightweight runtime. Optional
+# compatibility surfaces remain available via explicit attribute access.
 __all__ = [
     "CausalAgent",
     "AgentRunResult",
     "create_agent",
     "LLMCausalReasoner",
-    "CausalRAGPipeline",
-    "CausalGraphBuilder",
-    "CausalPathRetriever",
-    "CausalEvaluator",
-    "EvaluationResult",
     "create_pipeline",
     "ActionKind",
     "AgentState",
