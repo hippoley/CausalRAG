@@ -29,11 +29,11 @@ jobs:
           python -m compileall -q causalrag/agent causalrag/world_model causalrag/reasoning causalrag/tools causalrag/generator causalrag/utils
       - name: Core import and CLI smoke
         run: |
-          python -c "import causalrag; from causalrag import CausalAgent, create_agent; print(causalrag.__version__)"
+          python -c "import causalrag; from causalrag import CausalAgent, Hypothesis, create_agent; print(causalrag.__version__)"
           causalrag --version
           causalrag --help
-      - name: Agent and CLI tests
-        run: pytest -q tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_llm_interface.py tests/test_user_quickstart.py tests/test_cli_embedding_options.py
+      - name: Agent, hypothesis and CLI tests
+        run: pytest -q tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_hypothesis_falsification.py tests/test_llm_interface.py tests/test_user_quickstart.py tests/test_cli_embedding_options.py
 
   api:
     runs-on: ubuntu-latest
