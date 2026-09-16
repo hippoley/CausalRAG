@@ -62,12 +62,12 @@ def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="CausalRAG: a causal world-model runtime for goal-directed agents"
+        description="CausalRAG: a causal decision runtime with explicit world models"
     )
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
-    agent_parser = subparsers.add_parser("agent", help="Run the v0.2 causal agent")
+    agent_parser = subparsers.add_parser("agent", help="Run the v0.3 causal agent runtime")
     agent_parser.add_argument("--goal", "-g", required=True, help="Goal for the agent")
     agent_parser.add_argument("--input", "-i", help="Optional .txt file or directory to index")
     agent_parser.add_argument("--index", help="Optional persistent index directory")
