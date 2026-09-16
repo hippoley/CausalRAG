@@ -1,7 +1,7 @@
 """CausalRAG: causal world models for goal-directed agents.
 
-Use ``create_agent`` for the v0.2 goal-directed runtime. The legacy one-shot
-``CausalRAGPipeline`` remains available for compatibility.
+The default import exposes the lightweight v0.2 causal-agent runtime. Legacy
+RAG, graph and evaluation surfaces are loaded only when explicitly requested.
 """
 
 import logging
@@ -9,9 +9,6 @@ import logging
 __version__ = "0.2.0"
 __author__ = "CausalRAG Team"
 
-from .pipeline import CausalRAGPipeline
-from .causal_graph.builder import CausalGraphBuilder
-from .causal_graph.retriever import CausalPathRetriever
 from .agent import (
     ActionKind,
     AgentState,
@@ -29,11 +26,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 def __getattr__(name):
-    """Lazy-load optional legacy evaluation classes.
-
-    This keeps ``import causalrag`` focused on the runtime path instead of
-    importing pandas/ragas for users who do not need evaluation.
-    """
+    """Lazy-load optional compatibility surfaces."""
     if name in {"CausalEvaluator", "EvaluationResult"}:
         from .evaluation.evaluator import CausalEvaluator, EvaluationResult
 
@@ -41,6 +34,22 @@ def __getattr__(name):
             "CausalEvaluator": CausalEvaluator,
             "EvaluationResult": EvaluationResult,
         }[name]
+
+    if name == "CausalRAGPipeline":
+        from .pipeline import CausalRAGPipeline
+
+        return CausalRAGPipeline
+
+    if name == "CausalGraphBuilder":
+        from .causal_graph.builder import CausalGraphBuilder
+
+        return CausalGraphBuilder
+
+    if name == "CausalPathRetriever":
+        from .causal_graph.retriever import CausalPathRetriever
+
+        return CausalPathRetriever
+
     raise AttributeError("module 'causalrag' has no attribute %r" % name)
 
 
@@ -54,7 +63,20 @@ def create_pipeline(
     api_key=None,
     extractor_method="rule",
 ):
-    """Create the legacy one-shot CausalRAG pipeline."""
+    """Create the legacy one-shot RAG pipeline on demand.
+
+    Requires the optional retrieval dependencies::
+
+        pip install "causalrag[rag]"
+    """
+    try:
+        from .pipeline import CausalRAGPipeline
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RuntimeError(
+            "The legacy RAG pipeline requires optional dependencies. "
+            "Install them with: pip install 'causalrag[rag]'"
+        ) from exc
+
     return CausalRAGPipeline(
         model_name=model_name,
         embedding_model=embedding_model,
