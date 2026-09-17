@@ -1,4 +1,6 @@
 from .actions import ActionKind, ActionScore, CandidateAction, DecisionRecord
+from .ablation import apply_runtime_capabilities, create_ablation_agent
+from .capabilities import RuntimeCapabilities
 from .loop import CausalAgentLoop
 from .runtime import AgentRunResult, CausalAgent, create_agent
 from .state import AgentState, Observation
@@ -14,6 +16,9 @@ __all__ = [
     "ActionScore",
     "CandidateAction",
     "DecisionRecord",
+    "RuntimeCapabilities",
+    "apply_runtime_capabilities",
+    "create_ablation_agent",
     "CausalAgentLoop",
     "CausalAgent",
     "AgentRunResult",
