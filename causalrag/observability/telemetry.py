@@ -10,11 +10,13 @@ from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, Mapping, Optional
+from threading import RLock
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
 
-CAUSAL_TRACE_SCHEMA_VERSION = "0.1"
+CAUSAL_TRACE_SCHEMA_VERSION = "0.2"
 _EVENT_LOGGER = logging.getLogger("causalrag.causal_event")
+_SUBSCRIBER_LOGGER = logging.getLogger("causalrag.telemetry_subscriber")
 _LOCAL_STACK: contextvars.ContextVar[tuple[tuple[str, str], ...]] = contextvars.ContextVar(
     "causalrag_trace_stack", default=()
 )
@@ -39,7 +41,6 @@ def _jsonable(value: Any, *, max_string: int = 2048) -> Any:
 
 
 def _otel_attribute(value: Any) -> Any:
-    """Convert values to the scalar/list shapes accepted by OTel attributes."""
     if value is None:
         return None
     if isinstance(value, (bool, int, float, str)):
@@ -64,6 +65,9 @@ class CausalTraceRecord:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+TraceSubscriber = Callable[[CausalTraceRecord], None]
 
 
 class TelemetrySpan(AbstractContextManager):
@@ -103,10 +107,7 @@ class TelemetrySpan(AbstractContextManager):
                 self.trace_id = f"{context.trace_id:032x}"
                 self.span_id = f"{context.span_id:016x}"
 
-        # Set the local context exactly once, after OTel has had a chance to
-        # replace the provisional IDs. This guarantees a single matching reset.
         self._stack_token = _LOCAL_STACK.set(stack + ((self.trace_id, self.span_id),))
-
         self.telemetry._record(
             "span.start",
             self.name,
@@ -157,10 +158,10 @@ class TelemetrySpan(AbstractContextManager):
 class CausalTelemetry:
     """Bounded causal trace recorder with optional OpenTelemetry integration.
 
-    The local machine-readable trace is always available. OpenTelemetry is
-    deliberately optional so core CausalRAG remains lightweight. When OTel is
-    enabled, duration-bearing operations are emitted as spans while causal
-    state transitions are written as trace-correlated structured log events.
+    The local machine-readable trace is always available. Subscribers receive
+    the exact same records synchronously at creation time, which makes SSE,
+    WebSocket, notebook, and test adapters possible without a second event
+    schema. Subscriber failures are isolated from the agent runtime.
     """
 
     def __init__(
@@ -176,14 +177,12 @@ class CausalTelemetry:
         self._records: list[CausalTraceRecord] = []
         self._sequence = 0
         self._tracer = None
+        self._subscribers: Dict[str, TraceSubscriber] = {}
+        self._lock = RLock()
         if enable_otel:
             try:
                 from opentelemetry import trace
-
-                self._tracer = trace.get_tracer(
-                    instrumentation_name,
-                    schema_url=None,
-                )
+                self._tracer = trace.get_tracer(instrumentation_name, schema_url=None)
             except ImportError as exc:
                 raise RuntimeError(
                     "OpenTelemetry support requires the observability extra: "
@@ -198,6 +197,25 @@ class CausalTelemetry:
                 "1", "true", "yes", "on"
             }
         return cls(enable_otel=enable, capture_content=bool(capture_content))
+
+    def subscribe(self, callback: TraceSubscriber, *, replay_existing: bool = False) -> str:
+        if not callable(callback):
+            raise TypeError("callback must be callable")
+        subscription_id = uuid.uuid4().hex
+        with self._lock:
+            self._subscribers[subscription_id] = callback
+            existing = list(self._records) if replay_existing else []
+        for record in existing:
+            self._notify_one(callback, record)
+        return subscription_id
+
+    def unsubscribe(self, subscription_id: str) -> bool:
+        with self._lock:
+            return self._subscribers.pop(str(subscription_id), None) is not None
+
+    def subscriber_count(self) -> int:
+        with self._lock:
+            return len(self._subscribers)
 
     def span(self, name: str, attributes: Optional[Mapping[str, Any]] = None) -> TelemetrySpan:
         return TelemetrySpan(self, name, attributes)
@@ -215,9 +233,6 @@ class CausalTelemetry:
             span_id=span_id,
             parent_span_id=parent,
         )
-        # In 2026 OTel guidance, point-in-time events should be represented as
-        # log-based events correlated with the active span rather than new span
-        # events. Standard logging can be bridged by OTel LoggingHandler.
         _EVENT_LOGGER.info(
             str(name),
             extra={
@@ -227,6 +242,18 @@ class CausalTelemetry:
             },
         )
         return record
+
+    def _notify_one(self, callback: TraceSubscriber, record: CausalTraceRecord) -> None:
+        try:
+            callback(record)
+        except Exception:
+            _SUBSCRIBER_LOGGER.exception("Causal telemetry subscriber failed")
+
+    def _notify(self, record: CausalTraceRecord) -> None:
+        with self._lock:
+            subscribers = list(self._subscribers.values())
+        for callback in subscribers:
+            self._notify_one(callback, record)
 
     def _record(
         self,
@@ -238,30 +265,35 @@ class CausalTelemetry:
         span_id: str,
         parent_span_id: Optional[str],
     ) -> CausalTraceRecord:
-        self._sequence += 1
-        attrs = {"causalrag.schema.version": CAUSAL_TRACE_SCHEMA_VERSION}
-        attrs.update({str(k): _jsonable(v) for k, v in attributes.items()})
-        record = CausalTraceRecord(
-            sequence=self._sequence,
-            timestamp=_now_iso(),
-            record_type=str(record_type),
-            name=str(name),
-            trace_id=str(trace_id),
-            span_id=str(span_id),
-            parent_span_id=parent_span_id,
-            attributes=attrs,
-        )
-        self._records.append(record)
-        if len(self._records) > self.max_records:
-            del self._records[: len(self._records) - self.max_records]
+        with self._lock:
+            self._sequence += 1
+            attrs = {"causalrag.schema.version": CAUSAL_TRACE_SCHEMA_VERSION}
+            attrs.update({str(k): _jsonable(v) for k, v in attributes.items()})
+            record = CausalTraceRecord(
+                sequence=self._sequence,
+                timestamp=_now_iso(),
+                record_type=str(record_type),
+                name=str(name),
+                trace_id=str(trace_id),
+                span_id=str(span_id),
+                parent_span_id=parent_span_id,
+                attributes=attrs,
+            )
+            self._records.append(record)
+            if len(self._records) > self.max_records:
+                del self._records[: len(self._records) - self.max_records]
+        self._notify(record)
         return record
 
     def count(self) -> int:
-        return len(self._records)
+        with self._lock:
+            return len(self._records)
 
     def records(self, since: int = 0) -> list[Dict[str, Any]]:
         start = max(0, int(since))
-        return [record.to_dict() for record in self._records[start:]]
+        with self._lock:
+            records = list(self._records[start:])
+        return [record.to_dict() for record in records]
 
     def export_jsonl(self, path: str | Path, *, since: int = 0) -> Path:
         destination = Path(path)
@@ -278,12 +310,6 @@ def configure_otlp_telemetry(
     endpoint: Optional[str] = None,
     capture_content: bool = False,
 ) -> CausalTelemetry:
-    """Configure OTLP/HTTP tracing + trace-correlated logs and return telemetry.
-
-    ``endpoint`` is a collector base such as ``http://localhost:4318``. When it
-    is omitted, exporter environment variables are used. This helper is opt-in
-    because applications may already own the global OTel providers.
-    """
     try:
         from opentelemetry import _logs, trace
         from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
@@ -294,9 +320,7 @@ def configure_otlp_telemetry(
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
     except ImportError as exc:
-        raise RuntimeError(
-            "OTLP export requires: pip install 'causalrag[observability]'"
-        ) from exc
+        raise RuntimeError("OTLP export requires: pip install 'causalrag[observability]'") from exc
 
     resource = Resource.create({"service.name": str(service_name)})
     tracer_provider = TracerProvider(resource=resource)
@@ -322,6 +346,5 @@ def configure_otlp_telemetry(
 
 
 def replay_trace(records: Iterable[Mapping[str, Any]]) -> list[Dict[str, Any]]:
-    """Return a deterministic event timeline for UI/paper replay tooling."""
     normalized = [dict(record) for record in records]
     return sorted(normalized, key=lambda record: (int(record.get("sequence", 0)), str(record.get("timestamp", ""))))
