@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Interactive CausalRAG decision-runtime demo generated from the repository's real no-key examples.">
+  <title>CausalRAG · Decision Runtime</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="https://github.com/hippoley/CausalRAG">CausalRAG <span>v0.3</span></a>
+    <div class="build" id="build">Loading verified build…</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="kicker">CAUSAL DECISION RUNTIME · LIVE PROBE</p>
+      <h1>Don’t ask the model to sound certain.<br><em>Make uncertainty operational.</em></h1>
+      <p class="lede">Compare competing hypotheses, choose the experiment that actually separates them, update belief, then decide. The page is rebuilt by GitHub Actions from the repository’s real deterministic examples.</p>
+      <div class="hero-actions">
+        <button class="primary" id="start">Run the diagnosis</button>
+        <a class="secondary" href="#evidence">See benchmark evidence</a>
+      </div>
+    </section>
+
+    <section class="lab" aria-label="Interactive Bayesian experiment">
+      <div class="lab-head">
+        <div><p class="kicker">LOW AIRFLOW / HVAC</p><h2>Which observation is worth buying?</h2></div>
+        <button class="reset" id="reset">Reset</button>
+      </div>
+      <div class="stage-row" id="stages">
+        <span class="active">1 · Hypotheses</span><span>2 · Candidate actions</span><span>3 · Observation</span><span>4 · Decision</span>
+      </div>
+      <div class="lab-grid">
+        <section class="panel beliefs">
+          <div class="panel-label">BELIEF STATE</div>
+          <div class="belief"><div><b>H1</b><span>Clogged filter</span></div><strong id="h1v">50%</strong><i><u id="h1bar" style="width:50%"></u></i></div>
+          <div class="belief"><div><b>H2</b><span>Weak supply fan</span></div><strong id="h2v">50%</strong><i><u id="h2bar" style="width:50%"></u></i></div>
+          <p class="caption" id="beliefNote">Equal priors. The runtime has not observed a discriminating outcome.</p>
+        </section>
+        <section class="panel actions">
+          <div class="panel-label">CANDIDATE ACTIONS</div>
+          <button class="action" data-action="temperature"><span>Read room temperature</span><small>Model-stated EIG 0.95 · not diagnostic</small></button>
+          <button class="action recommended" data-action="pressure"><span>Measure filter pressure</span><small>Runtime Bayesian EIG 0.531 · discriminating</small></button>
+          <div class="explain" id="explain">The language model prefers temperature. The runtime overrides that score because the modeled outcomes of the pressure test differ sharply under H1 and H2.</div>
+        </section>
+        <section class="panel trace">
+          <div class="panel-label">DECISION TRACE</div>
+          <ol id="trace"><li class="current">World model initialized</li><li>Waiting for an observation</li><li>Posterior not updated</li></ol>
+        </section>
+      </div>
+    </section>
+
+    <section class="evidence" id="evidence">
+      <div class="section-copy"><p class="kicker">GENERATED DURING DEPLOYMENT</p><h2>The webpage carries evidence from the Python runtime—not hand-entered claims.</h2><p>Every publish runs the no-key Bayesian example and seeded HiddenWorld suite. Failures remain visible because calibration and regret matter more than a polished success screenshot.</p></div>
+      <div class="metrics">
+        <div class="metric"><span>Identification</span><strong id="accuracy">—</strong><small>30 seeded episodes</small></div>
+        <div class="metric"><span>Mean posterior</span><strong id="posterior">—</strong><small>true hypothesis</small></div>
+        <div class="metric"><span>Causal regret</span><strong id="regret">—</strong><small>lower is better</small></div>
+        <div class="metric"><span>Mean probes</span><strong id="probes">—</strong><small>before intervention</small></div>
+      </div>
+      <details><summary>Open GitHub Actions runtime output</summary><pre id="raw">Loading…</pre></details>
+    </section>
+  </main>
+
+  <footer><span>CausalRAG</span><span>experience → causal belief → decision value → action → new experience</span><a href="https://github.com/hippoley/CausalRAG">Source</a></footer>
+  <script src="app.js"></script>
+</body>
+</html>
