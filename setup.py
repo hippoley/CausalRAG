@@ -33,11 +33,18 @@ api_requirements = [
     "pydantic>=1.10.0",
 ]
 
+observability_requirements = [
+    "opentelemetry-api>=1.30.0",
+    "opentelemetry-sdk>=1.30.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.30.0",
+]
+
 extra_requirements = {
     "rag": rag_requirements,
     "local-embeddings": ["sentence-transformers>=2.2.0"],
     "faiss": ["faiss-cpu>=1.7.0"],
     "api": api_requirements,
+    "observability": observability_requirements,
     "evaluation": ["pandas>=1.3.0", "ragas>=0.0.16"],
     "dev": [
         "pytest>=7.0",

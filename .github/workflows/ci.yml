@@ -20,20 +20,33 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Assert heavy RAG stack is absent
+      - name: Assert heavy RAG and OTel SDK stacks are absent
         run: |
-          python -c "import importlib.util as i; assert i.find_spec('sentence_transformers') is None; assert i.find_spec('faiss') is None; assert i.find_spec('torch') is None"
+          python - <<'PY'
+          import importlib.util as i
+
+          def absent(name):
+              try:
+                  return i.find_spec(name) is None
+              except ModuleNotFoundError:
+                  return True
+
+          assert absent('sentence_transformers')
+          assert absent('faiss')
+          assert absent('torch')
+          assert absent('opentelemetry.sdk')
+          PY
       - name: Compile runtime
         run: |
-          python -m py_compile causalrag/__init__.py causalrag/cli.py causalrag/agent/temporal.py causalrag/environments/boptest.py causalrag/benchmarks/temporal_hidden_world.py causalrag/benchmarks/temporal_suite.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/boptest_live_smoke.py
-          python -m compileall -q causalrag/agent causalrag/world_model causalrag/reasoning causalrag/experiments causalrag/environments causalrag/benchmarks causalrag/tools causalrag/generator causalrag/utils
+          python -m py_compile causalrag/__init__.py causalrag/cli.py causalrag/agent/temporal.py causalrag/environments/boptest.py causalrag/observability/telemetry.py causalrag/benchmarks/temporal_hidden_world.py causalrag/benchmarks/temporal_suite.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/boptest_live_smoke.py
+          python -m compileall -q causalrag/agent causalrag/world_model causalrag/reasoning causalrag/experiments causalrag/environments causalrag/observability causalrag/benchmarks causalrag/tools causalrag/generator causalrag/utils
       - name: Core import and CLI smoke
         run: |
-          python -c "import causalrag; assert causalrag.__version__ == '0.3.0'; from causalrag import CausalAgent, DecisionPreferences, Hypothesis, ExperimentContract, ModelMismatchPolicy, TemporalEffectContract, VirtualTimeDriver, create_agent; from causalrag.environments import BOPTESTClient; from causalrag.experiments import InterventionContract, experiment_decision_value; from causalrag.benchmarks import DecisionValuePolicy, compare_hidden_world_policies, compare_risk_sensitivity, compare_temporal_guard, compare_temporal_suite; print(causalrag.__version__)"
+          python -c "import causalrag; assert causalrag.__version__ == '0.3.0'; from causalrag import CausalAgent, CausalTelemetry, DecisionPreferences, Hypothesis, ExperimentContract, ModelMismatchPolicy, TemporalEffectContract, VirtualTimeDriver, create_agent; from causalrag.environments import BOPTESTClient; from causalrag.experiments import InterventionContract, experiment_decision_value; from causalrag.benchmarks import DecisionValuePolicy, compare_hidden_world_policies, compare_risk_sensitivity, compare_temporal_guard, compare_temporal_suite; print(causalrag.__version__)"
           causalrag --version
           causalrag --help
-      - name: Agent, hypothesis, open-world, environment, temporal, decision, benchmark, policy and CLI tests
-        run: pytest -q tests/test_release_version.py tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_hypothesis_falsification.py tests/test_discrimination_policy.py tests/test_experiment_contracts.py tests/test_open_world_mismatch.py tests/test_llm_open_world_discovery.py tests/test_boptest_client.py tests/test_decision_value.py tests/test_decision_preferences.py tests/test_temporal_runtime.py tests/test_temporal_hidden_world.py tests/test_temporal_attribution_guard.py tests/test_temporal_suite.py tests/test_hidden_world.py tests/test_hidden_world_stochastic.py tests/test_hidden_world_policy_comparison.py tests/test_llm_interface.py tests/test_user_quickstart.py tests/test_cli_embedding_options.py
+      - name: Agent, causal trace, hypothesis, open-world, environment, temporal, decision, benchmark, policy and CLI tests
+        run: pytest -q tests/test_release_version.py tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_observability.py tests/test_hypothesis_falsification.py tests/test_discrimination_policy.py tests/test_experiment_contracts.py tests/test_open_world_mismatch.py tests/test_llm_open_world_discovery.py tests/test_boptest_client.py tests/test_decision_value.py tests/test_decision_preferences.py tests/test_temporal_runtime.py tests/test_temporal_hidden_world.py tests/test_temporal_attribution_guard.py tests/test_temporal_suite.py tests/test_hidden_world.py tests/test_hidden_world_stochastic.py tests/test_hidden_world_policy_comparison.py tests/test_llm_interface.py tests/test_user_quickstart.py tests/test_cli_embedding_options.py
       - name: Run no-key falsification demo
         run: python examples/hypothesis_falsification_demo.py
       - name: Run no-key Bayesian experiment demo
@@ -54,6 +67,23 @@ jobs:
         run: python examples/temporal_hidden_world_demo.py
       - name: Run temporal causality failure-mode suite
         run: python examples/temporal_suite_demo.py
+
+  observability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install observability layer
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[observability,dev]"
+      - name: Import OpenTelemetry integration
+        run: |
+          python -c "import opentelemetry.sdk; from causalrag import CausalTelemetry, configure_otlp_telemetry; t=CausalTelemetry(enable_otel=True); print('otel causal telemetry available', bool(t))"
+      - name: Run causal trace tests with OTel installed
+        run: pytest -q tests/test_observability.py
 
   api:
     runs-on: ubuntu-latest

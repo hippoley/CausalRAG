@@ -10,6 +10,7 @@ if TYPE_CHECKING:
         ExperimentContract,
         InterventionContract,
     )
+    from causalrag.observability import CausalTelemetry
 
 
 @dataclass
@@ -31,9 +32,11 @@ class ToolRegistry:
         self,
         tools: Optional[Iterable[ToolSpec]] = None,
         decision_preferences: Optional["DecisionPreferences"] = None,
+        telemetry: Optional["CausalTelemetry"] = None,
     ) -> None:
         self._tools: Dict[str, ToolSpec] = {}
         self.decision_preferences = decision_preferences
+        self.telemetry = telemetry
         for tool in tools or []:
             self.register(tool)
 
@@ -55,4 +58,23 @@ class ToolRegistry:
 
     def execute(self, name: str, arguments: Dict[str, Any]) -> Any:
         tool = self.get(name)
-        return tool.handler(**arguments)
+        if self.telemetry is None:
+            return tool.handler(**arguments)
+
+        attributes: Dict[str, Any] = {
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": tool.name,
+            "causalrag.tool.kind": tool.metadata.get("kind", "tool"),
+            "causalrag.tool.cost": float(tool.cost),
+            "causalrag.tool.risk": float(tool.risk),
+            "causalrag.tool.reversible": bool(tool.reversible),
+            "causalrag.tool.argument_names": sorted(str(key) for key in arguments),
+        }
+        if self.telemetry.capture_content:
+            attributes["causalrag.tool.arguments"] = dict(arguments)
+
+        with self.telemetry.span(f"execute_tool {tool.name}", attributes) as span:
+            result = tool.handler(**arguments)
+            if self.telemetry.capture_content:
+                span.set_attribute("causalrag.tool.result", result)
+            return result
