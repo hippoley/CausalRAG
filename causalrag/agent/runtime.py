@@ -12,6 +12,7 @@ from causalrag.reasoning.llm import LLMCausalReasoner
 from causalrag.tools.base import ToolRegistry, ToolSpec
 from causalrag.world_model.models import CausalWorldModel
 
+from .capabilities import RuntimeCapabilities
 from .loop import CausalAgentLoop
 from .state import AgentState
 from .temporal import TimeDriver
@@ -56,6 +57,7 @@ class AgentRunResult:
             "steps": len(self.state.decisions),
             "executed_actions": self.state.step,
             "stop_reason": self.state.stop_reason,
+            "runtime_capabilities": _jsonable(self.state.scratch.get("runtime_capabilities", {})),
             "decisions": _jsonable(self.state.decisions),
             "observations": _jsonable(self.state.observations),
             "beliefs": _jsonable(snapshot),
@@ -73,6 +75,8 @@ class CausalAgent:
         self.pipeline = pipeline
 
     def index(self, documents: Iterable[str]) -> "CausalAgent":
+        if not self.loop.capabilities.retrieval:
+            raise RuntimeError("Retrieval is disabled by the active RuntimeCapabilities ablation.")
         if self.pipeline is None:
             raise RuntimeError(
                 "Indexing is not enabled for this agent. Install the RAG extra "
@@ -97,6 +101,10 @@ class CausalAgent:
     @property
     def tools(self) -> ToolRegistry:
         return self.loop.tools
+
+    @property
+    def capabilities(self) -> RuntimeCapabilities:
+        return self.loop.capabilities
 
 
 def _load_rag_pipeline():
@@ -133,8 +141,14 @@ def create_agent(
     decision_preferences: Optional[DecisionPreferences] = None,
     time_driver: Optional[TimeDriver] = None,
     mismatch_policy: Optional[ModelMismatchPolicy] = None,
+    capabilities: Optional[RuntimeCapabilities] = None,
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
+
+    ``capabilities`` is the execution-level ablation surface. Disabling a
+    capability changes runtime behavior rather than merely adding an experiment
+    label. This is the supported way to run EIG/EVSI/temporal/open-world and
+    generic-tool-loop ablations under the same outer agent interface.
 
     ``decision_preferences`` is deployment-owned consequence utility. It can
     override intervention utilities without changing the reasoner or capability
@@ -153,15 +167,17 @@ def create_agent(
     sentence-transformers are opt-in through ``embedding_provider_name='local'``.
     Custom reasoners, belief updaters, and hypothesis updaters remain injectable.
     """
+    runtime_capabilities = capabilities or RuntimeCapabilities.full()
     registry = ToolRegistry(tools, decision_preferences=decision_preferences)
     model_state = world_model or CausalWorldModel()
     pipeline = None
 
-    wants_retrieval = (
+    retrieval_requested = (
         bool(documents or graph_path or index_path)
         if enable_retrieval is None
-        else enable_retrieval
+        else bool(enable_retrieval)
     )
+    wants_retrieval = runtime_capabilities.retrieval and retrieval_requested
 
     if wants_retrieval:
         CausalRAGPipeline = _load_rag_pipeline()
@@ -228,5 +244,6 @@ def create_agent(
         hypothesis_updater=hypothesis_updater,
         time_driver=time_driver,
         mismatch_policy=mismatch_policy,
+        capabilities=runtime_capabilities,
     )
     return CausalAgent(loop=loop, pipeline=pipeline)
