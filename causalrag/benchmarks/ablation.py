@@ -3,25 +3,12 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional
 
+from causalrag.agent.features import RuntimeFeatureFlags
 
-@dataclass(frozen=True)
-class RuntimeFeatures:
-    """Explicit feature switches used by benchmark ablation arms.
-
-    The schema is intentionally broader than the switches already wired into
-    runtime policy. A benchmark runner must record every feature state so paper
-    tables never rely on an implicit "full system" label.
-    """
-
-    causal_runtime: bool = True
-    eig: bool = True
-    evsi: bool = True
-    temporal_attribution: bool = True
-    open_world_discovery: bool = True
-    retrieval: bool = False
-
-    def to_dict(self) -> Dict[str, bool]:
-        return asdict(self)
+# Backwards-friendly public benchmark name. The implementation lives in the
+# runtime layer so an ablation switch can change behavior rather than merely
+# annotate an experiment row.
+RuntimeFeatures = RuntimeFeatureFlags
 
 
 @dataclass(frozen=True)
@@ -30,7 +17,7 @@ class AblationArm:
     proposer_family: str
     provider: Optional[str] = None
     model: Optional[str] = None
-    features: RuntimeFeatures = field(default_factory=RuntimeFeatures)
+    features: RuntimeFeatureFlags = field(default_factory=RuntimeFeatureFlags)
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -91,12 +78,7 @@ def run_ablation_matrix(
     seeds: Iterable[int],
     run_episode: Callable[[AblationArm, str, int], AblationEpisode],
 ) -> AblationReport:
-    """Run a rectangular ablation matrix with identical scenarios and seeds.
-
-    ``run_episode`` owns environment/model construction. This function enforces
-    the comparison protocol: every arm sees the same scenario x seed cells and
-    returns one machine-readable row per cell.
-    """
+    """Run a rectangular ablation matrix with identical scenarios and seeds."""
 
     arm_rows = list(arms)
     scenario_rows = [str(value) for value in scenarios]
