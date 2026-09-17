@@ -1,4 +1,4 @@
-# CausalRAG v0.3 — from retrieval to causal decision
+> **[Open the live demo →](https://hippoley.github.io/CausalRAG/)** · CausalRAG interactive decision runtime, built and deployed by GitHub Actions.\n\n# CausalRAG v0.3 — from retrieval to causal decision
 
 CausalRAG is a **causal decision runtime for agents operating under uncertainty**.
 
