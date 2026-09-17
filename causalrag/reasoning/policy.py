@@ -4,6 +4,7 @@ import math
 from typing import List, Optional, Sequence, Tuple
 
 from causalrag.agent.actions import ActionKind, ActionScore, CandidateAction
+from causalrag.agent.features import RuntimeFeatureFlags
 from causalrag.experiments import (
     contract_applicable,
     expanded_experiment_contract,
@@ -77,7 +78,14 @@ def _contract_covers_declared_tests(action: CandidateAction, contract) -> bool:
     return set(str(value) for value in action.tests_hypotheses).issubset(set(contract.hypothesis_ids()))
 
 
-def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel] = None, candidate_index: int = 0, tools: Optional[ToolRegistry] = None) -> ActionScore:
+def score_action(
+    action: CandidateAction,
+    world_model: Optional[CausalWorldModel] = None,
+    candidate_index: int = 0,
+    tools: Optional[ToolRegistry] = None,
+    features: Optional[RuntimeFeatureFlags] = None,
+) -> ActionScore:
+    features = features or RuntimeFeatureFlags()
     model_information_gain = _clamp01(action.expected_information_gain)
     discrimination = hypothesis_discrimination_score(action, world_model)
     bayesian_information_gain = None
@@ -89,19 +97,27 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
     intervention_contract = None if tool_spec is None else tool_spec.intervention_contract
 
     can_use_bayes = bool(
-        experiment_contract is not None
+        features.causal_runtime
+        and experiment_contract is not None
         and world_model is not None
         and contract_applicable(experiment_contract, world_model)
         and _contract_covers_declared_tests(action, experiment_contract)
     )
 
-    if can_use_bayes:
+    if not features.causal_runtime:
+        information_gain = model_information_gain
+        information_source = "model_estimate_causal_runtime_disabled"
+    elif can_use_bayes and features.eig:
         bayesian_information_gain = expected_information_gain(experiment_contract, world_model)
         information_gain = bayesian_information_gain
         information_source = "runtime_bayesian_eig"
     elif discrimination is not None:
         information_gain = discrimination
-        information_source = "runtime_hypothesis_discrimination"
+        information_source = (
+            "runtime_hypothesis_discrimination_eig_disabled"
+            if can_use_bayes and not features.eig
+            else "runtime_hypothesis_discrimination"
+        )
     elif _has_active_hypotheses(world_model) and action.kind in (ActionKind.OBSERVE, ActionKind.RETRIEVE, ActionKind.ASK):
         information_gain = 0.0
         information_source = "unanchored_model_estimate"
@@ -124,7 +140,7 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
     evsi = None
     net_sampling = None
 
-    if world_model is not None and tools is not None and intervention_contract is not None:
+    if features.causal_runtime and world_model is not None and tools is not None and intervention_contract is not None:
         intervention = intervention_value(
             action.name,
             intervention_contract,
@@ -134,7 +150,13 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
         if intervention is not None:
             decision_value = intervention.net_value - risk - irreversibility
             decision_value_source = "runtime_expected_intervention_utility"
-    elif world_model is not None and tools is not None and can_use_bayes:
+    elif (
+        features.causal_runtime
+        and features.evsi
+        and world_model is not None
+        and tools is not None
+        and can_use_bayes
+    ):
         experiment_value = experiment_decision_value(
             action.name,
             experiment_contract,
@@ -179,12 +201,34 @@ def score_action(action: CandidateAction, world_model: Optional[CausalWorldModel
     )
 
 
-def rank_actions(candidates: Sequence[CandidateAction], world_model: Optional[CausalWorldModel] = None, tools: Optional[ToolRegistry] = None) -> List[Tuple[CandidateAction, ActionScore]]:
-    ranked = [(action, score_action(action, world_model=world_model, candidate_index=index, tools=tools)) for index, action in enumerate(candidates)]
+def rank_actions(
+    candidates: Sequence[CandidateAction],
+    world_model: Optional[CausalWorldModel] = None,
+    tools: Optional[ToolRegistry] = None,
+    features: Optional[RuntimeFeatureFlags] = None,
+) -> List[Tuple[CandidateAction, ActionScore]]:
+    ranked = [
+        (
+            action,
+            score_action(
+                action,
+                world_model=world_model,
+                candidate_index=index,
+                tools=tools,
+                features=features,
+            ),
+        )
+        for index, action in enumerate(candidates)
+    ]
     return sorted(ranked, key=lambda pair: pair[1].total_utility, reverse=True)
 
 
-def select_action(candidates: Sequence[CandidateAction], world_model: Optional[CausalWorldModel] = None, tools: Optional[ToolRegistry] = None) -> CandidateAction:
+def select_action(
+    candidates: Sequence[CandidateAction],
+    world_model: Optional[CausalWorldModel] = None,
+    tools: Optional[ToolRegistry] = None,
+    features: Optional[RuntimeFeatureFlags] = None,
+) -> CandidateAction:
     if not candidates:
         return CandidateAction(kind=ActionKind.STOP, name="stop", rationale="No valid candidate actions were proposed.")
-    return rank_actions(candidates, world_model=world_model, tools=tools)[0][0]
+    return rank_actions(candidates, world_model=world_model, tools=tools, features=features)[0][0]
