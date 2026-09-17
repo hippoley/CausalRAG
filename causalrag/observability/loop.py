@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from causalrag.agent.actions import ActionKind, DecisionRecord
+from causalrag.agent.features import RuntimeFeatureFlags
 from causalrag.agent.loop import CausalAgentLoop
 from causalrag.agent.state import AgentState, Observation
 from causalrag.experiments import (
@@ -20,9 +21,16 @@ from .events import ProbeEmitter, ProbeEventSink
 class ObservableCausalAgentLoop(CausalAgentLoop):
     """CausalAgentLoop that emits a replayable causal decision event stream."""
 
-    def __init__(self, *args, event_sink: Optional[ProbeEventSink] = None, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        event_sink: Optional[ProbeEventSink] = None,
+        features: Optional[RuntimeFeatureFlags] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.event_sink = event_sink
+        self.features = features or RuntimeFeatureFlags()
         self.last_run_id: Optional[str] = None
 
     def run(self, goal: str, max_steps: int = 10) -> AgentState:
@@ -31,11 +39,13 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
         state = AgentState(goal=goal, max_steps=max_steps)
         self._sync_state_time(state)
         state.scratch["run_id"] = emitter.run_id
+        state.scratch["runtime_features"] = self.features.to_dict()
         emitter.emit(
             "run.started",
             payload={
                 "goal": goal,
                 "max_steps": max_steps,
+                "features": self.features.to_dict(),
                 "hypotheses": self.world_model.snapshot().get("hypotheses", []),
             },
         )
@@ -63,18 +73,32 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
                 },
             )
 
-            ranked = rank_actions(candidates, world_model=self.world_model, tools=self.tools)
+            ranked = rank_actions(
+                candidates,
+                world_model=self.world_model,
+                tools=self.tools,
+                features=self.features,
+            )
             if ranked:
                 proposed_selected = ranked[0][0]
                 selected_score = ranked[0][1]
                 action_scores = [score for _action, score in ranked]
             else:
-                proposed_selected = select_action(candidates, world_model=self.world_model, tools=self.tools)
+                proposed_selected = select_action(
+                    candidates,
+                    world_model=self.world_model,
+                    tools=self.tools,
+                    features=self.features,
+                )
                 selected_score = None
                 action_scores = []
 
-            selected = self._temporal_guard(proposed_selected, state)
-            temporal_guard_applied = selected is not proposed_selected
+            if self.features.temporal_attribution:
+                selected = self._temporal_guard(proposed_selected, state)
+                temporal_guard_applied = selected is not proposed_selected
+            else:
+                selected = proposed_selected
+                temporal_guard_applied = False
             if temporal_guard_applied:
                 selected_score = None
 
@@ -97,6 +121,7 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
                     "selected": selected,
                     "action_scores": action_scores,
                     "temporal_guard_applied": temporal_guard_applied,
+                    "features": self.features.to_dict(),
                 },
             )
 
@@ -113,6 +138,7 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
                         "stop_reason": state.stop_reason,
                         "answer": answer,
                         "world_model": self.world_model.snapshot(),
+                        "features": self.features.to_dict(),
                     },
                 )
                 break
@@ -192,10 +218,12 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
                     },
                 )
 
-            self._schedule_temporal_effect(tool_spec, selected, state)
-            temporal_evaluations = self._evaluate_temporal_observation(selected, result, state)
-            for evaluation in temporal_evaluations:
-                emitter.emit("attribution", step=state.step, payload=evaluation)
+            temporal_evaluations = []
+            if self.features.temporal_attribution:
+                self._schedule_temporal_effect(tool_spec, selected, state)
+                temporal_evaluations = self._evaluate_temporal_observation(selected, result, state)
+                for evaluation in temporal_evaluations:
+                    emitter.emit("attribution", step=state.step, payload=evaluation)
 
             observation_metadata = {}
             if temporal_evaluations:
@@ -211,38 +239,41 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
             experiment_update = None
             mismatch_assessment = None
             discovered_hypotheses: list[str] = []
-            if tool_spec is not None and tool_spec.experiment_contract is not None:
+            if self.features.causal_runtime and tool_spec is not None and tool_spec.experiment_contract is not None:
                 experiment_contract = expanded_experiment_contract(
                     tool_spec.experiment_contract,
                     self.world_model,
                 )
-                mismatch_assessment = assess_model_mismatch(
-                    experiment_contract,
-                    self.world_model,
-                    result,
-                    policy=self.mismatch_policy,
-                    metadata={"step": state.step, "action": selected.name},
-                )
-                if mismatch_assessment is not None:
-                    observation.metadata["model_mismatch"] = {
-                        "predictive_probability": mismatch_assessment.predictive_probability,
-                        "surprisal": mismatch_assessment.surprisal,
-                        "suspicious": mismatch_assessment.suspicious,
-                        "hard_mismatch": mismatch_assessment.hard_mismatch,
-                        "escalate": mismatch_assessment.escalate,
-                        "mismatch_id": mismatch_assessment.mismatch_id,
-                    }
-                    if mismatch_assessment.suspicious:
-                        emitter.emit(
-                            "model_mismatch",
-                            step=state.step,
-                            payload=observation.metadata["model_mismatch"],
-                        )
 
-                if not (
+                if self.features.open_world_discovery:
+                    mismatch_assessment = assess_model_mismatch(
+                        experiment_contract,
+                        self.world_model,
+                        result,
+                        policy=self.mismatch_policy,
+                        metadata={"step": state.step, "action": selected.name},
+                    )
+                    if mismatch_assessment is not None:
+                        observation.metadata["model_mismatch"] = {
+                            "predictive_probability": mismatch_assessment.predictive_probability,
+                            "surprisal": mismatch_assessment.surprisal,
+                            "suspicious": mismatch_assessment.suspicious,
+                            "hard_mismatch": mismatch_assessment.hard_mismatch,
+                            "escalate": mismatch_assessment.escalate,
+                            "mismatch_id": mismatch_assessment.mismatch_id,
+                        }
+                        if mismatch_assessment.suspicious:
+                            emitter.emit(
+                                "model_mismatch",
+                                step=state.step,
+                                payload=observation.metadata["model_mismatch"],
+                            )
+
+                should_suppress = bool(
                     mismatch_assessment is not None
                     and mismatch_assessment.suppress_closed_world_posterior
-                ):
+                )
+                if not should_suppress:
                     experiment_update = apply_experiment_observation(
                         experiment_contract,
                         self.world_model,
@@ -264,7 +295,7 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
                                 "surprisal": experiment_update.surprisal,
                             },
                         )
-                else:
+                elif self.features.open_world_discovery:
                     discovered_hypotheses = self._discover_after_mismatch(state, mismatch_assessment)
                     if discovered_hypotheses:
                         emitter.emit(
@@ -287,6 +318,7 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
                 "tests_hypotheses": list(selected.tests_hypotheses),
                 "falsification_target": selected.falsification_target,
                 "virtual_time_seconds": state.virtual_time_seconds,
+                "runtime_features": self.features.to_dict(),
             }
             if experiment_update is not None:
                 expected_effects["experiment_id"] = experiment_update.experiment_id
@@ -316,10 +348,16 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
                 )
             )
 
-            if self.belief_updater:
+            if self.features.causal_runtime and self.belief_updater:
                 self.belief_updater(state, self.world_model, decision, observation)
             mismatch_escalated = bool(mismatch_assessment and mismatch_assessment.escalate)
-            if self.hypothesis_updater and experiment_update is None and not temporal_evaluations and not mismatch_escalated:
+            if (
+                self.features.causal_runtime
+                and self.hypothesis_updater
+                and experiment_update is None
+                and not temporal_evaluations
+                and not mismatch_escalated
+            ):
                 self.hypothesis_updater(state, self.world_model, decision, observation)
 
             state.step += 1
@@ -333,6 +371,7 @@ class ObservableCausalAgentLoop(CausalAgentLoop):
                 payload={
                     "stop_reason": state.stop_reason,
                     "world_model": self.world_model.snapshot(),
+                    "features": self.features.to_dict(),
                 },
             )
         return state
