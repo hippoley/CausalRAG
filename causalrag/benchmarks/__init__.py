@@ -1,3 +1,10 @@
+from .ablation import (
+    AblationArm,
+    AblationEpisode,
+    AblationReport,
+    ScenarioManifest,
+    run_ablation_matrix,
+)
 from .comparison import (
     PolicyComparisonReport,
     PolicyReport,
@@ -38,6 +45,11 @@ from .temporal_suite import (
 )
 
 __all__ = [
+    "AblationArm",
+    "AblationEpisode",
+    "AblationReport",
+    "ScenarioManifest",
+    "run_ablation_matrix",
     "HiddenWorldEnvironment",
     "HiddenWorldMetrics",
     "HiddenWorldReasoner",
