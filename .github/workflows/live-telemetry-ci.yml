@@ -1,0 +1,32 @@
+name: live-telemetry-ci
+
+on:
+  pull_request:
+    paths:
+      - 'causalrag/observability/**'
+      - 'tests/test_live_telemetry.py'
+      - 'tests/test_observability.py'
+      - '.github/workflows/live-telemetry-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'causalrag/observability/**'
+      - 'tests/test_live_telemetry.py'
+
+jobs:
+  telemetry:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install core
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+      - name: Test live + canonical telemetry
+        run: pytest -q tests/test_live_telemetry.py tests/test_observability.py
