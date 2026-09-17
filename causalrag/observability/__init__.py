@@ -6,6 +6,8 @@ from .events import (
     ProbeEvent,
     ProbeEventSink,
 )
+from .loop import ObservableCausalAgentLoop
+from .runtime import create_observable_agent, instrument_agent
 
 __all__ = [
     "ProbeEvent",
@@ -14,6 +16,9 @@ __all__ = [
     "InMemoryEventSink",
     "JsonlEventSink",
     "CompositeEventSink",
+    "ObservableCausalAgentLoop",
+    "instrument_agent",
+    "create_observable_agent",
 ]
 
 
