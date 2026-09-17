@@ -22,7 +22,7 @@ from .probe_ui import PLAYABLE_PROBE_HTML
 
 app = FastAPI(
     title="CausalRAG Agent API",
-    description="Goal-directed causal agent runtime with explicit beliefs, decision traces, and a Playable Probe.",
+    description="Goal-directed causal agent runtime with explicit beliefs, decision traces, ablations, and a Playable Probe.",
     version=__version__,
 )
 
@@ -85,15 +85,14 @@ def playable_probe():
 
 @app.post("/probe/run")
 def run_playable_probe(payload: ProbeRunRequest):
-    """Run one model arm and return both result and replayable probe events.
-
-    Model lane selection is active now. Runtime feature switches are returned as
-    an explicit ablation manifest; until each switch is runtime-enforced they
-    are marked ``feature_switches_enforced=false`` to prevent false experiment
-    claims in the UI or paper artifact.
-    """
+    """Run one executable model/runtime ablation arm with a replayable trace."""
     try:
-        features = RuntimeFeatures(**payload.features.model_dump())
+        feature_payload = (
+            payload.features.model_dump()
+            if hasattr(payload.features, "model_dump")
+            else payload.features.dict()
+        )
+        features = RuntimeFeatures(**feature_payload)
         arm = AblationArm(
             arm_id=f"{payload.lane}:{payload.provider}:{payload.model}",
             proposer_family=payload.lane,
@@ -107,18 +106,14 @@ def run_playable_probe(payload: ProbeRunRequest):
             provider=payload.provider,
             enable_retrieval=bool(features.retrieval),
         )
-        instrument_agent(agent, sink)
+        instrument_agent(agent, sink, features=features)
         run = agent.run(payload.goal, max_steps=payload.max_steps)
         result = run.to_dict()
         run_id = str(run.state.scratch.get("run_id") or "")
         return {
             "run_id": run_id,
             "arm": arm.to_dict(),
-            "feature_switches_enforced": False,
-            "feature_switches_note": (
-                "Model lane is enforced. Mechanism flags are recorded now and "
-                "become executable ablations when policy/runtime gates land."
-            ),
+            "feature_switches_enforced": True,
             "events": sink.snapshot(run_id),
             "result": result,
         }
