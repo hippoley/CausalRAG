@@ -61,7 +61,13 @@ class LLMInterface:
     ) -> Union[str, Dict[str, Any]]:
         self.last_usage = {}
         try:
-            if self.telemetry is None:
+            # Some long-standing tests and downstream integrations construct a
+            # lightweight LLMInterface with ``__new__`` and inject only the
+            # provider/client fields. Observability must remain optional on that
+            # path as well, so an absent telemetry attribute is a no-op rather
+            # than a compatibility break.
+            telemetry = getattr(self, "telemetry", None)
+            if telemetry is None:
                 return self._dispatch_generate(prompt, temperature, max_tokens, stream, json_mode)
 
             attributes: Dict[str, Any] = {
@@ -73,11 +79,11 @@ class LLMInterface:
                 "causalrag.llm.input_characters": len(prompt),
                 "causalrag.llm.max_output_tokens": int(max_tokens),
             }
-            if self.telemetry.capture_content:
+            if telemetry.capture_content:
                 attributes["gen_ai.system_instructions"] = self.system_message
                 attributes["causalrag.llm.prompt"] = prompt
 
-            with self.telemetry.span(f"chat {self.model}", attributes) as span:
+            with telemetry.span(f"chat {self.model}", attributes) as span:
                 result = self._dispatch_generate(prompt, temperature, max_tokens, stream, json_mode)
                 input_tokens = self.last_usage.get("input_tokens")
                 output_tokens = self.last_usage.get("output_tokens")
@@ -85,7 +91,7 @@ class LLMInterface:
                     span.set_attribute("gen_ai.usage.input_tokens", int(input_tokens))
                 if output_tokens is not None:
                     span.set_attribute("gen_ai.usage.output_tokens", int(output_tokens))
-                if self.telemetry.capture_content:
+                if telemetry.capture_content:
                     span.set_attribute("causalrag.llm.output", result)
                 return result
         except Exception as exc:
