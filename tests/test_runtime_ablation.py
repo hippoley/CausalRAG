@@ -5,7 +5,7 @@ from causalrag.agent import (
     CandidateAction,
     RuntimeCapabilities,
     TemporalEffectContract,
-    create_agent,
+    create_ablation_agent,
 )
 from causalrag.benchmarks import (
     AblationArm,
@@ -145,10 +145,10 @@ class TemporalReasoner:
 def _temporal_agent(enabled):
     world = CausalWorldModel()
     world.upsert_hypothesis("H1", "change causes delayed cooling", probability=0.8)
-    return create_agent(
+    return create_ablation_agent(
+        capabilities=RuntimeCapabilities(temporal_attribution=enabled),
         reasoner=TemporalReasoner(),
         world_model=world,
-        capabilities=RuntimeCapabilities(temporal_attribution=enabled),
         tools=[
             ToolSpec(
                 name="change_state",
@@ -226,10 +226,10 @@ def _open_world_agent(enabled):
             OutcomeLikelihood("novel", {"H1": 0.001, "H2": 0.001}),
         ],
     )
-    agent = create_agent(
+    agent = create_ablation_agent(
+        capabilities=RuntimeCapabilities(open_world=enabled),
         reasoner=reasoner,
         world_model=world,
-        capabilities=RuntimeCapabilities(open_world=enabled),
         tools=[
             ToolSpec(
                 name="surprise",
@@ -256,7 +256,7 @@ def test_open_world_switch_controls_mismatch_discovery_path():
     assert disabled_result.world_model.get_hypothesis("H3") is None
 
 
-def test_vanilla_tool_loop_capabilities_are_exposed_in_run_result():
+def test_vanilla_tool_loop_capabilities_are_exposed_in_runtime_state():
     class OneStep:
         def propose(self, state, world_model):
             return [CandidateAction(kind=ActionKind.STOP, name="stop", arguments={"answer": "done"})]
@@ -265,9 +265,19 @@ def test_vanilla_tool_loop_capabilities_are_exposed_in_run_result():
             return None
 
     capabilities = RuntimeCapabilities.vanilla_tool_loop()
-    result = create_agent(reasoner=OneStep(), capabilities=capabilities).run("finish")
-    assert result.to_dict()["runtime_capabilities"] == capabilities.to_dict()
-    assert result.to_dict()["runtime_capabilities"]["causal_selection"] is False
+    result = create_ablation_agent(reasoner=OneStep(), capabilities=capabilities).run("finish")
+    assert result.state.scratch["runtime_capabilities"] == capabilities.to_dict()
+    assert result.state.scratch["runtime_capabilities"]["causal_selection"] is False
+    assert result.to_dict()["trace_id"]
+
+
+def test_retrieval_disabled_arm_cannot_silently_initialize_documents():
+    with pytest.raises(ValueError, match="documents cannot be supplied"):
+        create_ablation_agent(
+            capabilities=RuntimeCapabilities(retrieval=False),
+            documents=["evidence"],
+            reasoner=TemporalReasoner(),
+        )
 
 
 def test_ablation_matrix_pairs_same_frozen_scenario_across_model_lanes():
