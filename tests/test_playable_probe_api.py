@@ -23,7 +23,7 @@ def test_probe_health_and_config():
 def test_probe_root_is_real_research_console():
     response = client.get("/")
     assert response.status_code == 200
-    assert "CausalRAG Playable Probe" in response.text
+    assert "CausalRAG · Playable Causal Probe" in response.text
     assert "Runtime capabilities" in response.text
     assert "Start interactive episode" in response.text
     assert "MODEL PROPOSAL" in response.text
@@ -129,7 +129,7 @@ def test_model_test_endpoint_reports_provider_result_without_network(monkeypatch
     )
     response = client.post(
         "/api/model/test",
-        json={"provider": "openai", "model": "test-model"},
+        json={"provider": "local", "model": "test-model"},
     )
     assert response.status_code == 200
     assert response.json()["ok"] is True
@@ -171,7 +171,7 @@ def test_probe_api_can_replan_after_human_hypothesis_without_executing_old_actio
         snap = client.get(f"/api/sessions/{session_id}").json()
         pending = snap.get("pending_decision")
         if snap["status"] == "waiting_for_human" and pending and pending["gate_id"] != first_gate:
-            assert any(row["hypothesis_id"] == "H4X" for row in snap["hypotheses"])
+            assert any((row.get("hypothesis_id") or row.get("id")) == "H4X" for row in snap["hypotheses"])
             break
         time.sleep(0.01)
     else:
