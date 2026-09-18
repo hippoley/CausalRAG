@@ -46,6 +46,9 @@ def test_probe_surfaces_are_separated():
     assert "STEP INSPECTOR" in workbench.text
     assert "ALL CANDIDATES + RUNTIME SCORE BREAKDOWN" in workbench.text
     assert "POSTERIOR UPDATE BASIS" in workbench.text
+    assert "SCORE PROVENANCE" in workbench.text
+    assert "EIG = (H(prior)" in workbench.text
+    assert "EVSI = expected best value after" in workbench.text
     assert "inspectStep" in workbench.text
     assert "Run task" in workbench.text
     assert "InteractiveDecisionGate" in workbench.text
@@ -390,3 +393,4 @@ def test_probe_session_export_api_returns_replay_schema_and_ledger():
     assert all("decision_inspector" in row for row in body["episode_ledger"])
     assert all("candidates" in row and "action_scores" in row for row in body["episode_ledger"])
     assert all("world_before" in row and "world_after" in row for row in body["episode_ledger"])
+    assert all("score_provenance" in row for row in body["episode_ledger"])
