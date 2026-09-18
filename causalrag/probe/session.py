@@ -42,6 +42,108 @@ def _candidate_payload(candidate: CandidateAction, index: int) -> Dict[str, Any]
     }
 
 
+def _same_candidate(left: CandidateAction, right: CandidateAction) -> bool:
+    return (
+        left.name == right.name
+        and left.kind == right.kind
+        and dict(left.arguments) == dict(right.arguments)
+    )
+
+
+def _decision_inspector(decision: DecisionRecord) -> Dict[str, Any]:
+    """Explain runtime arbitration without exposing private model reasoning."""
+
+    score_by_index = {
+        int(score.candidate_index): score
+        for score in decision.action_scores
+    }
+    proposer_first = decision.candidates[0] if decision.candidates else None
+    selected_index = next(
+        (
+            index
+            for index, candidate in enumerate(decision.candidates)
+            if _same_candidate(candidate, decision.selected)
+        ),
+        None,
+    )
+    proposer_score = score_by_index.get(0)
+    selected_score = score_by_index.get(selected_index) if selected_index is not None else None
+
+    if proposer_first is None:
+        divergence_kind = "no_proposer_candidate"
+        diverged = True
+    elif _same_candidate(proposer_first, decision.selected):
+        divergence_kind = "none"
+        diverged = False
+    elif selected_index is None:
+        divergence_kind = "runtime_guard_override"
+        diverged = True
+    else:
+        divergence_kind = "runtime_reordered"
+        diverged = True
+
+    reasons: list[Dict[str, Any]] = []
+    if proposer_first is not None and proposer_score is None and decision.action_scores:
+        reasons.append(
+            {
+                "code": "proposer_first_not_runtime_ranked",
+                "detail": "The proposer's first candidate did not survive runtime scoring/validation.",
+            }
+        )
+
+    if selected_score is not None:
+        if selected_score.information_source != "model_estimate":
+            reasons.append(
+                {
+                    "code": "runtime_information_source",
+                    "source": selected_score.information_source,
+                    "model_information_gain": selected_score.model_information_gain,
+                    "runtime_information_gain": selected_score.information_gain,
+                }
+            )
+        if selected_score.decision_value_source:
+            reasons.append(
+                {
+                    "code": "runtime_decision_value",
+                    "source": selected_score.decision_value_source,
+                    "decision_value": selected_score.decision_value,
+                    "evsi": selected_score.expected_value_of_sample_information,
+                    "net_value_of_sampling": selected_score.net_value_of_sampling,
+                }
+            )
+        if proposer_score is not None and selected_index != 0:
+            reasons.append(
+                {
+                    "code": "higher_runtime_utility",
+                    "proposer_first_utility": proposer_score.total_utility,
+                    "runtime_selected_utility": selected_score.total_utility,
+                    "delta": selected_score.total_utility - proposer_score.total_utility,
+                }
+            )
+
+    rationale = str(decision.selected.rationale or "")
+    if divergence_kind == "runtime_guard_override" and "guard" in rationale.lower():
+        reasons.append(
+            {
+                "code": "runtime_safety_or_temporal_guard",
+                "detail": rationale,
+            }
+        )
+
+    return {
+        "diverged": diverged,
+        "divergence_kind": divergence_kind,
+        "proposer_first": (
+            None if proposer_first is None else _candidate_payload(proposer_first, 0)
+        ),
+        "proposer_first_score": _jsonable(proposer_score),
+        "runtime_selected": _candidate_payload(decision.selected, -1),
+        "runtime_selected_candidate_index": selected_index,
+        "runtime_selected_score": _jsonable(selected_score),
+        "reasons": reasons,
+    }
+
+
 def _hypothesis_map(snapshot: Dict[str, Any]) -> Dict[str, float]:
     return {
         str(row.get("id") or row.get("hypothesis_id")): float(row.get("probability", 0.0))
@@ -105,6 +207,7 @@ def _episode_ledger(state, world_model: CausalWorldModel) -> list[Dict[str, Any]
                 "prior": before.get("hypotheses", []),
                 "selected": _candidate_payload(decision.selected, -1),
                 "runtime_score": _jsonable(selected_score),
+                "decision_inspector": _decision_inspector(decision),
                 "human": _jsonable(effective_human),
                 "observation": _jsonable(observation),
                 "posterior": after.get("hypotheses", []),
@@ -160,6 +263,7 @@ class InteractiveDecisionGate:
             ),
             "candidates": candidates,
             "action_scores": scores,
+            "decision_inspector": _decision_inspector(decision),
             "hypotheses": world_model.snapshot().get("hypotheses", []),
             "episode_ledger": _episode_ledger(state, world_model),
         }
