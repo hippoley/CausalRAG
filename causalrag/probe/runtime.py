@@ -92,6 +92,20 @@ def available_probe_config() -> Dict[str, Any]:
             },
         },
         "capabilities": list(_CAPABILITY_NAMES),
+        "backend_status": {
+            "openai": {
+                "configured": bool(os.getenv("OPENAI_API_KEY")),
+                "default_model": os.getenv("CAUSALRAG_FRONTIER_MODEL", "gpt-5.6-terra"),
+            },
+            "anthropic": {
+                "configured": bool(os.getenv("ANTHROPIC_API_KEY")),
+            },
+            "local": {
+                "configured": True,
+                "endpoint": os.getenv("LOCAL_LLM_URL", "http://localhost:1234/v1"),
+                "default_model": os.getenv("CAUSALRAG_SMALL_MODEL", "local-model"),
+            },
+        },
     }
 
 
