@@ -31,6 +31,8 @@ def test_probe_root_is_real_research_console():
     assert "Deterministic proposer does not consume free-text/operator hypotheses" in response.text
     assert "Episode ledger" in response.text
     assert "Same-world A/B tester" in response.text
+    assert "SESSION ARTIFACT / OFFLINE REPLAY" in response.text
+    assert "PROPOSER / RUNTIME" in response.text
 
 
 def test_probe_deterministic_no_key_run():
@@ -326,3 +328,44 @@ def test_probe_api_rejects_invalid_scenario_mode_combination():
     )
     assert response.status_code == 400
     assert "outcome_mode" in response.json()["detail"]
+
+
+def test_probe_session_export_api_returns_replay_schema_and_ledger():
+    created = client.post(
+        "/api/sessions",
+        json={
+            "hidden_hypothesis": "H2",
+            "outcome_mode": "deterministic",
+            "seed": 0,
+            "proposer_family": "deterministic",
+        },
+    )
+    assert created.status_code == 200
+    session_id = created.json()["session_id"]
+
+    deadline = time.time() + 8.0
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        if snap["status"] == "waiting_for_human":
+            assert snap["pending_decision"]["decision_inspector"]
+            approved = client.post(
+                f"/api/sessions/{session_id}/decision",
+                json={"action": "approve"},
+            )
+            assert approved.status_code == 200
+        elif snap["status"] == "completed":
+            break
+        elif snap["status"] == "failed":
+            raise AssertionError(snap["error"])
+        time.sleep(0.01)
+    else:
+        raise AssertionError("session did not complete")
+
+    exported = client.get(f"/api/sessions/{session_id}/export")
+    assert exported.status_code == 200
+    body = exported.json()
+    assert body["schema_version"] == "causalrag.playable_probe.session.v1"
+    assert body["status"] == "completed"
+    assert body["episode_ledger"]
+    assert body["trace"]
+    assert all("decision_inspector" in row for row in body["episode_ledger"])
