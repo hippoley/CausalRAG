@@ -297,7 +297,11 @@ class CausalAgentLoop:
             candidates = list(self.reasoner.propose(state, self.world_model))
             proposal_method = getattr(self.reasoner, "hypothesis_proposals", None)
             if self.capabilities.causal_updates and callable(proposal_method):
-                self.world_model.sync_hypotheses(proposal_method(state, self.world_model))
+                hypothesis_proposals = list(proposal_method(state, self.world_model))
+                state.scratch["last_hypothesis_proposals"] = hypothesis_proposals
+                self.world_model.sync_hypotheses(hypothesis_proposals)
+            else:
+                state.scratch["last_hypothesis_proposals"] = []
 
             if self.capabilities.causal_selection:
                 ranked = rank_actions(
