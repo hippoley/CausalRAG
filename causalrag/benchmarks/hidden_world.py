@@ -20,7 +20,10 @@ class HiddenWorldScenario:
     experiments: Mapping[str, ExperimentContract]
     interventions: Mapping[str, str]
     experiment_costs: Mapping[str, float] = field(default_factory=dict)
+    experiment_risks: Mapping[str, float] = field(default_factory=dict)
     intervention_costs: Mapping[str, float] = field(default_factory=dict)
+    intervention_risks: Mapping[str, float] = field(default_factory=dict)
+    intervention_reversible: Mapping[str, bool] = field(default_factory=dict)
     failure_penalty: float = 1.0
 
     def __post_init__(self) -> None:
@@ -161,6 +164,7 @@ class HiddenWorldEnvironment:
 
     def experiment_tool(self, name: str, contract: ExperimentContract) -> ToolSpec:
         cost = float(self.scenario.experiment_costs.get(name, 0.05))
+        risk = float(self.scenario.experiment_risks.get(name, 0.0))
 
         def handler() -> Dict[str, object]:
             self.probes += 1
@@ -176,7 +180,7 @@ class HiddenWorldEnvironment:
             description=contract.description or f"Run experiment {contract.experiment_id}",
             handler=handler,
             cost=cost,
-            risk=0.0,
+            risk=risk,
             reversible=True,
             metadata={"kind": "observe", "benchmark": "hidden_world"},
             experiment_contract=contract,
@@ -184,6 +188,8 @@ class HiddenWorldEnvironment:
 
     def intervention_tool(self, name: str, target: str) -> ToolSpec:
         cost = float(self.scenario.intervention_costs.get(name, 0.2))
+        risk = float(self.scenario.intervention_risks.get(name, 0.0))
+        reversible = bool(self.scenario.intervention_reversible.get(name, True))
 
         def handler() -> Dict[str, object]:
             self.interventions += 1
@@ -201,8 +207,8 @@ class HiddenWorldEnvironment:
             description=f"Apply intervention for {target}: {self.scenario.hypotheses[target]}",
             handler=handler,
             cost=cost,
-            risk=0.0,
-            reversible=True,
+            risk=risk,
+            reversible=reversible,
             metadata={"kind": "intervene", "benchmark": "hidden_world"},
         )
 
