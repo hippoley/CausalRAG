@@ -265,3 +265,60 @@ def test_probe_ladder_api_exposes_marginal_capability_effects():
     assert by_id["runtime_eig"]["episode"]["metrics"]["success"] is False
     assert by_id["bayesian_learning"]["episode"]["metrics"]["success"] is True
     assert by_id["bayesian_learning"]["marginal_delta_from_previous"]["success"] == 1.0
+
+
+def test_probe_config_api_exposes_temporal_and_open_world_scenarios():
+    response = client.get("/api/config")
+    assert response.status_code == 200
+    scenarios = {row["id"]: row for row in response.json()["scenarios"]}
+    assert "temporal_delayed_effect" in scenarios
+    assert "open_world_mismatch" in scenarios
+    assert scenarios["open_world_mismatch"]["default_hidden_hypothesis"] == "H4"
+
+
+def test_probe_api_runs_temporal_scenario_with_runtime_guard():
+    response = client.post(
+        "/api/run",
+        json={
+            "scenario": "temporal_delayed_effect",
+            "hidden_hypothesis": "H1",
+            "outcome_mode": "deterministic",
+            "proposer_family": "deterministic",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["metrics"]["success"] is True
+    assert body["metrics"]["wait_actions"] == 1
+    assert body["metrics"]["premature_reads"] == 0
+
+
+def test_probe_api_runs_open_world_scenario_and_validates_h4():
+    response = client.post(
+        "/api/run",
+        json={
+            "scenario": "open_world_mismatch",
+            "hidden_hypothesis": "H4",
+            "outcome_mode": "deterministic",
+            "proposer_family": "deterministic",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["metrics"]["success"] is True
+    assert body["metrics"]["discovered_hypothesis"] is True
+    assert body["metrics"]["discovered_validated"] is True
+
+
+def test_probe_api_rejects_invalid_scenario_mode_combination():
+    response = client.post(
+        "/api/run",
+        json={
+            "scenario": "open_world_mismatch",
+            "hidden_hypothesis": "H4",
+            "outcome_mode": "stochastic",
+            "proposer_family": "deterministic",
+        },
+    )
+    assert response.status_code == 400
+    assert "outcome_mode" in response.json()["detail"]
