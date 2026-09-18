@@ -100,7 +100,7 @@ def test_human_can_add_provisional_hypothesis_while_paused():
     assert added["origin"] == "human"
     assert added["validated"] is False
     assert added["probability"] == 0.25
-    assert any(row["hypothesis_id"] == "H4" for row in session.snapshot()["hypotheses"])
+    assert any((row.get("hypothesis_id") or row.get("id")) == "H4" for row in session.snapshot()["hypotheses"])
     session.resolve_decision("approve")
     session.gate.close()
 
@@ -131,7 +131,7 @@ def test_human_world_model_edit_can_force_replan_before_execution():
         raise AssertionError("replanned decision gate did not appear")
 
     assert session.environment.probes == 0
-    assert any(row["hypothesis_id"] == "H4" for row in snap["hypotheses"])
+    assert any((row.get("hypothesis_id") or row.get("id")) == "H4" for row in snap["hypotheses"])
     session.resolve_decision("approve")
     final = _finish_by_approving(session)
     names = [row["name"] for row in final["result"]["causal_trace"]]
