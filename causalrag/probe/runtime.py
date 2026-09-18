@@ -142,6 +142,7 @@ def build_probe_agent(
     *,
     telemetry: Optional[CausalTelemetry] = None,
     decision_gate: Optional[Any] = None,
+    llm: Optional[Any] = None,
 ):
     """Build one probe episode without running it.
 
@@ -178,16 +179,22 @@ def build_probe_agent(
     else:
         kwargs["provider"] = provider
         kwargs["model_name"] = model
+        if llm is not None:
+            kwargs["llm"] = llm
 
     agent = create_ablation_agent(**kwargs)
     goal = str(config.goal or DEFAULT_PROBE_GOAL)
     return environment, agent, goal, capabilities
 
 
-def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
+def run_probe_episode(
+    config: ProbeRunConfig,
+    *,
+    llm: Optional[Any] = None,
+) -> Dict[str, Any]:
     """Run one real episode through the canonical agent + telemetry stack."""
 
-    environment, agent, goal, capabilities = build_probe_agent(config)
+    environment, agent, goal, capabilities = build_probe_agent(config, llm=llm)
     result = agent.run(goal, max_steps=int(config.max_steps))
     metrics = environment.metrics(result)
     payload = result.to_dict()
