@@ -75,15 +75,24 @@ def run_probe_comparison(config: ProbeRunConfig) -> Dict[str, Any]:
     The proposer family/provider/model, hidden world, seed, goal, tools and
     budgets are copied unchanged. Only RuntimeCapabilities differ.
 
-    For stochastic HiddenWorld the same seed is supplied to both independent
-    environments. If the policies choose different experiment sequences the
-    later RNG draws are action-sequence dependent; the report exposes this
-    limitation rather than calling the noise perfectly counterfactually paired.
+    For stochastic HiddenWorld the comparison upgrades both arms to
+    action-indexed common random numbers. The random variate for an experiment
+    is a deterministic function of seed + experiment_id + occurrence index, so
+    the same experiment receives the same noise even when arm action order
+    diverges.
     """
 
-    causal_config = config
-    vanilla_config = replace(
+    paired_config = replace(
         config,
+        stochastic_coupling=(
+            "action_indexed"
+            if config.outcome_mode == "stochastic"
+            else config.stochastic_coupling
+        ),
+    )
+    causal_config = paired_config
+    vanilla_config = replace(
+        paired_config,
         capabilities=RuntimeCapabilities.vanilla_tool_loop().to_dict(),
     )
 
@@ -106,7 +115,7 @@ def run_probe_comparison(config: ProbeRunConfig) -> Dict[str, Any]:
             "paired_randomness": (
                 "identical_deterministic_outcomes"
                 if config.outcome_mode == "deterministic"
-                else "same_seed_action_sequence_dependent"
+                else "action_indexed_common_random_numbers"
             ),
         },
         "vanilla": vanilla,
