@@ -43,6 +43,10 @@ def test_probe_surfaces_are_separated():
     assert "LIVE WORKBENCH · REAL AGENT CONTROL PLANE" in workbench.text
     assert "TASK COMPOSER" in workbench.text
     assert "EVIDENCE & DEBUG" in workbench.text
+    assert "STEP INSPECTOR" in workbench.text
+    assert "ALL CANDIDATES + RUNTIME SCORE BREAKDOWN" in workbench.text
+    assert "POSTERIOR UPDATE BASIS" in workbench.text
+    assert "inspectStep" in workbench.text
     assert "Run task" in workbench.text
     assert "InteractiveDecisionGate" in workbench.text
     assert "Challenge scenario" in workbench.text
@@ -384,3 +388,5 @@ def test_probe_session_export_api_returns_replay_schema_and_ledger():
     assert body["episode_ledger"]
     assert body["trace"]
     assert all("decision_inspector" in row for row in body["episode_ledger"])
+    assert all("candidates" in row and "action_scores" in row for row in body["episode_ledger"])
+    assert all("world_before" in row and "world_after" in row for row in body["episode_ledger"])
