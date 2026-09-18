@@ -136,3 +136,34 @@ def test_human_world_model_edit_can_force_replan_before_execution():
     final = _finish_by_approving(session)
     names = [row["name"] for row in final["result"]["causal_trace"]]
     assert "causalrag.human_gate.replan" in names
+
+
+def test_human_gate_response_is_single_assignment_and_cannot_be_overwritten():
+    session = ProbeSession(
+        ProbeRunConfig(
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    session.start()
+    _wait_until(session, "waiting_for_human")
+    pending = session.snapshot()["pending_decision"]
+    runtime_name = pending["runtime_selected"]["name"]
+    alternative = next(
+        row
+        for row in pending["candidates"]
+        if row["runtime_valid"] and row["name"] != runtime_name
+    )
+    session.resolve_decision("choose", alternative["index"])
+    assert session.snapshot()["pending_decision"] is None
+
+    try:
+        session.resolve_decision("approve")
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("second human response must not overwrite first response")
+
+    final = _finish_by_approving(session)
+    assert final["result"]["decisions"][0]["selected"]["name"] == alternative["name"]
