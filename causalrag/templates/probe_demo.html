@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CausalRAG · Demo</title>
+<style>
+:root{--bg:#f5f3ec;--ink:#14201d;--muted:#6d7773;--line:#dad8cf;--paper:#fffef9;--green:#18493b;--mint:#d9f5e9;--amber:#ffe7b9}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}
+.top{height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--line);background:#f5f3eced;position:sticky;top:0;z-index:4}.brand{font-weight:850}.top a{color:inherit;text-decoration:none}.mono{font:11px ui-monospace,monospace;color:var(--muted)}main{max-width:1160px;margin:auto;padding:42px 24px 70px}
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:38px;align-items:end}.eyebrow{font:11px ui-monospace,monospace;letter-spacing:.12em;color:#537267}.hero h1{font-size:54px;line-height:.97;letter-spacing:-.055em;margin:8px 0 14px}.hero p{font-size:17px;color:var(--muted);max-width:680px}.case{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:22px}.case b{display:block;font-size:20px;margin:5px 0}.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer;background:var(--green);color:white}.btn:disabled{opacity:.45}.run{margin-top:24px}.story{margin-top:22px;background:var(--paper);border:1px solid var(--line);border-radius:22px;overflow:hidden;display:none}.story.show{display:block}.summary{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}.metric{padding:15px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric span{display:block;color:var(--muted);font-size:10px}.metric strong{font-size:20px}
+.timeline{padding:24px 28px 10px}.step{display:grid;grid-template-columns:120px 1fr;gap:18px;position:relative;padding-bottom:28px}.step:before{content:"";position:absolute;left:106px;top:8px;bottom:-5px;width:1px;background:#d3d7d2}.step:last-child:before{display:none}.dot{position:absolute;left:101px;top:5px;width:11px;height:11px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px var(--paper)}.label{font:10px ui-monospace,monospace;color:var(--muted);text-align:right;padding-top:1px}.content h3{font-size:19px;margin:0 0 4px}.content p{margin:0;color:var(--muted)}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{padding:4px 7px;border-radius:8px;background:#eff2ee;font:10px ui-monospace,monospace}.chip.hot{background:var(--amber)}.compare{padding:0 28px 28px}.compare-box{border-radius:16px;background:var(--mint);padding:16px 18px}.compare-box b{font-size:16px}.error{margin-top:12px;color:#8b3438}@media(max-width:800px){.hero{grid-template-columns:1fr}.summary{grid-template-columns:1fr 1fr}.step{grid-template-columns:76px 1fr}.step:before{left:64px}.dot{left:59px}.hero h1{font-size:42px}}
+</style></head><body>
+<header class="top"><a class="brand" href="/">CausalRAG <span class="mono">DEMO</span></a><a href="/workbench">Open Live Workbench →</a></header>
+<main>
+<section class="hero"><div><div class="eyebrow">ONE REAL RUN · NO SETUP</div><h1>看一个 Causal Agent<br>真的跑完一次。</h1><p>这个 Demo 固定使用「延迟因果效应」案例，但调用的是真实 runtime。它展示的不是动画：每一步来自 /api/run 返回的 decisions、observations、transitions、hypotheses 和 metrics。</p><div class="run"><button class="btn" id="runBtn">运行真实 Demo</button><div id="err" class="error"></div></div></div>
+<div class="case"><div class="eyebrow">CASE</div><b>阀门打开后，什么时候读取流量才算有效证据？</b><p>模型倾向尽快读取；Causal Runtime 必须判断 observation 是否已经落在正确的 causal window。</p></div></section>
+
+<section class="story" id="story">
+<div class="summary"><div class="metric"><span>RESULT</span><strong id="mSuccess">—</strong></div><div class="metric"><span>WAIT ACTIONS</span><strong id="mWait">—</strong></div><div class="metric"><span>PREMATURE READS</span><strong id="mPremature">—</strong></div><div class="metric"><span>TRACE</span><strong id="mTrace">—</strong></div></div>
+<div class="timeline" id="timeline"></div>
+<div class="compare"><div class="compare-box"><b>你刚看到的核心不是“Agent 会调用工具”。</b><div id="lesson">而是 Runtime 决定什么时候一条 observation 才有资格成为当前因果问题的证据。</div></div></div>
+</section>
+</main>
+<script>
+const esc=v=>String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+function add(label,title,text,chips=[]){return '<div class="step"><div class="label">'+esc(label)+'</div><i class="dot"></i><div class="content"><h3>'+esc(title)+'</h3><p>'+text+'</p>'+(chips.length?'<div class="chips">'+chips.map(x=>'<span class="chip '+(x.hot?'hot':'')+'">'+esc(x.text)+'</span>').join('')+'</div>':'')+'</div></div>'}
+async function run(){const b=document.getElementById('runBtn');b.disabled=true;b.textContent='正在运行真实 runtime…';document.getElementById('err').textContent='';try{
+const r=await fetch('/api/run',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({scenario:'temporal_delayed_effect',hidden_hypothesis:'H1',outcome_mode:'deterministic',proposer_family:'deterministic',max_steps:6,max_probes:3})});
+if(!r.ok)throw new Error(await r.text());const d=await r.json();const m=d.metrics||{};document.getElementById('mSuccess').textContent=m.success?'SUCCESS':'FAILED';document.getElementById('mWait').textContent=m.wait_actions??'—';document.getElementById('mPremature').textContent=m.premature_reads??'—';document.getElementById('mTrace').textContent=(d.trace_id||'—').slice(0,8);
+let h=add('GOAL','建立任务','判断阀门动作的真实因果效果，同时避免把 stale reading 当成 intervention outcome。');
+h+=add('WORLD MODEL','建立竞争假设','Agent 从显式 hypotheses / causal state 出发，而不是只在 prompt 里“想”。');
+(d.decisions||[]).forEach((x,i)=>{const s=x.selected||{};h+=add('DECIDE · '+(i+1),(s.kind||'action')+' · '+(s.name||'—'),esc(x.rationale||s.rationale||'Runtime selected the next action.'),[(x.action_scores||[]).length?{text:(x.action_scores||[]).length+' runtime scores'}:null].filter(Boolean));const o=(d.observations||[])[i];if(o)h+=add('OBSERVE · '+(i+1),o.action_name||s.name,esc(JSON.stringify(o.result||o).slice(0,220)));});
+const tr=d.transitions||[];tr.forEach((x,i)=>{const e=x.expected_effects||{};if(e.temporal_effects?.length){const t=e.temporal_effects[0];h+=add('ATTRIBUTION','验证 observation window','expected='+esc(t.expected)+' · observed='+esc(t.observed)+' · within_window='+esc(t.within_window),[{text:'temporal attribution',hot:true}]);}if(e.posterior)h+=add('LEARN','Bayesian posterior update',esc(JSON.stringify(e.posterior)),[{text:'surprisal '+String(e.surprisal??'—')}]);});
+h+=add('EVALUATE','结束并评价整条 trajectory','success='+esc(m.success)+' · wait_actions='+esc(m.wait_actions??'—')+' · premature_reads='+esc(m.premature_reads??'—'));
+document.getElementById('timeline').innerHTML=h;document.getElementById('story').classList.add('show');document.getElementById('story').scrollIntoView({behavior:'smooth'});
+}catch(e){document.getElementById('err').textContent='Demo failed: '+e.message;}finally{b.disabled=false;b.textContent='重新运行 Demo';}}
+document.getElementById('runBtn').onclick=run;
+</script></body></html>
