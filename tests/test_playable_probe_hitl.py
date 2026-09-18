@@ -218,3 +218,105 @@ def test_operator_message_replans_before_old_action_executes():
     names = [record["name"] for record in final["result"]["causal_trace"]]
     assert "causalrag.human.operator_message" in names
     assert "causalrag.human_gate.replan" in names
+
+
+def test_episode_ledger_appears_only_after_execution_and_tracks_posterior():
+    session = ProbeSession(
+        ProbeRunConfig(
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    session.start()
+    _wait_until(session, "waiting_for_human")
+    first = session.snapshot()["pending_decision"]
+    assert first["episode_ledger"] == []
+
+    session.resolve_decision("approve")
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        snap = session.snapshot()
+        pending = snap["pending_decision"]
+        if snap["status"] == "waiting_for_human" and pending and pending["episode_ledger"]:
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("completed step did not appear in episode ledger")
+
+    row = pending["episode_ledger"][0]
+    assert row["selected"]["name"]
+    assert row["observation"]["action_name"] == row["selected"]["name"]
+    assert row["prior"]
+    assert row["posterior"]
+    assert row["posterior_delta"]
+    assert row["human"]["action"] == "approve"
+    session.resolve_decision("approve")
+    _finish_by_approving(session)
+
+
+def test_episode_ledger_records_human_override_as_executed_action():
+    session = ProbeSession(
+        ProbeRunConfig(
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    session.start()
+    _wait_until(session, "waiting_for_human")
+    pending = session.snapshot()["pending_decision"]
+    runtime_name = pending["runtime_selected"]["name"]
+    alternative = next(
+        row
+        for row in pending["candidates"]
+        if row["runtime_valid"] and row["name"] != runtime_name
+    )
+    session.resolve_decision("choose", alternative["index"])
+
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        snap = session.snapshot()
+        next_gate = snap["pending_decision"]
+        if snap["status"] == "waiting_for_human" and next_gate and next_gate["episode_ledger"]:
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("override execution did not reach next gate")
+
+    row = next_gate["episode_ledger"][0]
+    assert row["selected"]["name"] == alternative["name"]
+    assert row["observation"]["action_name"] == alternative["name"]
+    assert row["human"]["action"] == "choose"
+    assert row["human"]["runtime_original"] == runtime_name
+    session.resolve_decision("approve")
+    _finish_by_approving(session)
+
+
+def test_replan_does_not_create_ghost_episode_ledger_step():
+    session = ProbeSession(
+        ProbeRunConfig(
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    session.start()
+    _wait_until(session, "waiting_for_human")
+    first_gate = session.snapshot()["pending_decision"]["gate_id"]
+    session.add_operator_message("Reconsider before executing.", replan=True)
+
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        snap = session.snapshot()
+        pending = snap["pending_decision"]
+        if snap["status"] == "waiting_for_human" and pending and pending["gate_id"] != first_gate:
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("replan did not reach a replacement gate")
+
+    assert pending["episode_ledger"] == []
+    assert session.environment.probes == 0
+    session.resolve_decision("approve")
+    _finish_by_approving(session)
