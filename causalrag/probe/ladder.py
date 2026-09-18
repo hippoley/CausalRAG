@@ -7,7 +7,7 @@ from causalrag.agent import RuntimeCapabilities
 from causalrag.generator.llm_interface import LLMInterface
 
 from .compare import MemoizedLLM, SharedPromptMemo
-from .runtime import ProbeRunConfig, run_probe_episode
+from .runtime import ProbeRunConfig, _resolve_model, run_probe_episode
 
 
 def capability_ladder_profiles() -> List[Dict[str, Any]]:
@@ -89,12 +89,6 @@ def capability_ladder_profiles() -> List[Dict[str, Any]]:
     ]
 
 
-def _external_model(config: ProbeRunConfig) -> tuple[str, str]:
-    if config.proposer_family == "small":
-        return config.provider or "local", config.model or "local-model"
-    return config.provider or "openai", config.model or "gpt-5.6-terra"
-
-
 def _metric_delta(previous: Dict[str, Any], current: Dict[str, Any]) -> Dict[str, float]:
     names = (
         "causal_regret",
@@ -151,7 +145,7 @@ def run_probe_ladder(config: ProbeRunConfig) -> Dict[str, Any]:
     memo = SharedPromptMemo() if paired.proposer_family != "deterministic" else None
     provider = model = None
     if memo is not None:
-        provider, model = _external_model(paired)
+        provider, model = _resolve_model(paired)
 
     arms: List[Dict[str, Any]] = []
     previous_episode = None
