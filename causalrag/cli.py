@@ -8,6 +8,8 @@ import json
 import logging
 import os
 import sys
+import threading
+import webbrowser
 from pathlib import Path
 from typing import List
 
@@ -94,6 +96,18 @@ def parse_args():
     serve_parser.add_argument("--host", default="0.0.0.0")
     serve_parser.add_argument("--port", type=int, default=8000)
 
+    probe_parser = subparsers.add_parser(
+        "probe",
+        help="Start the human-in-the-loop Playable Causal Probe",
+    )
+    probe_parser.add_argument("--host", default="127.0.0.1")
+    probe_parser.add_argument("--port", type=int, default=8765)
+    probe_parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Open the Playable Probe in the default browser after startup.",
+    )
+
     return parser.parse_args()
 
 
@@ -168,6 +182,20 @@ def main():
         uvicorn = _require_api()
         uvicorn.run(
             "causalrag.interface.agent_api:app",
+            host=args.host,
+            port=args.port,
+            log_level="info",
+        )
+        return 0
+
+    if args.command == "probe":
+        uvicorn = _require_api()
+        if args.open:
+            browser_host = "127.0.0.1" if args.host in {"0.0.0.0", "::"} else args.host
+            url = f"http://{browser_host}:{args.port}/"
+            threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+        uvicorn.run(
+            "causalrag.interface.probe_api:app",
             host=args.host,
             port=args.port,
             log_level="info",
