@@ -187,6 +187,7 @@ def build_episode_timeline(
                     "action_scores": list(gate.get("action_scores") or []),
                 },
                 "human": gate.get("human_intervention"),
+                "human_events": list(gate.get("human_events") or []),
                 "operator_messages": list(gate.get("operator_messages") or []),
                 "actual": {
                     "selected": selected,
