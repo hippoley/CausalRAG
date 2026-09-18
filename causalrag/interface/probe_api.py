@@ -155,6 +155,14 @@ def export_session(session_id: str):
     return _session(session_id).export_payload()
 
 
+@app.get("/api/sessions/{session_id}/steps/{step}")
+def get_step_context(session_id: str, step: int):
+    try:
+        return _session(session_id).step_context(step)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="step not found") from exc
+
+
 @app.get("/api/sessions/{session_id}/events")
 def session_events(session_id: str):
     session = _session(session_id)
