@@ -21,6 +21,10 @@ from .temporal import TimeDriver, VirtualTimeDriver, pending_effect_from_contrac
 BeliefUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
 HypothesisUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
 GoalEvaluator = Callable[[AgentState, CausalWorldModel], bool]
+class DecisionGateReplan(RuntimeError):
+    """Signal that a paused, not-yet-executed decision must be recomputed."""
+
+
 DecisionGate = Callable[[AgentState, CausalWorldModel, DecisionRecord], Optional[CandidateAction]]
 
 
@@ -349,7 +353,16 @@ class CausalAgentLoop:
             # candidate actions as an explicit override. Runtime temporal safety is
             # re-applied to overrides before execution.
             if self.decision_gate is not None:
-                override = self.decision_gate(state, self.world_model, decision)
+                try:
+                    override = self.decision_gate(state, self.world_model, decision)
+                except DecisionGateReplan:
+                    # The decision has not executed yet, so it is safe to discard
+                    # this preview and recompute from the mutated world model.
+                    state.decisions.pop()
+                    state.scratch.setdefault("decision_gate_events", []).append(
+                        {"step": state.step, "kind": "replan"}
+                    )
+                    continue
                 if override is not None:
                     selected = self._temporal_guard(override, state)
                     decision.selected = selected
