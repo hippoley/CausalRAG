@@ -33,3 +33,11 @@ def test_index_cli_accepts_local_embeddings_and_faiss(monkeypatch):
     assert args.embedding_provider == "local"
     assert args.embedding_model == "all-MiniLM-L6-v2"
     assert args.vector_backend == "faiss"
+
+
+def test_probe_cli_has_distinct_human_in_the_loop_server(monkeypatch):
+    args = _parse(monkeypatch, "probe", "--port", "9876", "--open")
+    assert args.command == "probe"
+    assert args.host == "127.0.0.1"
+    assert args.port == 9876
+    assert args.open is True
