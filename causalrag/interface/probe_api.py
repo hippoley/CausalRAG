@@ -43,7 +43,7 @@ class ProbeRunRequest(BaseModel):
 
 
 class DecisionRequest(BaseModel):
-    action: Literal["approve", "choose"]
+    action: Literal["approve", "choose", "replan"]
     candidate_index: Optional[int] = Field(default=None, ge=0)
 
 
