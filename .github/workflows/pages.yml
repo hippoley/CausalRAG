@@ -1,4 +1,4 @@
-name: Deploy interactive demo
+name: Deploy verified A/B replay
 
 on:
   push:
@@ -34,10 +34,20 @@ jobs:
           cache: pip
       - name: Install runtime
         run: pip install -e '.[dev]'
-      - name: Verify core and build demo from real examples
+      - name: Verify runtime and build static replay
         run: |
-          pytest -q tests/test_experiment_contracts.py tests/test_hidden_world_stochastic.py
+          pytest -q tests/test_experiment_contracts.py tests/test_hidden_world_stochastic.py tests/test_playable_probe_compare.py
           python scripts/build_pages.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("dist/data/runtime.json").read_text(encoding="utf-8"))
+          report = data["playable_ab"]
+          assert report["comparison"]["same_world_inputs"] is True
+          assert report["first_divergence"] is not None
+          assert report["vanilla"]["metrics"]
+          assert report["causal"]["metrics"]
+          PY
       - uses: actions/configure-pages@v5
         with:
           enablement: true

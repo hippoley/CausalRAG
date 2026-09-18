@@ -14,7 +14,6 @@ from causalrag.observability import CausalTelemetry, CausalTraceRecord
 from causalrag.world_model import CausalWorldModel
 
 from .runtime import ProbeRunConfig, build_probe_agent
-from .scenarios import scenario_metrics
 
 
 def _jsonable(value: Any) -> Any:
@@ -41,6 +40,78 @@ def _candidate_payload(candidate: CandidateAction, index: int) -> Dict[str, Any]
         "falsification_target": candidate.falsification_target,
         "rationale": candidate.rationale,
     }
+
+
+def _hypothesis_map(snapshot: Dict[str, Any]) -> Dict[str, float]:
+    return {
+        str(row.get("id") or row.get("hypothesis_id")): float(row.get("probability", 0.0))
+        for row in (snapshot.get("hypotheses") or [])
+        if row.get("id") or row.get("hypothesis_id")
+    }
+
+
+def _episode_ledger(state, world_model: CausalWorldModel) -> list[Dict[str, Any]]:
+    """Build a human-readable ledger from canonical runtime state.
+
+    Only completed actions are included. The currently paused decision is not
+    treated as executed until an observation exists.
+    """
+    ledger: list[Dict[str, Any]] = []
+    human_history = list(state.scratch.get("human_gate_history", []))
+    current_snapshot = world_model.snapshot()
+
+    for index, observation in enumerate(state.observations):
+        if index >= len(state.decisions):
+            break
+        decision = state.decisions[index]
+        before = decision.beliefs_before
+        if index + 1 < len(state.decisions):
+            after = state.decisions[index + 1].beliefs_before
+        else:
+            after = current_snapshot
+
+        before_map = _hypothesis_map(before)
+        after_map = _hypothesis_map(after)
+        posterior_delta = {
+            hypothesis_id: after_map.get(hypothesis_id, 0.0) - probability
+            for hypothesis_id, probability in before_map.items()
+            if hypothesis_id in after_map
+        }
+        gate_events = [
+            row for row in human_history
+            if int(row.get("step", -1)) == int(decision.step)
+        ]
+        effective_human = next(
+            (
+                row
+                for row in reversed(gate_events)
+                if row.get("action") in {"approve", "choose"}
+            ),
+            None,
+        )
+
+        selected_score = next(
+            (
+                score
+                for score in decision.action_scores
+                if score.action_name == decision.selected.name
+                and score.action_kind == decision.selected.kind
+            ),
+            None,
+        )
+        ledger.append(
+            {
+                "step": int(decision.step),
+                "prior": before.get("hypotheses", []),
+                "selected": _candidate_payload(decision.selected, -1),
+                "runtime_score": _jsonable(selected_score),
+                "human": _jsonable(effective_human),
+                "observation": _jsonable(observation),
+                "posterior": after.get("hypotheses", []),
+                "posterior_delta": posterior_delta,
+            }
+        )
+    return ledger
 
 
 class InteractiveDecisionGate:
@@ -90,6 +161,7 @@ class InteractiveDecisionGate:
             "candidates": candidates,
             "action_scores": scores,
             "hypotheses": world_model.snapshot().get("hypotheses", []),
+            "episode_ledger": _episode_ledger(state, world_model),
         }
         with self._condition:
             self._pending = pending
@@ -134,6 +206,14 @@ class InteractiveDecisionGate:
             return None
 
         if response["action"] == "approve":
+            state.scratch.setdefault("human_gate_history", []).append(
+                {
+                    "step": int(state.step),
+                    "gate_id": pending["gate_id"],
+                    "action": "approve",
+                    "selected": decision.selected.name,
+                }
+            )
             self.telemetry.event(
                 "causalrag.human_gate.approved",
                 {
@@ -144,6 +224,14 @@ class InteractiveDecisionGate:
             return None
 
         if response["action"] == "replan":
+            state.scratch.setdefault("human_gate_history", []).append(
+                {
+                    "step": int(state.step),
+                    "gate_id": pending["gate_id"],
+                    "action": "replan",
+                    "selected": decision.selected.name,
+                }
+            )
             self.telemetry.event(
                 "causalrag.human_gate.replan",
                 {
@@ -155,6 +243,16 @@ class InteractiveDecisionGate:
 
         index = int(response["candidate_index"])
         candidate = decision.candidates[index]
+        state.scratch.setdefault("human_gate_history", []).append(
+            {
+                "step": int(state.step),
+                "gate_id": pending["gate_id"],
+                "action": "choose",
+                "candidate_index": index,
+                "selected": candidate.name,
+                "runtime_original": decision.selected.name,
+            }
+        )
         self.telemetry.event(
             "causalrag.human_gate.override",
             {
@@ -280,11 +378,11 @@ class ProbeSession:
         )
         try:
             result = self.agent.run(self.goal, max_steps=int(self.config.max_steps))
-            metrics = scenario_metrics(self.environment, result)
+            metrics = self.environment.metrics(result)
             payload = result.to_dict()
             final = {
                 "config": self.config.to_dict(),
-                "metrics": metrics,
+                "metrics": metrics.to_dict(),
                 "answer": payload["answer"],
                 "trace_id": payload["trace_id"],
                 "hypotheses": payload["hypotheses"],
@@ -294,6 +392,7 @@ class ProbeSession:
                 "transitions": payload["transitions"],
                 "causal_trace": payload["causal_trace"],
                 "runtime_capabilities": self.capabilities.to_dict(),
+                "episode_ledger": _episode_ledger(result.state, result.world_model),
             }
             with self._lock:
                 self._result = final
@@ -372,6 +471,15 @@ class ProbeSession:
             origin="human",
             validated=False,
         )
+        if self.gate._state is not None:
+            self.gate._state.scratch.setdefault("human_hypothesis_events", []).append(
+                {
+                    "step": int(self.gate._state.step),
+                    "hypothesis_id": hypothesis_id,
+                    "statement": statement,
+                    "probability": hypothesis.probability,
+                }
+            )
         self.telemetry.event(
             "causalrag.human.hypothesis_added",
             {

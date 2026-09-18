@@ -28,6 +28,9 @@ def test_probe_root_is_real_research_console():
     assert "Start interactive episode" in response.text
     assert "MODEL PROPOSAL" in response.text
     assert "YOUR MOVE" in response.text
+    assert "Deterministic proposer does not consume free-text/operator hypotheses" in response.text
+    assert "Episode ledger" in response.text
+    assert "Same-world A/B tester" in response.text
 
 
 def test_probe_deterministic_no_key_run():
