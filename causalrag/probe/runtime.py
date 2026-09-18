@@ -35,6 +35,7 @@ class ProbeRunConfig:
     proposer_family: str = "deterministic"
     provider: Optional[str] = None
     model: Optional[str] = None
+    user_context: str = ""
     capabilities: Mapping[str, bool] = field(
         default_factory=lambda: RuntimeCapabilities.full().to_dict()
     )
@@ -159,6 +160,8 @@ def _build_probe_agent(config: ProbeRunConfig) -> Dict[str, Any]:
         "experiments, then apply the intervention most likely to fix it. Minimize "
         "unnecessary probes, cost, and incorrect interventions."
     )
+    if str(config.user_context).strip():
+        goal += " Operator context: " + str(config.user_context).strip()
     return {
         "scenario": scenario,
         "environment": environment,
