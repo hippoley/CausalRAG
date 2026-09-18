@@ -67,10 +67,16 @@ class InteractiveDecisionGate:
         decision: DecisionRecord,
     ) -> Optional[CandidateAction]:
         scores = [_jsonable(score) for score in decision.action_scores]
-        candidates = [
-            _candidate_payload(candidate, index)
-            for index, candidate in enumerate(decision.candidates)
-        ]
+        valid_indexes = (
+            {int(score.candidate_index) for score in decision.action_scores}
+            if decision.action_scores
+            else set(range(len(decision.candidates)))
+        )
+        candidates = []
+        for index, candidate in enumerate(decision.candidates):
+            row = _candidate_payload(candidate, index)
+            row["runtime_valid"] = index in valid_indexes
+            candidates.append(row)
         pending = {
             "gate_id": uuid.uuid4().hex,
             "step": int(state.step),
@@ -172,6 +178,9 @@ class InteractiveDecisionGate:
                 index = int(candidate_index)
                 if index < 0 or index >= len(self._decision.candidates):
                     raise ValueError("candidate_index is out of range")
+                candidate_rows = self._pending.get("candidates", [])
+                if candidate_rows and not bool(candidate_rows[index].get("runtime_valid", False)):
+                    raise ValueError("candidate was rejected by runtime validation")
                 response["candidate_index"] = index
             self._response = response
             self._condition.notify_all()
