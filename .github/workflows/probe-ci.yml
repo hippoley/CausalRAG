@@ -9,6 +9,9 @@ on:
       - 'tests/test_playable_probe.py'
       - 'tests/test_playable_probe_api.py'
       - 'tests/test_playable_probe_hitl.py'
+      - 'tests/test_playable_probe_compare.py'
+      - 'causalrag/probe/compare.py'
+      - 'causalrag/benchmarks/hidden_world.py'
       - 'causalrag/agent/loop.py'
       - 'causalrag/agent/runtime.py'
       - '.github/workflows/probe-ci.yml'
@@ -38,7 +41,7 @@ jobs:
           pip install -e '.[api,dev]'
       - name: Compile probe
         run: |
-          python -m py_compile causalrag/probe/runtime.py causalrag/probe/session.py causalrag/interface/probe_api.py
+          python -m py_compile causalrag/probe/runtime.py causalrag/probe/session.py causalrag/probe/compare.py causalrag/interface/probe_api.py
       - name: Run real no-key probe tests
         run: |
-          pytest -q tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py
+          pytest -q tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py tests/test_playable_probe_compare.py

@@ -28,6 +28,7 @@ class ProbeRunConfig:
     scenario: str = "hvac_hidden_world"
     hidden_hypothesis: str = "H2"
     outcome_mode: str = "stochastic"
+    stochastic_coupling: str = "sequence"
     seed: int = 0
     max_steps: int = 6
     max_probes: int = 3
@@ -47,6 +48,8 @@ class ProbeRunConfig:
             raise ValueError("hidden_hypothesis must be H1, H2, or H3")
         if self.outcome_mode not in {"deterministic", "stochastic"}:
             raise ValueError("outcome_mode must be deterministic or stochastic")
+        if self.stochastic_coupling not in {"sequence", "action_indexed"}:
+            raise ValueError("stochastic_coupling must be sequence or action_indexed")
         if self.proposer_family not in {"deterministic", "small", "frontier"}:
             raise ValueError("proposer_family must be deterministic, small, or frontier")
         if int(self.max_steps) <= 0 or int(self.max_probes) < 0:
@@ -139,6 +142,7 @@ def build_probe_agent(
     *,
     telemetry: Optional[CausalTelemetry] = None,
     decision_gate: Optional[Any] = None,
+    llm: Optional[Any] = None,
 ):
     """Build one probe episode without running it.
 
@@ -152,6 +156,7 @@ def build_probe_agent(
         scenario,
         outcome_mode=config.outcome_mode,
         seed=int(config.seed),
+        outcome_coupling=config.stochastic_coupling,
     )
     world = environment.world_model()
     telemetry = telemetry or CausalTelemetry(capture_content=False)
@@ -174,16 +179,22 @@ def build_probe_agent(
     else:
         kwargs["provider"] = provider
         kwargs["model_name"] = model
+        if llm is not None:
+            kwargs["llm"] = llm
 
     agent = create_ablation_agent(**kwargs)
     goal = str(config.goal or DEFAULT_PROBE_GOAL)
     return environment, agent, goal, capabilities
 
 
-def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
+def run_probe_episode(
+    config: ProbeRunConfig,
+    *,
+    llm: Optional[Any] = None,
+) -> Dict[str, Any]:
     """Run one real episode through the canonical agent + telemetry stack."""
 
-    environment, agent, goal, capabilities = build_probe_agent(config)
+    environment, agent, goal, capabilities = build_probe_agent(config, llm=llm)
     result = agent.run(goal, max_steps=int(config.max_steps))
     metrics = environment.metrics(result)
     payload = result.to_dict()

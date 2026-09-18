@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import random
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
@@ -107,13 +108,20 @@ class HiddenWorldEnvironment:
         scenario: HiddenWorldScenario,
         outcome_mode: str = "deterministic",
         seed: Optional[int] = None,
+        outcome_coupling: str = "sequence",
     ) -> None:
         if outcome_mode not in {"deterministic", "stochastic"}:
             raise ValueError("outcome_mode must be 'deterministic' or 'stochastic'")
+        if outcome_coupling not in {"sequence", "action_indexed"}:
+            raise ValueError("outcome_coupling must be sequence or action_indexed")
+        if outcome_coupling == "action_indexed" and seed is None:
+            raise ValueError("action_indexed outcome coupling requires a seed")
         self.scenario = scenario
         self.outcome_mode = outcome_mode
         self.seed = seed
+        self.outcome_coupling = outcome_coupling
         self._rng = random.Random(seed)
+        self._experiment_counts: Dict[str, int] = {}
         self.probes = 0
         self.interventions = 0
         self.total_cost = 0.0
@@ -129,7 +137,15 @@ class HiddenWorldEnvironment:
 
     def _stochastic_outcome(self, contract: ExperimentContract) -> str:
         hidden = self.scenario.hidden_hypothesis
-        draw = self._rng.random()
+        if self.outcome_coupling == "action_indexed":
+            experiment_id = str(contract.experiment_id)
+            occurrence = self._experiment_counts.get(experiment_id, 0)
+            self._experiment_counts[experiment_id] = occurrence + 1
+            key = f"{int(self.seed)}|{experiment_id}|{occurrence}".encode("utf-8")
+            digest = hashlib.sha256(key).digest()
+            draw = int.from_bytes(digest[:8], "big") / float(2**64)
+        else:
+            draw = self._rng.random()
         cumulative = 0.0
         labels = contract.outcome_labels()
         for label in labels:

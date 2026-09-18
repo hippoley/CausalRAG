@@ -15,6 +15,7 @@ from causalrag.probe import (
     SESSION_MANAGER,
     available_probe_config,
     run_probe_episode,
+    run_probe_comparison,
     sse_stream,
 )
 
@@ -105,6 +106,15 @@ def run_probe(payload: ProbeRunRequest):
     """One-shot compatibility endpoint used by scripts and CI."""
     try:
         return run_probe_episode(_config(payload))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/compare")
+def compare_probe(payload: ProbeRunRequest):
+    """Run vanilla and causal control planes on the same frozen task inputs."""
+    try:
+        return run_probe_comparison(_config(payload))
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

@@ -220,3 +220,21 @@ def test_probe_operator_message_endpoint_replans_paused_session():
         raise AssertionError("operator message did not create a new decision gate")
 
     client.post(f"/api/sessions/{session_id}/decision", json={"action": "approve"})
+
+
+def test_probe_compare_api_runs_same_world_causal_and_vanilla_arms():
+    response = client.post(
+        "/api/compare",
+        json={
+            "hidden_hypothesis": "H2",
+            "outcome_mode": "deterministic",
+            "seed": 0,
+            "proposer_family": "deterministic",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["comparison"]["same_world_inputs"] is True
+    assert body["vanilla"]["metrics"]["success"] is False
+    assert body["causal"]["metrics"]["success"] is True
+    assert body["first_divergence"] is not None
