@@ -64,19 +64,26 @@ def test_interactive_session_previews_without_executing_and_records_human_choice
         )
     )
 
-    preview = session.preview()
+    started = session.start()
+    preview = started["preview"]
     assert preview["candidates"]
     assert preview["ranking"]
     assert session.environment.probes == 0
     assert session.environment.interventions == 0
     assert session.state.observations == []
+    assert started["trace_id"]
 
     snapshot = session.commit("runtime", human_note="I accept the runtime diagnostic ranking.")
     assert snapshot["step"] == 1
     assert session.environment.probes == 1
     assert snapshot["observations"]
     assert snapshot["human_events"][0]["selection"] == "runtime"
-    assert "probe.posterior" in snapshot["trace"][-1]["attributes"]
+    assert any(
+        row["name"] == "causalrag.probe.human_choice"
+        for row in snapshot["trace"]
+    )
+    session.close()
+    session.close()
 
 
 def test_interactive_session_can_override_runtime_with_another_candidate():
@@ -88,7 +95,7 @@ def test_interactive_session_can_override_runtime_with_another_candidate():
             proposer_family="deterministic",
         )
     )
-    preview = session.preview()
+    preview = session.start()["preview"]
     runtime_name = preview["runtime_preference"]
     alternative = next(
         row["name"] for row in preview["candidates"] if row["name"] != runtime_name
