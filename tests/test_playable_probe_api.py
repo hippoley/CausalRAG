@@ -178,3 +178,45 @@ def test_probe_api_can_replan_after_human_hypothesis_without_executing_old_actio
         raise AssertionError("new decision gate did not appear after replan")
 
     client.post(f"/api/sessions/{session_id}/decision", json={"action": "approve"})
+
+
+def test_probe_operator_message_endpoint_replans_paused_session():
+    created = client.post(
+        "/api/sessions",
+        json={
+            "hidden_hypothesis": "H2",
+            "outcome_mode": "deterministic",
+            "proposer_family": "deterministic",
+        },
+    )
+    session_id = created.json()["session_id"]
+    deadline = time.time() + 5.0
+    first_gate = None
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        if snap["status"] == "waiting_for_human":
+            first_gate = snap["pending_decision"]["gate_id"]
+            break
+        time.sleep(0.01)
+    assert first_gate
+
+    sent = client.post(
+        f"/api/sessions/{session_id}/messages",
+        json={
+            "message": "You may be missing sensor drift. Reconsider.",
+            "replan": True,
+        },
+    )
+    assert sent.status_code == 200
+
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        pending = snap.get("pending_decision")
+        if snap["status"] == "waiting_for_human" and pending and pending["gate_id"] != first_gate:
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("operator message did not create a new decision gate")
+
+    client.post(f"/api/sessions/{session_id}/decision", json={"action": "approve"})
