@@ -60,6 +60,7 @@ class InteractiveDecisionGate:
         self._decision: Optional[DecisionRecord] = None
         self._response: Optional[Dict[str, Any]] = None
         self._state = None
+        self._history = []
         self._closed = False
 
     def __call__(
@@ -79,9 +80,11 @@ class InteractiveDecisionGate:
             row = _candidate_payload(candidate, index)
             row["runtime_valid"] = index in valid_indexes
             candidates.append(row)
+        world_before = world_model.snapshot()
         pending = {
             "gate_id": uuid.uuid4().hex,
             "step": int(state.step),
+            "status": "waiting",
             "uncertainty": decision.uncertainty,
             "runtime_selected": _candidate_payload(decision.selected, -1),
             "hypothesis_proposals": _jsonable(
@@ -89,10 +92,14 @@ class InteractiveDecisionGate:
             ),
             "candidates": candidates,
             "action_scores": scores,
-            "hypotheses": world_model.snapshot().get("hypotheses", []),
+            "hypotheses": world_before.get("hypotheses", []),
+            "world_before": _jsonable(world_before),
+            "human_intervention": None,
+            "operator_messages": [],
         }
         with self._condition:
             self._pending = pending
+            self._history.append(pending)
             self._decision = decision
             self._state = state
             self._response = None
@@ -118,6 +125,12 @@ class InteractiveDecisionGate:
                     break
                 self._condition.wait(timeout=min(remaining, 1.0))
             response = self._response
+            if response is None:
+                pending["status"] = "released_by_timeout"
+            elif response.get("action") == "replan":
+                pending["status"] = "discarded_before_execution"
+            else:
+                pending["status"] = "released_for_execution"
             self._pending = None
             self._decision = None
             self._state = None
@@ -186,6 +199,7 @@ class InteractiveDecisionGate:
             if self._response is not None:
                 raise RuntimeError("human decision has already been submitted")
             response: Dict[str, Any] = {"action": action}
+            intervention: Dict[str, Any] = {"action": action}
             if action == "choose":
                 if candidate_index is None:
                     raise ValueError("candidate_index is required for choose")
@@ -196,6 +210,12 @@ class InteractiveDecisionGate:
                 if candidate_rows and not bool(candidate_rows[index].get("runtime_valid", False)):
                     raise ValueError("candidate was rejected by runtime validation")
                 response["candidate_index"] = index
+                intervention["candidate_index"] = index
+                intervention["candidate"] = _candidate_payload(
+                    self._decision.candidates[index],
+                    index,
+                )
+            self._pending["human_intervention"] = intervention
             self._response = response
             self._condition.notify_all()
 
@@ -215,6 +235,12 @@ class InteractiveDecisionGate:
                 "message": message,
             }
             self._state.scratch.setdefault("operator_messages", []).append(row)
+            self._pending.setdefault("operator_messages", []).append(dict(row))
+            self._pending["human_intervention"] = {
+                "action": "operator_message",
+                "message": message,
+                "replan": bool(replan),
+            }
             if replan:
                 self._response = {"action": "replan"}
                 self._condition.notify_all()
@@ -228,6 +254,10 @@ class InteractiveDecisionGate:
             },
         )
         return row
+
+    def history(self):
+        with self._condition:
+            return _jsonable(self._history)
 
     def close(self) -> None:
         with self._condition:
