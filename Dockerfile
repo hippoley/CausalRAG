@@ -1,22 +1,18 @@
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-RUN pip install -e .
-
-# Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV CAUSALRAG_API_HOST=0.0.0.0
-ENV CAUSALRAG_API_PORT=8000
+ENV CAUSALRAG_API_PORT=8765
+ENV CAUSALRAG_SURFACE=probe
 
-# Expose the port
-EXPOSE 8000
+COPY pyproject.toml setup.py setup.cfg MANIFEST.in README.MD LICENSE ./
+COPY causalrag ./causalrag
 
-# Run the application
-CMD ["python", "-m", "causalrag.cli", "serve", "--host", "0.0.0.0", "--port", "8000"]
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -e '.[api]'
+
+EXPOSE 8765
+
+CMD ["python", "-m", "causalrag.cli", "probe", "--host", "0.0.0.0", "--port", "8765"]
