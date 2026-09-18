@@ -1,23 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from causalrag.agent import RuntimeCapabilities
 from causalrag.generator.llm_interface import LLMInterface
 
 from .runtime import ProbeRunConfig, run_probe_episode
 
-
-_DEFAULT_METRICS = (
-    "causal_regret",
-    "total_cost",
-    "probes",
-    "interventions",
-    "decision_rounds",
-    "true_hypothesis_posterior",
-    "brier_score",
-)
 
 
 class SharedPromptMemo:
