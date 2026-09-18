@@ -365,8 +365,6 @@ class CausalAgentLoop:
                     continue
                 if override is not None:
                     selected = self._temporal_guard(override, state)
-                    decision.selected = selected
-                    decision.rationale = selected.rationale or decision.rationale
                     selected_score = next(
                         (
                             score
@@ -376,6 +374,16 @@ class CausalAgentLoop:
                         ),
                         None,
                     )
+                    decision = DecisionRecord(
+                        step=decision.step,
+                        uncertainty=decision.uncertainty,
+                        candidates=decision.candidates,
+                        selected=selected,
+                        beliefs_before=decision.beliefs_before,
+                        rationale=selected.rationale or decision.rationale,
+                        action_scores=decision.action_scores,
+                    )
+                    state.decisions[-1] = decision
                     state.scratch.setdefault("decision_gate_events", []).append(
                         {
                             "step": state.step,
