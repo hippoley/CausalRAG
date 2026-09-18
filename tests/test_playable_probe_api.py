@@ -33,6 +33,10 @@ def test_probe_root_is_real_research_console():
     assert "Same-world A/B tester" in response.text
     assert "SESSION ARTIFACT / OFFLINE REPLAY" in response.text
     assert "PROPOSER / RUNTIME" in response.text
+    assert "POWER VIEW · WHAT CHANGED?" in response.text
+    assert "Challenge scenario" in response.text
+    assert 'id="scenario"' in response.text
+    assert "scenario:$('scenario').value" in response.text
 
 
 def test_probe_deterministic_no_key_run():
