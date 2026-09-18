@@ -238,3 +238,30 @@ def test_probe_compare_api_runs_same_world_causal_and_vanilla_arms():
     assert body["vanilla"]["metrics"]["success"] is False
     assert body["causal"]["metrics"]["success"] is True
     assert body["first_divergence"] is not None
+
+
+def test_probe_ladder_api_exposes_marginal_capability_effects():
+    response = client.post(
+        "/api/ladder",
+        json={
+            "hidden_hypothesis": "H2",
+            "outcome_mode": "deterministic",
+            "seed": 0,
+            "proposer_family": "deterministic",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    ids = [row["id"] for row in body["arms"]]
+    assert ids == [
+        "vanilla",
+        "runtime_eig",
+        "bayesian_learning",
+        "decision_value",
+        "temporal_open_world",
+        "full",
+    ]
+    by_id = {row["id"]: row for row in body["arms"]}
+    assert by_id["runtime_eig"]["episode"]["metrics"]["success"] is False
+    assert by_id["bayesian_learning"]["episode"]["metrics"]["success"] is True
+    assert by_id["bayesian_learning"]["marginal_delta_from_previous"]["success"] == 1.0
