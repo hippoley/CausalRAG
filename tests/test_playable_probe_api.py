@@ -20,39 +20,30 @@ def test_probe_health_and_config():
     assert "frontier" in body["proposer_families"]
 
 
-def test_probe_root_is_real_research_console():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "CausalRAG · Playable Causal Probe" in response.text
-    assert "Runtime capabilities" in response.text
-    assert "Start interactive episode" in response.text
-    assert "MODEL PROPOSAL" in response.text
-    assert "YOUR MOVE" in response.text
-    assert "Deterministic proposer does not consume free-text/operator hypotheses" in response.text
-    assert "Episode ledger" in response.text
-    assert "Same-world A/B tester" in response.text
-    assert "SESSION ARTIFACT / OFFLINE REPLAY" in response.text
-    assert "PROPOSER / RUNTIME" in response.text
-    assert "POWER VIEW · WHAT CHANGED?" in response.text
-    assert "GUIDED EXPERIENCE · 先体验，再研究" in response.text
-    assert "YOUR DECISION" in response.text
-    assert "用推荐案例开始体验" in response.text
-    assert "CAUSAL REASONING INSPECTOR · 实时推理链" in response.text
-    assert "WORLD" in response.text
-    assert "COUNTERFACTUAL" in response.text
-    assert "显示研究控制台" in response.text
-    assert "AGENT EXECUTION THEATER · 真实执行全过程" in response.text
-    assert "1 PROPOSE" in response.text
-    assert "7 EVALUATE" in response.text
-    assert "renderExecutionTheater" in response.text
-    assert "CAUSAL AGENT · COMPLETE LIVE FLOW" in response.text
-    assert "Temporal attribution" in response.text
-    assert "Model mismatch" in response.text
-    assert "Hypothesis discovery" in response.text
-    assert "renderCompleteCausalFlow" in response.text
-    assert "Challenge scenario" in response.text
-    assert 'id="scenario"' in response.text
-    assert "scenario:$('scenario').value" in response.text
+def test_probe_surfaces_are_separated():
+    landing = client.get("/")
+    assert landing.status_code == 200
+    assert "CausalRAG · Choose a surface" in landing.text
+    assert 'href="/demo"' in landing.text
+    assert 'href="/workbench"' in landing.text
+
+    demo = client.get("/demo")
+    assert demo.status_code == 200
+    assert "ONE REAL RUN · NO SETUP" in demo.text
+    assert "运行真实 Demo" in demo.text
+    assert "temporal_delayed_effect" in demo.text
+    assert "fetch('/api/run'" in demo.text
+
+    workbench = client.get("/workbench")
+    assert workbench.status_code == 200
+    assert "CausalRAG · Playable Causal Probe" in workbench.text
+    assert "Runtime capabilities" in workbench.text
+    assert "Start interactive episode" in workbench.text
+    assert "CAUSAL AGENT · COMPLETE LIVE FLOW" in workbench.text
+    assert "InteractiveDecisionGate" in workbench.text
+    assert "Challenge scenario" in workbench.text
+    assert 'id="scenario"' in workbench.text
+    assert "scenario:$('scenario').value" in workbench.text
 
 
 def test_probe_deterministic_no_key_run():
