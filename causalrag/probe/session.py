@@ -95,6 +95,7 @@ class InteractiveDecisionGate:
             "hypotheses": world_before.get("hypotheses", []),
             "world_before": _jsonable(world_before),
             "human_intervention": None,
+            "human_events": [],
             "operator_messages": [],
         }
         with self._condition:
@@ -216,6 +217,7 @@ class InteractiveDecisionGate:
                     index,
                 )
             self._pending["human_intervention"] = intervention
+            self._pending.setdefault("human_events", []).append(dict(intervention))
             self._response = response
             self._condition.notify_all()
 
@@ -241,6 +243,9 @@ class InteractiveDecisionGate:
                 "message": message,
                 "replan": bool(replan),
             }
+            self._pending.setdefault("human_events", []).append(
+                dict(self._pending["human_intervention"])
+            )
             if replan:
                 self._response = {"action": "replan"}
                 self._condition.notify_all()
@@ -258,6 +263,18 @@ class InteractiveDecisionGate:
     def history(self):
         with self._condition:
             return _jsonable(self._history)
+
+    def record_hypothesis_added(self, hypothesis: Any) -> None:
+        with self._condition:
+            if self._pending is None:
+                return
+            event = {
+                "action": "add_hypothesis",
+                "hypothesis_id": getattr(hypothesis, "hypothesis_id", None),
+                "statement": getattr(hypothesis, "statement", ""),
+                "probability": getattr(hypothesis, "probability", None),
+            }
+            self._pending.setdefault("human_events", []).append(event)
 
     def close(self) -> None:
         with self._condition:
@@ -402,6 +419,7 @@ class ProbeSession:
             origin="human",
             validated=False,
         )
+        self.gate.record_hypothesis_added(hypothesis)
         self.telemetry.event(
             "causalrag.human.hypothesis_added",
             {
