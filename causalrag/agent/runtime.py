@@ -210,7 +210,6 @@ class CausalAgent:
         loop: CausalAgentLoop,
         pipeline: Optional[Any] = None,
         telemetry: Optional[CausalTelemetry] = None,
-    decision_hook: Optional[Any] = None,
     ) -> None:
         self.loop = loop
         self.pipeline = pipeline
@@ -323,6 +322,7 @@ def create_agent(
     time_driver: Optional[TimeDriver] = None,
     mismatch_policy: Optional[ModelMismatchPolicy] = None,
     telemetry: Optional[CausalTelemetry] = None,
+    decision_hook: Optional[Any] = None,
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
 
