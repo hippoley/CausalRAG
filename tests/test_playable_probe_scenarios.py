@@ -1,3 +1,6 @@
+import time
+
+from causalrag.probe.session import ProbeSession
 from causalrag.agent import RuntimeCapabilities
 from causalrag.probe import ProbeRunConfig, available_probe_config, run_probe_comparison, run_probe_episode, run_probe_ladder
 
@@ -148,3 +151,57 @@ def test_scenario_validation_rejects_impossible_mode_or_hidden_hypothesis():
         pass
     else:
         raise AssertionError("open-world scenario must reject stochastic mode")
+
+
+def _drive_session(session, timeout=8.0):
+    seen = []
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        snap = session.snapshot()
+        if snap["status"] == "waiting_for_human":
+            pending = snap["pending_decision"]
+            seen.append(pending["runtime_selected"]["name"])
+            session.resolve_decision("approve")
+        elif snap["status"] == "completed":
+            return snap, seen
+        elif snap["status"] == "failed":
+            raise AssertionError(snap["error"])
+        time.sleep(0.01)
+    raise AssertionError(f"session did not finish: {session.snapshot()}")
+
+
+def test_temporal_scenario_hitl_exposes_runtime_inserted_wait_before_execution():
+    session = ProbeSession(
+        ProbeRunConfig(
+            scenario="temporal_delayed_effect",
+            hidden_hypothesis="H1",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    session.start()
+    final, selected = _drive_session(session)
+
+    assert "wait_for_effect_window" in selected
+    assert final["result"]["metrics"]["success"] is True
+    assert final["result"]["metrics"]["wait_actions"] == 1
+    assert final["result"]["metrics"]["premature_reads"] == 0
+
+
+def test_open_world_scenario_hitl_discovers_h4_during_live_session():
+    session = ProbeSession(
+        ProbeRunConfig(
+            scenario="open_world_mismatch",
+            hidden_hypothesis="H4",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    session.start()
+    final, _selected = _drive_session(session)
+
+    assert final["result"]["metrics"]["success"] is True
+    assert any(
+        (row.get("id") or row.get("hypothesis_id")) == "H4"
+        for row in final["hypotheses"]
+    )
