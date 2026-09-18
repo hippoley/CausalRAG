@@ -1,4 +1,5 @@
 from causalrag.probe import ProbeRunConfig, run_probe_comparison
+from causalrag.benchmarks.hidden_world import HiddenWorldEnvironment, build_hvac_hidden_world
 
 
 def test_same_world_comparison_is_real_and_isolates_causal_control_plane():
@@ -40,4 +41,32 @@ def test_stochastic_comparison_discloses_pairing_limitation():
             proposer_family="deterministic",
         )
     )
-    assert report["comparison"]["paired_randomness"] == "same_seed_action_sequence_dependent"
+    assert report["comparison"]["paired_randomness"] == "action_indexed_common_random_numbers"
+
+
+def test_action_indexed_noise_pairs_same_experiment_across_different_action_orders():
+    scenario = build_hvac_hidden_world("H2")
+    a = HiddenWorldEnvironment(
+        scenario,
+        outcome_mode="stochastic",
+        seed=17,
+        outcome_coupling="action_indexed",
+    )
+    b = HiddenWorldEnvironment(
+        scenario,
+        outcome_mode="stochastic",
+        seed=17,
+        outcome_coupling="action_indexed",
+    )
+
+    fan = scenario.experiments["measure_fan_rpm"]
+    filt = scenario.experiments["measure_filter_pressure"]
+
+    a_fan = a.experiment_tool("measure_fan_rpm", fan).handler()
+    a_filter = a.experiment_tool("measure_filter_pressure", filt).handler()
+
+    b_filter = b.experiment_tool("measure_filter_pressure", filt).handler()
+    b_fan = b.experiment_tool("measure_fan_rpm", fan).handler()
+
+    assert a_fan[fan.outcome_key] == b_fan[fan.outcome_key]
+    assert a_filter[filt.outcome_key] == b_filter[filt.outcome_key]
