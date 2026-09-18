@@ -1,3 +1,4 @@
+from .arena import ARENA_MANAGER, TesterArena, TesterArenaManager
 from .runtime import ProbeRunConfig, available_probe_config, build_probe_agent, run_probe_episode
 from .session import ProbeSession, ProbeSessionManager, SESSION_MANAGER, sse_stream
 
@@ -10,4 +11,7 @@ __all__ = [
     "ProbeSessionManager",
     "SESSION_MANAGER",
     "sse_stream",
+    "TesterArena",
+    "TesterArenaManager",
+    "ARENA_MANAGER",
 ]
