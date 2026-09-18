@@ -42,6 +42,108 @@ def _candidate_payload(candidate: CandidateAction, index: int) -> Dict[str, Any]
     }
 
 
+def _same_candidate(left: CandidateAction, right: CandidateAction) -> bool:
+    return (
+        left.name == right.name
+        and left.kind == right.kind
+        and dict(left.arguments) == dict(right.arguments)
+    )
+
+
+def _decision_inspector(decision: DecisionRecord) -> Dict[str, Any]:
+    """Explain runtime arbitration without exposing private model reasoning."""
+
+    score_by_index = {
+        int(score.candidate_index): score
+        for score in decision.action_scores
+    }
+    proposer_first = decision.candidates[0] if decision.candidates else None
+    selected_index = next(
+        (
+            index
+            for index, candidate in enumerate(decision.candidates)
+            if _same_candidate(candidate, decision.selected)
+        ),
+        None,
+    )
+    proposer_score = score_by_index.get(0)
+    selected_score = score_by_index.get(selected_index) if selected_index is not None else None
+
+    if proposer_first is None:
+        divergence_kind = "no_proposer_candidate"
+        diverged = True
+    elif _same_candidate(proposer_first, decision.selected):
+        divergence_kind = "none"
+        diverged = False
+    elif selected_index is None:
+        divergence_kind = "runtime_guard_override"
+        diverged = True
+    else:
+        divergence_kind = "runtime_reordered"
+        diverged = True
+
+    reasons: list[Dict[str, Any]] = []
+    if proposer_first is not None and proposer_score is None and decision.action_scores:
+        reasons.append(
+            {
+                "code": "proposer_first_not_runtime_ranked",
+                "detail": "The proposer's first candidate did not survive runtime scoring/validation.",
+            }
+        )
+
+    if selected_score is not None:
+        if selected_score.information_source != "model_estimate":
+            reasons.append(
+                {
+                    "code": "runtime_information_source",
+                    "source": selected_score.information_source,
+                    "model_information_gain": selected_score.model_information_gain,
+                    "runtime_information_gain": selected_score.information_gain,
+                }
+            )
+        if selected_score.decision_value_source:
+            reasons.append(
+                {
+                    "code": "runtime_decision_value",
+                    "source": selected_score.decision_value_source,
+                    "decision_value": selected_score.decision_value,
+                    "evsi": selected_score.expected_value_of_sample_information,
+                    "net_value_of_sampling": selected_score.net_value_of_sampling,
+                }
+            )
+        if proposer_score is not None and selected_index != 0:
+            reasons.append(
+                {
+                    "code": "higher_runtime_utility",
+                    "proposer_first_utility": proposer_score.total_utility,
+                    "runtime_selected_utility": selected_score.total_utility,
+                    "delta": selected_score.total_utility - proposer_score.total_utility,
+                }
+            )
+
+    rationale = str(decision.selected.rationale or "")
+    if divergence_kind == "runtime_guard_override" and "guard" in rationale.lower():
+        reasons.append(
+            {
+                "code": "runtime_safety_or_temporal_guard",
+                "detail": rationale,
+            }
+        )
+
+    return {
+        "diverged": diverged,
+        "divergence_kind": divergence_kind,
+        "proposer_first": (
+            None if proposer_first is None else _candidate_payload(proposer_first, 0)
+        ),
+        "proposer_first_score": _jsonable(proposer_score),
+        "runtime_selected": _candidate_payload(decision.selected, -1),
+        "runtime_selected_candidate_index": selected_index,
+        "runtime_selected_score": _jsonable(selected_score),
+        "reasons": reasons,
+    }
+
+
 def _hypothesis_map(snapshot: Dict[str, Any]) -> Dict[str, float]:
     return {
         str(row.get("id") or row.get("hypothesis_id")): float(row.get("probability", 0.0))
@@ -105,6 +207,7 @@ def _episode_ledger(state, world_model: CausalWorldModel) -> list[Dict[str, Any]
                 "prior": before.get("hypotheses", []),
                 "selected": _candidate_payload(decision.selected, -1),
                 "runtime_score": _jsonable(selected_score),
+                "decision_inspector": _decision_inspector(decision),
                 "human": _jsonable(effective_human),
                 "observation": _jsonable(observation),
                 "posterior": after.get("hypotheses", []),
@@ -160,6 +263,7 @@ class InteractiveDecisionGate:
             ),
             "candidates": candidates,
             "action_scores": scores,
+            "decision_inspector": _decision_inspector(decision),
             "hypotheses": world_model.snapshot().get("hypotheses", []),
             "episode_ledger": _episode_ledger(state, world_model),
         }
@@ -274,6 +378,10 @@ class InteractiveDecisionGate:
                 return None
             return _jsonable(self._pending) if self._pending is not None else None
 
+    def live_state(self):
+        with self._condition:
+            return self._state
+
     def respond(self, action: str, candidate_index: Optional[int] = None) -> None:
         action = str(action).strip().lower()
         if action not in {"approve", "choose", "replan"}:
@@ -351,6 +459,7 @@ class ProbeSession:
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.RLock()
         self._result: Optional[Dict[str, Any]] = None
+        self._agent_state = None
         self._error: Optional[str] = None
         self._started = False
         self._completed = False
@@ -378,6 +487,7 @@ class ProbeSession:
         )
         try:
             result = self.agent.run(self.goal, max_steps=int(self.config.max_steps))
+            self._agent_state = result.state
             metrics = self.environment.metrics(result)
             payload = result.to_dict()
             final = {
@@ -439,6 +549,47 @@ class ProbeSession:
             "result": result,
             "error": error,
             "trace_count": self.telemetry.count(),
+        }
+
+    def export_payload(self) -> Dict[str, Any]:
+        """Export a self-contained, replayable experiment session."""
+
+        live_state = self.gate.live_state()
+        state = live_state or self._agent_state
+        with self._lock:
+            result = _jsonable(self._result)
+            error = self._error
+
+        scratch = {} if state is None else state.scratch
+        ledger = (
+            _episode_ledger(state, self.agent.world_model)
+            if state is not None
+            else ((result or {}).get("episode_ledger") or [])
+        )
+        return {
+            "schema_version": "causalrag.playable_probe.session.v1",
+            "session_id": self.session_id,
+            "status": self.status(),
+            "config": self.config.to_dict(),
+            "goal": self.goal,
+            "runtime_capabilities": self.capabilities.to_dict(),
+            "pending_decision": self.gate.pending(),
+            "world_model": _jsonable(self.agent.world_model.snapshot()),
+            "episode_ledger": _jsonable(ledger),
+            "interactions": {
+                "human_gate_history": _jsonable(
+                    scratch.get("human_gate_history", [])
+                ),
+                "operator_messages": _jsonable(
+                    scratch.get("operator_messages", [])
+                ),
+                "human_hypothesis_events": _jsonable(
+                    scratch.get("human_hypothesis_events", [])
+                ),
+            },
+            "trace": self.telemetry.records(),
+            "result": result,
+            "error": error,
         }
 
     def resolve_decision(self, action: str, candidate_index: Optional[int] = None) -> None:

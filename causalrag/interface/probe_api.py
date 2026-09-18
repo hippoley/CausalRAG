@@ -149,6 +149,12 @@ def get_session(session_id: str):
     return _session(session_id).snapshot()
 
 
+@app.get("/api/sessions/{session_id}/export")
+def export_session(session_id: str):
+    """Export a self-contained session for offline replay and review."""
+    return _session(session_id).export_payload()
+
+
 @app.get("/api/sessions/{session_id}/events")
 def session_events(session_id: str):
     session = _session(session_id)
