@@ -81,3 +81,25 @@ jobs:
           assert report["comparison"]["same_world_inputs"] is True
           print("verified static A/B replay:", report["first_divergence"])
           PY
+      - name: Build and smoke-test Playable Probe container
+        if: matrix.python-version == '3.12'
+        run: |
+          docker build -t causalrag-probe:test .
+          docker run -d --rm --name causalrag-probe-test -p 8765:8765 causalrag-probe:test
+          trap 'docker logs causalrag-probe-test || true; docker stop causalrag-probe-test || true' EXIT
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8765/health >/tmp/probe-health.json; then
+              break
+            fi
+            sleep 1
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          health = json.loads(Path("/tmp/probe-health.json").read_text())
+          assert health["status"] == "healthy"
+          assert health["surface"] == "playable_probe"
+          PY
+          curl --fail --silent http://127.0.0.1:8765/ | grep -q "Playable Causal Probe"
+          docker stop causalrag-probe-test
+          trap - EXIT
