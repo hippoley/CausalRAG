@@ -15,6 +15,7 @@ from causalrag.world_model import CausalWorldModel
 
 from .runtime import ProbeRunConfig, build_probe_agent
 from .scenarios import scenario_metrics
+from .timeline import build_episode_timeline
 
 
 def _jsonable(value: Any) -> Any:
@@ -329,6 +330,7 @@ class ProbeSession:
             result = self.agent.run(self.goal, max_steps=int(self.config.max_steps))
             metrics = scenario_metrics(self.environment, result)
             payload = result.to_dict()
+            episode_timeline = build_episode_timeline(self.gate.history(), payload)
             final = {
                 "config": self.config.to_dict(),
                 "metrics": metrics,
@@ -341,6 +343,7 @@ class ProbeSession:
                 "transitions": payload["transitions"],
                 "causal_trace": payload["causal_trace"],
                 "runtime_capabilities": self.capabilities.to_dict(),
+                "episode_timeline": episode_timeline,
             }
             with self._lock:
                 self._result = final
@@ -382,6 +385,7 @@ class ProbeSession:
             "config": self.config.to_dict(),
             "goal": self.goal,
             "pending_decision": self.gate.pending(),
+            "gate_history": self.gate.history(),
             "hypotheses": self.agent.world_model.snapshot().get("hypotheses", []),
             "open_world": self.agent.world_model.snapshot().get("open_world", {}),
             "result": result,
