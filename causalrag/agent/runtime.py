@@ -322,6 +322,7 @@ def create_agent(
     time_driver: Optional[TimeDriver] = None,
     mismatch_policy: Optional[ModelMismatchPolicy] = None,
     telemetry: Optional[CausalTelemetry] = None,
+    decision_gate: Optional[Any] = None,
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
 
@@ -418,5 +419,6 @@ def create_agent(
         hypothesis_updater=hypothesis_updater,
         time_driver=time_driver,
         mismatch_policy=mismatch_policy,
+        decision_gate=decision_gate,
     )
     return CausalAgent(loop=loop, pipeline=pipeline, telemetry=telemetry)
