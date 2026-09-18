@@ -354,6 +354,15 @@ class CausalAgentLoop:
                     selected = self._temporal_guard(override, state)
                     decision.selected = selected
                     decision.rationale = selected.rationale or decision.rationale
+                    selected_score = next(
+                        (
+                            score
+                            for score in action_scores
+                            if score.action_name == selected.name
+                            and score.action_kind == selected.kind
+                        ),
+                        None,
+                    )
                     state.scratch.setdefault("decision_gate_events", []).append(
                         {
                             "step": state.step,
