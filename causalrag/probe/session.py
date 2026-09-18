@@ -162,10 +162,21 @@ def _episode_ledger(state, world_model: CausalWorldModel) -> list[Dict[str, Any]
     human_history = list(state.scratch.get("human_gate_history", []))
     current_snapshot = world_model.snapshot()
 
+    transition_cursor = 0
+    transitions = list(world_model.transitions)
+
     for index, observation in enumerate(state.observations):
         if index >= len(state.decisions):
             break
         decision = state.decisions[index]
+
+        matched_transition = None
+        for transition_index in range(transition_cursor, len(transitions)):
+            candidate_transition = transitions[transition_index]
+            if candidate_transition.action == decision.selected.name:
+                matched_transition = candidate_transition
+                transition_cursor = transition_index + 1
+                break
         before = decision.beliefs_before
         if index + 1 < len(state.decisions):
             after = state.decisions[index + 1].beliefs_before
@@ -204,13 +215,22 @@ def _episode_ledger(state, world_model: CausalWorldModel) -> list[Dict[str, Any]
         ledger.append(
             {
                 "step": int(decision.step),
+                "uncertainty": decision.uncertainty,
                 "prior": before.get("hypotheses", []),
+                "world_before": _jsonable(before),
+                "candidates": [
+                    _candidate_payload(candidate, candidate_index)
+                    for candidate_index, candidate in enumerate(decision.candidates)
+                ],
+                "action_scores": [_jsonable(score) for score in decision.action_scores],
                 "selected": _candidate_payload(decision.selected, -1),
                 "runtime_score": _jsonable(selected_score),
                 "decision_inspector": _decision_inspector(decision),
                 "human": _jsonable(effective_human),
                 "observation": _jsonable(observation),
+                "transition": _jsonable(matched_transition),
                 "posterior": after.get("hypotheses", []),
+                "world_after": _jsonable(after),
                 "posterior_delta": posterior_delta,
             }
         )
