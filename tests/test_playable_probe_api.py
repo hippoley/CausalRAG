@@ -16,14 +16,18 @@ def test_probe_health_and_config():
     body = config.json()
     assert "small" in body["proposer_families"]
     assert "frontier" in body["proposer_families"]
+    assert "backend_status" in body
 
 
-def test_probe_root_is_real_research_console():
+def test_probe_root_is_human_in_the_loop_causal_lab():
     response = client.get("/")
     assert response.status_code == 200
-    assert "CausalRAG Playable Probe" in response.text
-    assert "Runtime capabilities" in response.text
-    assert "Start interactive session" in response.text\n    assert "CAUSAL RUNTIME TESTER" in response.text\n    assert "YOU DECIDE" in response.text
+    assert "Human-in-the-loop Causal Lab" in response.text
+    assert "Runtime tester capabilities" in response.text
+    assert "Start interactive session" in response.text
+    assert "CAUSAL RUNTIME TESTER" in response.text
+    assert "YOU DECIDE" in response.text
+    assert "Operator context for the model proposer" in response.text
 
 
 def test_probe_deterministic_no_key_run():
@@ -44,8 +48,7 @@ def test_probe_deterministic_no_key_run():
     assert body["causal_trace"]
 
 
-
-def test_probe_stepwise_session_api_does_not_execute_before_commit():
+def test_probe_stepwise_session_api_pauses_before_commit_and_advances_one_step():
     created = client.post(
         "/api/sessions",
         json={
@@ -53,6 +56,7 @@ def test_probe_stepwise_session_api_does_not_execute_before_commit():
             "outcome_mode": "deterministic",
             "seed": 0,
             "proposer_family": "deterministic",
+            "user_context": "Airflow fell after maintenance.",
         },
     )
     assert created.status_code == 200
@@ -60,11 +64,16 @@ def test_probe_stepwise_session_api_does_not_execute_before_commit():
     assert body["preview"]["candidates"]
     assert body["snapshot"]["step"] == 0
     assert body["snapshot"]["observations"] == []
+    assert body["snapshot"]["running"] is True
+    assert body["snapshot"]["trace_id"]
 
     session_id = body["session_id"]
     committed = client.post(
         f"/api/sessions/{session_id}/commit",
-        json={"selection": "runtime", "human_note": "approve diagnostic"},
+        json={
+            "selection": "runtime",
+            "human_note": "approve diagnostic",
+        },
     )
     assert committed.status_code == 200
     after = committed.json()["snapshot"]
