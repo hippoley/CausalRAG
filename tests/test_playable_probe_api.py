@@ -112,3 +112,69 @@ def test_probe_human_hypothesis_api_requires_paused_session():
     assert response.status_code == 200
     assert response.json()["hypothesis"]["origin"] == "human"
     client.post(f"/api/sessions/{session_id}/decision", json={"action": "approve"})
+
+
+def test_probe_config_reports_model_connection_state_without_secrets():
+    body = client.get("/api/config").json()
+    assert set(body["model_connections"]) == {"openai", "anthropic", "local"}
+    assert "configured" in body["model_connections"]["openai"]
+    assert "credential_source" in body["model_connections"]["openai"]
+    assert "api_key" not in str(body).lower()
+
+
+def test_model_test_endpoint_reports_provider_result_without_network(monkeypatch):
+    monkeypatch.setattr(
+        "causalrag.interface.probe_api.LLMInterface.generate",
+        lambda self, prompt, temperature=0.0, max_tokens=32: "CAUSALRAG_MODEL_OK",
+    )
+    response = client.post(
+        "/api/model/test",
+        json={"provider": "openai", "model": "test-model"},
+    )
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+
+def test_probe_api_can_replan_after_human_hypothesis_without_executing_old_action():
+    created = client.post(
+        "/api/sessions",
+        json={
+            "hidden_hypothesis": "H2",
+            "outcome_mode": "deterministic",
+            "proposer_family": "deterministic",
+        },
+    )
+    session_id = created.json()["session_id"]
+    deadline = time.time() + 5.0
+    first_gate = None
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        if snap["status"] == "waiting_for_human":
+            first_gate = snap["pending_decision"]["gate_id"]
+            break
+        time.sleep(0.01)
+    assert first_gate
+
+    added = client.post(
+        f"/api/sessions/{session_id}/hypotheses",
+        json={"hypothesis_id": "H4X", "statement": "A new mechanism is possible."},
+    )
+    assert added.status_code == 200
+    replanned = client.post(
+        f"/api/sessions/{session_id}/decision",
+        json={"action": "replan"},
+    )
+    assert replanned.status_code == 200
+
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        pending = snap.get("pending_decision")
+        if snap["status"] == "waiting_for_human" and pending and pending["gate_id"] != first_gate:
+            assert any(row["hypothesis_id"] == "H4X" for row in snap["hypotheses"])
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("new decision gate did not appear after replan")
+
+    client.post(f"/api/sessions/{session_id}/decision", json={"action": "approve"})
