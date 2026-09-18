@@ -9,6 +9,7 @@ from dataclasses import asdict, is_dataclass
 from typing import Any, Dict, Optional
 
 from causalrag.agent.actions import ActionKind, CandidateAction, DecisionRecord
+from causalrag.agent.loop import DecisionGateReplan
 from causalrag.observability import CausalTelemetry, CausalTraceRecord
 from causalrag.world_model import CausalWorldModel
 
@@ -129,6 +130,16 @@ class InteractiveDecisionGate:
             )
             return None
 
+        if response["action"] == "replan":
+            self.telemetry.event(
+                "causalrag.human_gate.replan",
+                {
+                    "causalrag.step": int(state.step),
+                    "causalrag.action.previous": decision.selected.name,
+                },
+            )
+            raise DecisionGateReplan()
+
         index = int(response["candidate_index"])
         candidate = decision.candidates[index]
         self.telemetry.event(
@@ -149,8 +160,8 @@ class InteractiveDecisionGate:
 
     def respond(self, action: str, candidate_index: Optional[int] = None) -> None:
         action = str(action).strip().lower()
-        if action not in {"approve", "choose"}:
-            raise ValueError("action must be approve or choose")
+        if action not in {"approve", "choose", "replan"}:
+            raise ValueError("action must be approve, choose, or replan")
         with self._condition:
             if self._pending is None or self._decision is None:
                 raise RuntimeError("no decision is waiting for human input")
