@@ -1,3 +1,7 @@
+from causalrag.agent.state import AgentState
+from causalrag.reasoning.llm import LLMCausalReasoner
+from causalrag.tools.base import ToolRegistry
+from causalrag.world_model import CausalWorldModel
 import time
 
 from causalrag.probe import ProbeRunConfig
@@ -167,3 +171,50 @@ def test_human_gate_response_is_single_assignment_and_cannot_be_overwritten():
 
     final = _finish_by_approving(session)
     assert final["result"]["decisions"][0]["selected"]["name"] == alternative["name"]
+
+
+def test_operator_message_is_part_of_next_llm_proposer_prompt():
+    state = AgentState(goal="Diagnose the system", max_steps=4)
+    state.scratch["operator_messages"] = [
+        {"step": 0, "message": "You ignored sensor drift. Reconsider it."}
+    ]
+    reasoner = LLMCausalReasoner(llm=None, tools=ToolRegistry())
+    prompt = reasoner._build_prompt(state, CausalWorldModel())
+    assert "You ignored sensor drift. Reconsider it." in prompt
+    assert "operator_messages" in prompt
+
+
+def test_operator_message_replans_before_old_action_executes():
+    session = ProbeSession(
+        ProbeRunConfig(
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    session.start()
+    _wait_until(session, "waiting_for_human")
+    first = session.snapshot()["pending_decision"]["gate_id"]
+    assert session.environment.probes == 0
+
+    row = session.add_operator_message(
+        "You ignored sensor drift. Reconsider before acting.",
+        replan=True,
+    )
+    assert row["message"].startswith("You ignored")
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        snap = session.snapshot()
+        pending = snap["pending_decision"]
+        if snap["status"] == "waiting_for_human" and pending and pending["gate_id"] != first:
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("operator message did not trigger a new gate")
+
+    assert session.environment.probes == 0
+    session.resolve_decision("approve")
+    final = _finish_by_approving(session)
+    names = [record["name"] for record in final["result"]["causal_trace"]]
+    assert "causalrag.human.operator_message" in names
+    assert "causalrag.human_gate.replan" in names
