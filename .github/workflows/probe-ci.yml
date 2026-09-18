@@ -21,6 +21,10 @@ on:
       - 'tests/test_playable_probe.py'
       - 'tests/test_playable_probe_api.py'
 
+      - 'causalrag/agent/loop.py'
+      - 'causalrag/agent/runtime.py'
+      - 'tests/test_decision_hook.py'
+      - '.github/workflows/probe-ci.yml'
 jobs:
   probe:
     runs-on: ubuntu-latest
