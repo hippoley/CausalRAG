@@ -162,6 +162,11 @@ class InteractiveDecisionGate:
 
     def pending(self) -> Optional[Dict[str, Any]]:
         with self._condition:
+            # A submitted response is single-assignment. Hide the gate from
+            # pollers immediately so a fast UI refresh cannot overwrite a
+            # choose/replan with a second approve before the agent thread wakes.
+            if self._response is not None:
+                return None
             return _jsonable(self._pending) if self._pending is not None else None
 
     def respond(self, action: str, candidate_index: Optional[int] = None) -> None:
@@ -171,6 +176,8 @@ class InteractiveDecisionGate:
         with self._condition:
             if self._pending is None or self._decision is None:
                 raise RuntimeError("no decision is waiting for human input")
+            if self._response is not None:
+                raise RuntimeError("human decision has already been submitted")
             response: Dict[str, Any] = {"action": action}
             if action == "choose":
                 if candidate_index is None:
