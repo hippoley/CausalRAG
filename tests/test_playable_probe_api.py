@@ -40,6 +40,10 @@ def test_probe_surfaces_are_separated():
     assert "Runtime capabilities" in workbench.text
     assert "Start interactive episode" in workbench.text
     assert "CAUSAL AGENT · COMPLETE LIVE FLOW" in workbench.text
+    assert "LIVE WORKBENCH · REAL AGENT CONTROL PLANE" in workbench.text
+    assert "TASK COMPOSER" in workbench.text
+    assert "EVIDENCE & DEBUG" in workbench.text
+    assert "Run task" in workbench.text
     assert "InteractiveDecisionGate" in workbench.text
     assert "Challenge scenario" in workbench.text
     assert 'id="scenario"' in workbench.text
