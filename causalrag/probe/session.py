@@ -759,6 +759,88 @@ class ProbeSession:
             "error": error,
         }
 
+    def step_context(self, step: int) -> Dict[str, Any]:
+        """Return one frozen step context for IDE-style debugging."""
+        target = int(step)
+        live_state = self.gate.live_state()
+        state = live_state or self._agent_state
+        pending = self.gate.pending()
+
+        if pending is not None and int(pending.get("step", -1)) == target:
+            context = {
+                **_jsonable(pending),
+                "status": "pending",
+                "world_before": {
+                    **self.agent.world_model.snapshot(),
+                    "hypotheses": _jsonable(pending.get("hypotheses", [])),
+                },
+                "world_after": None,
+                "observation": None,
+                "transition": None,
+                "posterior": None,
+                "posterior_delta": {},
+                "human": None,
+            }
+        else:
+            ledger = (
+                _episode_ledger(state, self.agent.world_model, self.agent.loop.tools)
+                if state is not None
+                else ((_jsonable(self._result) or {}).get("episode_ledger") or [])
+            )
+            row = next((item for item in ledger if int(item.get("step", -1)) == target), None)
+            if row is None:
+                raise KeyError(target)
+            context = {**_jsonable(row), "status": "completed"}
+
+        trace_rows = []
+        for record in self.telemetry.records():
+            row = record.to_dict() if hasattr(record, "to_dict") else _jsonable(record)
+            attrs = row.get("attributes") or {}
+            if int(attrs.get("causalrag.step", -1)) == target:
+                trace_rows.append(row)
+
+        scratch = {} if state is None else state.scratch
+        human_events = [
+            row
+            for row in scratch.get("human_gate_history", [])
+            if int(row.get("step", -1)) == target
+        ]
+        operator_messages = [
+            row
+            for row in scratch.get("operator_messages", [])
+            if int(row.get("step", -1)) == target
+        ]
+        hypothesis_events = [
+            row
+            for row in scratch.get("human_hypothesis_events", [])
+            if int(row.get("step", -1)) == target
+        ]
+
+        alternatives = [
+            row
+            for row in (context.get("candidates") or [])
+            if row.get("runtime_valid", True)
+            and row.get("name") != (context.get("selected") or context.get("runtime_selected") or {}).get("name")
+        ]
+        context["telemetry"] = trace_rows
+        context["operator_context"] = {
+            "human_gate_history": _jsonable(human_events),
+            "operator_messages": _jsonable(operator_messages),
+            "human_hypothesis_events": _jsonable(hypothesis_events),
+        }
+        context["counterfactual"] = {
+            "available": False,
+            "mode": "not_yet_forkable",
+            "alternatives": _jsonable(alternatives),
+            "reason": (
+                "This step is fully inspectable, but the current runtime does not yet expose a "
+                "generic frozen-environment fork API. Use same-world A/B for whole-run evidence; "
+                "the IDE will not fabricate a step-level what-if result."
+            ),
+            "whole_run_ab_available": True,
+        }
+        return context
+
     def resolve_decision(self, action: str, candidate_index: Optional[int] = None) -> None:
         self.gate.respond(action, candidate_index)
 
