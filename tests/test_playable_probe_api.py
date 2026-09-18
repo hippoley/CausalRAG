@@ -34,6 +34,9 @@ def test_probe_root_is_real_research_console():
     assert "SESSION ARTIFACT / OFFLINE REPLAY" in response.text
     assert "PROPOSER / RUNTIME" in response.text
     assert "POWER VIEW · WHAT CHANGED?" in response.text
+    assert "GUIDED EXPERIENCE · 先体验，再研究" in response.text
+    assert "YOUR DECISION" in response.text
+    assert "用推荐案例开始体验" in response.text
     assert "Challenge scenario" in response.text
     assert 'id="scenario"' in response.text
     assert "scenario:$('scenario').value" in response.text
