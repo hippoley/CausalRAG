@@ -100,13 +100,13 @@ def run_probe(payload: ProbeRunRequest):
 def create_probe_session(payload: ProbeRunRequest):
     try:
         session = InteractiveProbeSession(_to_config(payload))
-        preview = session.preview()
         with _SESSIONS_LOCK:
             _SESSIONS[session.session_id] = session
+        snapshot = session.start()
         return {
             "session_id": session.session_id,
-            "preview": preview,
-            "snapshot": session.snapshot(),
+            "preview": snapshot.get("preview"),
+            "snapshot": snapshot,
         }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -152,9 +152,10 @@ def commit_probe_session(session_id: str, payload: ProbeCommitRequest):
 @app.delete("/api/sessions/{session_id}")
 def delete_probe_session(session_id: str):
     with _SESSIONS_LOCK:
-        existed = _SESSIONS.pop(str(session_id), None) is not None
-    if not existed:
+        session = _SESSIONS.pop(str(session_id), None)
+    if session is None:
         raise HTTPException(status_code=404, detail="unknown probe session")
+    session.close()
     return {"deleted": True, "session_id": session_id}
 
 
