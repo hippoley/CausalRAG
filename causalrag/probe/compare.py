@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any, Dict, Iterable, Optional
+import json
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 from causalrag.agent import RuntimeCapabilities
+from causalrag.generator.llm_interface import LLMInterface
 
 from .runtime import ProbeRunConfig, run_probe_episode
 
@@ -17,6 +19,94 @@ _DEFAULT_METRICS = (
     "true_hypothesis_posterior",
     "brier_score",
 )
+
+
+class SharedPromptMemo:
+    """Share exact proposer outputs across A/B arms while prompts remain identical.
+
+    Each arm gets its own adapter/telemetry surface but both adapters reference
+    the same cache. An identical prompt therefore produces one provider call
+    and one replay; after runtime state diverges, prompt keys diverge and each
+    arm may call the model independently.
+    """
+
+    def __init__(self) -> None:
+        self.values: Dict[Tuple[str, float, int, bool, bool], Any] = {}
+        self.provider_calls = 0
+        self.replays = 0
+
+
+class MemoizedLLM:
+    def __init__(self, inner: LLMInterface, memo: SharedPromptMemo, arm: str) -> None:
+        self.inner = inner
+        self.memo = memo
+        self.arm = arm
+        self.model = inner.model
+        self.provider = inner.provider
+        self.telemetry = None
+        self.last_usage: Dict[str, int] = {}
+
+    def generate(
+        self,
+        prompt: str,
+        temperature: float = 0.3,
+        max_tokens: int = 800,
+        stream: bool = False,
+        json_mode: bool = False,
+    ):
+        key = (str(prompt), float(temperature), int(max_tokens), bool(stream), bool(json_mode))
+        if key in self.memo.values:
+            self.memo.replays += 1
+            self.last_usage = {}
+            if self.telemetry is not None:
+                self.telemetry.event(
+                    "causalrag.llm.memoized_replay",
+                    {
+                        "causalrag.ab.arm": self.arm,
+                        "gen_ai.request.model": self.model,
+                        "gen_ai.provider.name": self.provider,
+                        "causalrag.llm.prompt_characters": len(prompt),
+                    },
+                )
+            return self.memo.values[key]
+
+        self.memo.provider_calls += 1
+        self.inner.telemetry = self.telemetry
+        result = self.inner.generate(
+            prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=stream,
+            json_mode=json_mode,
+        )
+        self.last_usage = dict(getattr(self.inner, "last_usage", {}) or {})
+        self.memo.values[key] = result
+        return result
+
+
+def _paired_llms(config: ProbeRunConfig):
+    if config.proposer_family == "deterministic":
+        return None, None, None
+
+    if config.proposer_family == "small":
+        provider = config.provider or "local"
+        model = config.model or "local-model"
+    else:
+        provider = config.provider or "openai"
+        model = config.model or "gpt-5.6-terra"
+
+    memo = SharedPromptMemo()
+    vanilla = MemoizedLLM(
+        LLMInterface(model=model, provider=provider),
+        memo,
+        "vanilla",
+    )
+    causal = MemoizedLLM(
+        LLMInterface(model=model, provider=provider),
+        memo,
+        "causal",
+    )
+    return vanilla, causal, memo
 
 
 def _selected_actions(episode: Dict[str, Any]) -> list[Dict[str, Any]]:
@@ -96,8 +186,9 @@ def run_probe_comparison(config: ProbeRunConfig) -> Dict[str, Any]:
         capabilities=RuntimeCapabilities.vanilla_tool_loop().to_dict(),
     )
 
-    vanilla = run_probe_episode(vanilla_config)
-    causal = run_probe_episode(causal_config)
+    vanilla_llm, causal_llm, memo = _paired_llms(paired_config)
+    vanilla = run_probe_episode(vanilla_config, llm=vanilla_llm)
+    causal = run_probe_episode(causal_config, llm=causal_llm)
     first_divergence = _first_divergence(vanilla, causal)
 
     return {
@@ -112,6 +203,9 @@ def run_probe_comparison(config: ProbeRunConfig) -> Dict[str, Any]:
             "model": config.model,
             "same_world_inputs": True,
             "same_proposer_configuration": True,
+            "shared_identical_prompt_outputs": bool(memo is not None),
+            "shared_prompt_provider_calls": None if memo is None else int(memo.provider_calls),
+            "shared_prompt_replays": None if memo is None else int(memo.replays),
             "paired_randomness": (
                 "identical_deterministic_outcomes"
                 if config.outcome_mode == "deterministic"
