@@ -1,5 +1,5 @@
 from causalrag.agent import RuntimeCapabilities
-from causalrag.probe import ProbeRunConfig, available_probe_config, run_probe_episode
+from causalrag.probe import (\n    InteractiveProbeSession,\n    ProbeRunConfig,\n    available_probe_config,\n    run_probe_episode,\n)
 
 
 def test_probe_config_exposes_research_controls_without_credentials():
@@ -51,3 +51,62 @@ def test_probe_vanilla_arm_changes_execution_not_only_metadata():
     assert vanilla["runtime_capabilities"]["causal_selection"] is False
     assert full["decisions"] != vanilla["decisions"]
     assert full["metrics"] != vanilla["metrics"]
+
+
+
+def test_interactive_session_previews_without_executing_and_records_human_choice():
+    session = InteractiveProbeSession(
+        ProbeRunConfig(
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            seed=0,
+            proposer_family="deterministic",
+        )
+    )
+
+    preview = session.preview()
+    assert preview["candidates"]
+    assert preview["ranking"]
+    assert session.environment.probes == 0
+    assert session.environment.interventions == 0
+    assert session.state.observations == []
+
+    snapshot = session.commit("runtime", human_note="I accept the runtime diagnostic ranking.")
+    assert snapshot["step"] == 1
+    assert session.environment.probes == 1
+    assert snapshot["observations"]
+    assert snapshot["human_events"][0]["selection"] == "runtime"
+    assert "posterior" in snapshot["trace"][-1]["attributes"]
+
+
+def test_interactive_session_can_override_runtime_with_another_candidate():
+    session = InteractiveProbeSession(
+        ProbeRunConfig(
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            seed=0,
+            proposer_family="deterministic",
+        )
+    )
+    preview = session.preview()
+    runtime_name = preview["runtime_preference"]
+    alternative = next(
+        row["name"] for row in preview["candidates"] if row["name"] != runtime_name
+    )
+
+    snapshot = session.commit(alternative, human_note="Deliberate tester override.")
+    human = snapshot["human_events"][0]
+    assert human["selected_action"] == alternative
+    assert human["overrode_runtime"] is True
+    assert snapshot["observations"][0]["action_name"] == alternative
+    assert any(
+        row["name"] == "causalrag.probe.human_choice"
+        for row in snapshot["trace"]
+    )
+
+
+def test_probe_config_reports_backend_readiness_without_api_keys():
+    config = available_probe_config()
+    assert "backend_status" in config
+    assert set(config["backend_status"]) == {"openai", "anthropic", "local"}
+    assert "api_key" not in str(config["backend_status"]).lower()
