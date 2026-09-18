@@ -258,7 +258,8 @@ def test_probe_ladder_api_exposes_marginal_capability_effects():
         "runtime_eig",
         "bayesian_learning",
         "decision_value",
-        "temporal_open_world",
+        "temporal_attribution",
+        "open_world",
         "full",
     ]
     by_id = {row["id"]: row for row in body["arms"]}
