@@ -95,6 +95,21 @@ def available_probe_config() -> Dict[str, Any]:
             },
         },
         "capabilities": list(_CAPABILITY_NAMES),
+        "model_connections": {
+            "openai": {
+                "configured": bool(os.getenv("OPENAI_API_KEY")),
+                "credential_source": "server_environment",
+            },
+            "anthropic": {
+                "configured": bool(os.getenv("ANTHROPIC_API_KEY")),
+                "credential_source": "server_environment",
+            },
+            "local": {
+                "configured": bool(os.getenv("LOCAL_LLM_URL")),
+                "endpoint": os.getenv("LOCAL_LLM_URL", "http://localhost:1234/v1"),
+                "credential_source": "local_openai_compatible",
+            },
+        },
     }
 
 
