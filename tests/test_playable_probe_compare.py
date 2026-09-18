@@ -1,4 +1,5 @@
 from causalrag.probe import ProbeRunConfig, run_probe_comparison
+from causalrag.probe.compare import MemoizedLLM, SharedPromptMemo
 from causalrag.benchmarks.hidden_world import HiddenWorldEnvironment, build_hvac_hidden_world
 
 
@@ -70,3 +71,50 @@ def test_action_indexed_noise_pairs_same_experiment_across_different_action_orde
 
     assert a_fan[fan.outcome_key] == b_fan[fan.outcome_key]
     assert a_filter[filt.outcome_key] == b_filter[filt.outcome_key]
+
+
+class _FakeLLM:
+    def __init__(self, label):
+        self.label = label
+        self.model = "fake-model"
+        self.provider = "fake"
+        self.telemetry = None
+        self.last_usage = {}
+        self.calls = []
+
+    def generate(self, prompt, temperature=0.3, max_tokens=800, stream=False, json_mode=False):
+        self.calls.append((prompt, temperature, max_tokens, stream, json_mode))
+        return f"{self.label}:{prompt}"
+
+
+def test_identical_external_model_prompts_are_replayed_across_arms():
+    memo = SharedPromptMemo()
+    left_inner = _FakeLLM("left")
+    right_inner = _FakeLLM("right")
+    left = MemoizedLLM(left_inner, memo, "vanilla")
+    right = MemoizedLLM(right_inner, memo, "causal")
+
+    first = left.generate("same prompt", temperature=0.1, max_tokens=100, json_mode=True)
+    second = right.generate("same prompt", temperature=0.1, max_tokens=100, json_mode=True)
+
+    assert first == second == "left:same prompt"
+    assert len(left_inner.calls) == 1
+    assert len(right_inner.calls) == 0
+    assert memo.provider_calls == 1
+    assert memo.replays == 1
+
+
+def test_external_model_prompt_cache_stops_sharing_after_state_prompt_diverges():
+    memo = SharedPromptMemo()
+    left_inner = _FakeLLM("left")
+    right_inner = _FakeLLM("right")
+    left = MemoizedLLM(left_inner, memo, "vanilla")
+    right = MemoizedLLM(right_inner, memo, "causal")
+
+    left.generate("state A", temperature=0.1, max_tokens=100, json_mode=True)
+    right.generate("state B", temperature=0.1, max_tokens=100, json_mode=True)
+
+    assert len(left_inner.calls) == 1
+    assert len(right_inner.calls) == 1
+    assert memo.provider_calls == 2
+    assert memo.replays == 0
