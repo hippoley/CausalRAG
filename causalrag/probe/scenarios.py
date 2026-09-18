@@ -234,6 +234,9 @@ _SCENARIOS: Dict[str, Dict[str, Any]] = {
         "hidden_hypotheses": ["H1", "H2", "H3"],
         "outcome_modes": ["deterministic", "stochastic"],
         "recommended_test": "Bayesian learning / EIG / EVSI",
+        "default_hidden_hypothesis": "H2",
+        "default_outcome_mode": "stochastic",
+        "default_goal": "Identify the hidden HVAC causal mechanism using diagnostic experiments, then apply the intervention most likely to fix it.",
     },
     "temporal_delayed_effect": {
         "id": "temporal_delayed_effect",
@@ -242,6 +245,9 @@ _SCENARIOS: Dict[str, Dict[str, Any]] = {
         "hidden_hypotheses": ["H1", "H2"],
         "outcome_modes": ["deterministic"],
         "recommended_test": "Temporal attribution",
+        "default_hidden_hypothesis": "H1",
+        "default_outcome_mode": "deterministic",
+        "default_goal": "Identify whether the valve or a downstream restriction controls flow without mistaking a stale immediate read for the intervention effect.",
     },
     "open_world_mismatch": {
         "id": "open_world_mismatch",
@@ -250,6 +256,9 @@ _SCENARIOS: Dict[str, Dict[str, Any]] = {
         "hidden_hypotheses": ["H4"],
         "outcome_modes": ["deterministic"],
         "recommended_test": "Open-world mismatch + hypothesis discovery",
+        "default_hidden_hypothesis": "H4",
+        "default_outcome_mode": "deterministic",
+        "default_goal": "Diagnose a failure that may lie outside the current modeled H1/H2 fault class and validate any newly discovered mechanism.",
     },
 }
 
@@ -304,11 +313,7 @@ def build_scenario_runtime(config: Any) -> ProbeScenarioRuntime:
                 confidence_threshold=float(config.confidence_threshold),
                 max_probes=int(config.max_probes),
             ),
-            goal=(
-                "Identify the hidden HVAC causal mechanism using the available "
-                "diagnostic experiments, then apply the intervention most likely "
-                "to fix it. Minimize unnecessary probes, cost, and wrong interventions."
-            ),
+            goal=str(_SCENARIOS[scenario_id]["default_goal"]),
         )
 
     if scenario_id == "temporal_delayed_effect":
@@ -319,7 +324,7 @@ def build_scenario_runtime(config: Any) -> ProbeScenarioRuntime:
             world_model=environment.world_model(),
             tools=environment.tools(),
             default_reasoner=ImmediateReadReasoner(),
-            goal="Identify whether the valve or a downstream restriction controls flow.",
+            goal=str(_SCENARIOS[scenario_id]["default_goal"]),
             time_driver=environment.clock,
         )
 
@@ -330,7 +335,7 @@ def build_scenario_runtime(config: Any) -> ProbeScenarioRuntime:
         world_model=environment.world_model(),
         tools=environment.tools(),
         default_reasoner=OpenWorldProbeReasoner(),
-        goal="Diagnose a failure that may lie outside the current modeled fault class.",
+        goal=str(_SCENARIOS[scenario_id]["default_goal"]),
         mismatch_policy=ModelMismatchPolicy(
             soft_predictive_threshold=0.06,
             hard_predictive_threshold=0.005,
