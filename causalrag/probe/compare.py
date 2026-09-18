@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-import json
 from typing import Any, Dict, Iterable, Optional, Tuple
 
 from causalrag.agent import RuntimeCapabilities
