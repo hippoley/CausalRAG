@@ -47,6 +47,10 @@ def test_probe_surfaces_are_separated():
     assert "ALL CANDIDATES + RUNTIME SCORE BREAKDOWN" in workbench.text
     assert "POSTERIOR UPDATE BASIS" in workbench.text
     assert "SCORE PROVENANCE" in workbench.text
+    assert "WORLD SNAPSHOT · BEFORE" in workbench.text
+    assert "HUMAN / OPERATOR CONTEXT" in workbench.text
+    assert "RELATED TELEMETRY" in workbench.text
+    assert "COUNTERFACTUAL" in workbench.text
     assert "EIG = (H(prior)" in workbench.text
     assert "EVSI = expected best value after" in workbench.text
     assert "inspectStep" in workbench.text
@@ -55,6 +59,44 @@ def test_probe_surfaces_are_separated():
     assert "Challenge scenario" in workbench.text
     assert 'id="scenario"' in workbench.text
     assert "scenario:$('scenario').value" in workbench.text
+
+
+def test_probe_step_context_api_exposes_full_frozen_debug_state():
+    created = client.post(
+        "/api/sessions",
+        json={
+            "scenario": "temporal_delayed_effect",
+            "hidden_hypothesis": "H1",
+            "outcome_mode": "deterministic",
+            "proposer_family": "deterministic",
+        },
+    )
+    assert created.status_code == 200
+    session_id = created.json()["session_id"]
+
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        if snap["status"] == "waiting_for_human":
+            step = snap["pending_decision"]["step"]
+            ctx = client.get(f"/api/sessions/{session_id}/steps/{step}")
+            assert ctx.status_code == 200
+            body = ctx.json()
+            assert body["status"] == "pending"
+            assert "world_before" in body
+            assert "candidates" in body
+            assert "action_scores" in body
+            assert "score_provenance" in body
+            assert "operator_context" in body
+            assert "telemetry" in body
+            assert body["counterfactual"]["available"] is False
+            assert body["counterfactual"]["whole_run_ab_available"] is True
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("session did not reach a human gate")
+
+    client.post(f"/api/sessions/{session_id}/decision", json={"action": "approve"})
 
 
 def test_probe_deterministic_no_key_run():
