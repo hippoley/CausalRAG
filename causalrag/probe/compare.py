@@ -143,18 +143,17 @@ def _first_divergence(
 def _metric_deltas(
     baseline: Dict[str, Any],
     treatment: Dict[str, Any],
-    names: Iterable[str] = _DEFAULT_METRICS,
 ) -> Dict[str, float]:
     left = baseline.get("metrics") or {}
     right = treatment.get("metrics") or {}
     deltas: Dict[str, float] = {}
-    for name in names:
-        if name not in left or name not in right:
+    for name in sorted(set(left).intersection(right)):
+        a, b = left[name], right[name]
+        if isinstance(a, bool) and isinstance(b, bool):
+            deltas[name] = float(int(b) - int(a))
             continue
-        try:
-            deltas[name] = float(right[name]) - float(left[name])
-        except (TypeError, ValueError):
-            continue
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            deltas[name] = float(b) - float(a)
     return deltas
 
 
