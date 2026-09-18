@@ -6,9 +6,11 @@ on:
       - 'causalrag/probe/**'
       - 'causalrag/interface/probe_api.py'
       - 'causalrag/templates/playable_probe.html'
+      - 'causalrag/templates/tester_arena.html'
       - 'tests/test_playable_probe.py'
       - 'tests/test_playable_probe_api.py'
       - 'tests/test_playable_probe_hitl.py'
+      - 'tests/test_tester_arena.py'
       - 'causalrag/agent/loop.py'
       - 'causalrag/agent/runtime.py'
       - '.github/workflows/probe-ci.yml'
@@ -38,7 +40,15 @@ jobs:
           pip install -e '.[api,dev]'
       - name: Compile probe
         run: |
-          python -m py_compile causalrag/probe/runtime.py causalrag/probe/session.py causalrag/interface/probe_api.py
+          python -m py_compile \
+            causalrag/probe/runtime.py \
+            causalrag/probe/session.py \
+            causalrag/probe/arena.py \
+            causalrag/interface/probe_api.py
       - name: Run real no-key probe tests
         run: |
-          pytest -q tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py
+          pytest -q \
+            tests/test_playable_probe.py \
+            tests/test_playable_probe_api.py \
+            tests/test_playable_probe_hitl.py \
+            tests/test_tester_arena.py
