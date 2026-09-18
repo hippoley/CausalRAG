@@ -9,6 +9,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from causalrag.probe import ProbeRunConfig, run_probe_comparison
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
@@ -43,6 +45,14 @@ def main() -> None:
         "bayesian_experiment": run_example("examples/bayesian_experiment_demo.py"),
         "hidden_world_suite": run_example("examples/hidden_world_suite_demo.py"),
         "policy_comparison": run_example("examples/hidden_world_policy_comparison.py"),
+        "playable_ab": run_probe_comparison(
+            ProbeRunConfig(
+                hidden_hypothesis="H2",
+                outcome_mode="deterministic",
+                seed=0,
+                proposer_family="deterministic",
+            )
+        ),
     }
     data_dir = DIST / "data"
     data_dir.mkdir(exist_ok=True)
