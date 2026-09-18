@@ -41,6 +41,10 @@ def test_probe_root_is_real_research_console():
     assert "WORLD" in response.text
     assert "COUNTERFACTUAL" in response.text
     assert "显示研究控制台" in response.text
+    assert "AGENT EXECUTION THEATER · 真实执行全过程" in response.text
+    assert "1 PROPOSE" in response.text
+    assert "7 EVALUATE" in response.text
+    assert "renderExecutionTheater" in response.text
     assert "Challenge scenario" in response.text
     assert 'id="scenario"' in response.text
     assert "scenario:$('scenario').value" in response.text
