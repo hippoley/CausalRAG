@@ -58,6 +58,7 @@ class InteractiveDecisionGate:
         self._pending: Optional[Dict[str, Any]] = None
         self._decision: Optional[DecisionRecord] = None
         self._response: Optional[Dict[str, Any]] = None
+        self._state = None
         self._closed = False
 
     def __call__(
@@ -89,6 +90,7 @@ class InteractiveDecisionGate:
         with self._condition:
             self._pending = pending
             self._decision = decision
+            self._state = state
             self._response = None
             self._condition.notify_all()
 
@@ -114,6 +116,7 @@ class InteractiveDecisionGate:
             response = self._response
             self._pending = None
             self._decision = None
+            self._state = None
             self._response = None
 
         if response is None:
@@ -191,6 +194,36 @@ class InteractiveDecisionGate:
                 response["candidate_index"] = index
             self._response = response
             self._condition.notify_all()
+
+
+    def add_operator_message(self, message: str, *, replan: bool = True) -> Dict[str, Any]:
+        """Inject a human message into the live agent state before execution."""
+        message = str(message).strip()
+        if not message:
+            raise ValueError("operator message must be non-empty")
+        with self._condition:
+            if self._pending is None or self._decision is None or self._state is None:
+                raise RuntimeError("operator messages require a paused decision")
+            if self._response is not None:
+                raise RuntimeError("human decision has already been submitted")
+            row = {
+                "step": int(self._state.step),
+                "message": message,
+            }
+            self._state.scratch.setdefault("operator_messages", []).append(row)
+            if replan:
+                self._response = {"action": "replan"}
+                self._condition.notify_all()
+
+        self.telemetry.event(
+            "causalrag.human.operator_message",
+            {
+                "causalrag.step": row["step"],
+                "causalrag.human.message_characters": len(message),
+                "causalrag.human.replan": bool(replan),
+            },
+        )
+        return row
 
     def close(self) -> None:
         with self._condition:
@@ -307,6 +340,9 @@ class ProbeSession:
 
     def resolve_decision(self, action: str, candidate_index: Optional[int] = None) -> None:
         self.gate.respond(action, candidate_index)
+
+    def add_operator_message(self, message: str, *, replan: bool = True) -> Dict[str, Any]:
+        return self.gate.add_operator_message(message, replan=replan)
 
     def add_hypothesis(
         self,
