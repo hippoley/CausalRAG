@@ -9,7 +9,8 @@ def test_capability_ladder_is_cumulative_and_runtime_real():
         "runtime_eig",
         "bayesian_learning",
         "decision_value",
-        "temporal_open_world",
+        "temporal_attribution",
+        "open_world",
         "full",
     ]
 
@@ -20,7 +21,9 @@ def test_capability_ladder_is_cumulative_and_runtime_real():
     assert by_id["runtime_eig"]["bayesian_updates"] is False
     assert by_id["bayesian_learning"]["bayesian_updates"] is True
     assert by_id["decision_value"]["evsi"] is True
-    assert by_id["temporal_open_world"]["open_world"] is True
+    assert by_id["temporal_attribution"]["temporal_attribution"] is True
+    assert by_id["temporal_attribution"]["open_world"] is False
+    assert by_id["open_world"]["open_world"] is True
     assert by_id["full"]["retrieval"] is True
 
 
@@ -56,10 +59,12 @@ def test_ladder_reports_zero_marginal_layers_when_scenario_does_not_need_them():
         )
     )
     arms = {row["id"]: row for row in report["arms"]}
-    temporal_delta = arms["temporal_open_world"]["marginal_delta_from_previous"]
+    temporal_delta = arms["temporal_attribution"]["marginal_delta_from_previous"]
+    open_world_delta = arms["open_world"]["marginal_delta_from_previous"]
 
     assert temporal_delta is not None
     assert temporal_delta["success"] == 0.0
+    assert open_world_delta["success"] == 0.0
     assert report["comparison"]["paired_randomness"] == "identical_deterministic_outcomes"
 
 

@@ -29,7 +29,12 @@ app = FastAPI(
 
 
 class ProbeRunRequest(BaseModel):
-    hidden_hypothesis: Literal["H1", "H2", "H3"] = "H2"
+    scenario: Literal[
+        "hvac_hidden_world",
+        "temporal_delayed_effect",
+        "open_world_mismatch",
+    ] = "hvac_hidden_world"
+    hidden_hypothesis: str = Field("H2", min_length=1, max_length=40)
     outcome_mode: Literal["deterministic", "stochastic"] = "stochastic"
     seed: int = 0
     max_steps: int = Field(6, ge=1, le=32)
@@ -71,6 +76,7 @@ class OperatorMessageRequest(BaseModel):
 
 def _config(payload: ProbeRunRequest) -> ProbeRunConfig:
     return ProbeRunConfig(
+        scenario=payload.scenario,
         hidden_hypothesis=payload.hidden_hypothesis,
         outcome_mode=payload.outcome_mode,
         seed=payload.seed,

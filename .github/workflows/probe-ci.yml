@@ -10,7 +10,9 @@ on:
       - 'tests/test_playable_probe_api.py'
       - 'tests/test_playable_probe_hitl.py'
       - 'tests/test_playable_probe_compare.py'
-      - 'tests/test_playable_probe_ladder.py'
+      - 'tests/test_playable_probe_ladder.py tests/test_playable_probe_scenarios.py'
+      - 'tests/test_playable_probe_scenarios.py'
+      - 'causalrag/probe/scenarios.py'
       - 'causalrag/probe/ladder.py'
       - 'causalrag/probe/compare.py'
       - 'causalrag/benchmarks/hidden_world.py'
@@ -43,7 +45,7 @@ jobs:
           pip install -e '.[api,dev]'
       - name: Compile probe
         run: |
-          python -m py_compile causalrag/probe/runtime.py causalrag/probe/session.py causalrag/probe/compare.py causalrag/probe/ladder.py causalrag/interface/probe_api.py
+          python -m py_compile causalrag/probe/runtime.py causalrag/probe/session.py causalrag/probe/compare.py causalrag/probe/ladder.py causalrag/probe/scenarios.py causalrag/interface/probe_api.py
       - name: Run real no-key probe tests
         run: |
           pytest -q tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py tests/test_playable_probe_compare.py tests/test_playable_probe_ladder.py

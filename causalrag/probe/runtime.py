@@ -5,12 +5,14 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Mapping, Optional
 
 from causalrag.agent import RuntimeCapabilities, create_ablation_agent
-from causalrag.benchmarks.hidden_world import (
-    HiddenWorldEnvironment,
-    HiddenWorldReasoner,
-    build_hvac_hidden_world,
-)
 from causalrag.observability import CausalTelemetry
+
+from .scenarios import (
+    build_scenario_runtime,
+    scenario_metrics,
+    scenario_summaries,
+    validate_scenario_config,
+)
 
 
 _CAPABILITY_NAMES = tuple(RuntimeCapabilities.full().to_dict())
@@ -20,9 +22,8 @@ _CAPABILITY_NAMES = tuple(RuntimeCapabilities.full().to_dict())
 class ProbeRunConfig:
     """Frozen inputs for one Playable Probe episode.
 
-    The same object can be serialized into a paper artifact. HiddenWorld is the
-    first executable scenario; the interface is deliberately environment-agnostic
-    so BOPTEST can be added without changing the front-end contract.
+    The same object can be serialized into a paper artifact. Scenario-specific
+    validation and construction are delegated to the probe scenario adapters.
     """
 
     scenario: str = "hvac_hidden_world"
@@ -42,12 +43,11 @@ class ProbeRunConfig:
     )
 
     def __post_init__(self) -> None:
-        if self.scenario != "hvac_hidden_world":
-            raise ValueError("only hvac_hidden_world is executable in the first probe slice")
-        if self.hidden_hypothesis not in {"H1", "H2", "H3"}:
-            raise ValueError("hidden_hypothesis must be H1, H2, or H3")
-        if self.outcome_mode not in {"deterministic", "stochastic"}:
-            raise ValueError("outcome_mode must be deterministic or stochastic")
+        validate_scenario_config(
+            self.scenario,
+            self.hidden_hypothesis,
+            self.outcome_mode,
+        )
         if self.stochastic_coupling not in {"sequence", "action_indexed"}:
             raise ValueError("stochastic_coupling must be sequence or action_indexed")
         if self.proposer_family not in {"deterministic", "small", "frontier"}:
@@ -75,14 +75,7 @@ def available_probe_config() -> Dict[str, Any]:
     """Describe the probe control surface without leaking credentials."""
 
     return {
-        "scenarios": [
-            {
-                "id": "hvac_hidden_world",
-                "label": "HVAC hidden mechanism",
-                "hidden_hypotheses": ["H1", "H2", "H3"],
-                "description": "Diagnose filter, fan, or duct faults under noisy observations.",
-            }
-        ],
+        "scenarios": scenario_summaries(),
         "outcome_modes": ["deterministic", "stochastic"],
         "proposer_families": {
             "deterministic": {"requires_model": False},
@@ -151,31 +144,26 @@ def build_probe_agent(
     runtime capabilities therefore stay identical across both surfaces.
     """
 
-    scenario = build_hvac_hidden_world(config.hidden_hypothesis)
-    environment = HiddenWorldEnvironment(
-        scenario,
-        outcome_mode=config.outcome_mode,
-        seed=int(config.seed),
-        outcome_coupling=config.stochastic_coupling,
-    )
-    world = environment.world_model()
+    scenario_runtime = build_scenario_runtime(config)
+    environment = scenario_runtime.environment
     telemetry = telemetry or CausalTelemetry(capture_content=False)
     capabilities = config.resolved_capabilities()
 
     provider, model = _resolve_model(config)
     kwargs: Dict[str, Any] = {
         "capabilities": capabilities,
-        "world_model": world,
-        "tools": environment.tools(),
+        "world_model": scenario_runtime.world_model,
+        "tools": scenario_runtime.tools,
         "telemetry": telemetry,
         "decision_gate": decision_gate,
     }
+    if scenario_runtime.time_driver is not None:
+        kwargs["time_driver"] = scenario_runtime.time_driver
+    if scenario_runtime.mismatch_policy is not None:
+        kwargs["mismatch_policy"] = scenario_runtime.mismatch_policy
+
     if config.proposer_family == "deterministic":
-        kwargs["reasoner"] = HiddenWorldReasoner(
-            scenario,
-            confidence_threshold=float(config.confidence_threshold),
-            max_probes=int(config.max_probes),
-        )
+        kwargs["reasoner"] = scenario_runtime.default_reasoner
     else:
         kwargs["provider"] = provider
         kwargs["model_name"] = model
@@ -183,7 +171,7 @@ def build_probe_agent(
             kwargs["llm"] = llm
 
     agent = create_ablation_agent(**kwargs)
-    goal = str(config.goal or DEFAULT_PROBE_GOAL)
+    goal = str(config.goal or scenario_runtime.goal)
     return environment, agent, goal, capabilities
 
 
@@ -196,11 +184,11 @@ def run_probe_episode(
 
     environment, agent, goal, capabilities = build_probe_agent(config, llm=llm)
     result = agent.run(goal, max_steps=int(config.max_steps))
-    metrics = environment.metrics(result)
+    metrics = scenario_metrics(environment, result)
     payload = result.to_dict()
     return {
         "config": config.to_dict(),
-        "metrics": metrics.to_dict(),
+        "metrics": metrics,
         "answer": payload["answer"],
         "trace_id": payload["trace_id"],
         "hypotheses": payload["hypotheses"],

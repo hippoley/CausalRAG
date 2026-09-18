@@ -14,6 +14,7 @@ from causalrag.observability import CausalTelemetry, CausalTraceRecord
 from causalrag.world_model import CausalWorldModel
 
 from .runtime import ProbeRunConfig, build_probe_agent
+from .scenarios import scenario_metrics
 
 
 def _jsonable(value: Any) -> Any:
@@ -279,11 +280,11 @@ class ProbeSession:
         )
         try:
             result = self.agent.run(self.goal, max_steps=int(self.config.max_steps))
-            metrics = self.environment.metrics(result)
+            metrics = scenario_metrics(self.environment, result)
             payload = result.to_dict()
             final = {
                 "config": self.config.to_dict(),
-                "metrics": metrics.to_dict(),
+                "metrics": metrics,
                 "answer": payload["answer"],
                 "trace_id": payload["trace_id"],
                 "hypotheses": payload["hypotheses"],

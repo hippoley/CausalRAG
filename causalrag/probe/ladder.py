@@ -66,12 +66,27 @@ def capability_ladder_profiles() -> List[Dict[str, Any]]:
             ),
         },
         {
-            "id": "temporal_open_world",
-            "label": "Temporal + open world",
-            "description": "Adds temporal attribution, mismatch detection, provisional discovery, and generic causal updates.",
+            "id": "temporal_attribution",
+            "label": "Temporal attribution",
+            "description": "Adds runtime enforcement of delayed causal observation windows.",
             "capabilities": RuntimeCapabilities(
                 causal_selection=True,
-                causal_updates=True,
+                causal_updates=False,
+                bayesian_updates=True,
+                eig=True,
+                evsi=True,
+                temporal_attribution=True,
+                open_world=False,
+                retrieval=False,
+            ),
+        },
+        {
+            "id": "open_world",
+            "label": "Open-world discovery",
+            "description": "Adds model-mismatch detection and provisional hypothesis discovery.",
+            "capabilities": RuntimeCapabilities(
+                causal_selection=True,
+                causal_updates=False,
                 bayesian_updates=True,
                 eig=True,
                 evsi=True,
@@ -90,26 +105,16 @@ def capability_ladder_profiles() -> List[Dict[str, Any]]:
 
 
 def _metric_delta(previous: Dict[str, Any], current: Dict[str, Any]) -> Dict[str, float]:
-    names = (
-        "causal_regret",
-        "total_cost",
-        "probes",
-        "interventions",
-        "decision_rounds",
-        "true_hypothesis_posterior",
-        "brier_score",
-    )
     before = previous.get("metrics") or {}
     after = current.get("metrics") or {}
     result: Dict[str, float] = {}
-    for name in names:
-        if name not in before or name not in after:
+    for name in sorted(set(before).intersection(after)):
+        a, b = before[name], after[name]
+        if isinstance(a, bool) and isinstance(b, bool):
+            result[name] = float(int(b) - int(a))
             continue
-        try:
-            result[name] = float(after[name]) - float(before[name])
-        except (TypeError, ValueError):
-            continue
-    result["success"] = float(bool(after.get("success"))) - float(bool(before.get("success")))
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            result[name] = float(b) - float(a)
     return result
 
 
