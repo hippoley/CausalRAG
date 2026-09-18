@@ -323,3 +323,44 @@ def test_probe_api_rejects_invalid_scenario_mode_combination():
     )
     assert response.status_code == 400
     assert "outcome_mode" in response.json()["detail"]
+
+
+def test_completed_probe_session_exposes_semantic_episode_timeline():
+    created = client.post(
+        "/api/sessions",
+        json={
+            "scenario": "temporal_delayed_effect",
+            "hidden_hypothesis": "H1",
+            "outcome_mode": "deterministic",
+            "proposer_family": "deterministic",
+        },
+    )
+    assert created.status_code == 200
+    session_id = created.json()["session_id"]
+
+    deadline = time.time() + 8.0
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        if snap["status"] == "waiting_for_human":
+            released = client.post(
+                f"/api/sessions/{session_id}/decision",
+                json={"action": "approve"},
+            )
+            assert released.status_code == 200
+        elif snap["status"] == "completed":
+            timeline = snap["result"]["episode_timeline"]
+            assert timeline
+            guarded = next(
+                row
+                for row in timeline
+                if row["runtime"]["selected_before_human"].get("name")
+                == "wait_for_effect_window"
+            )
+            assert guarded["actual"]["selected"]["kind"] == "wait"
+            assert guarded["actual"]["observation"]["result"]["waited"] == 5.0
+            break
+        elif snap["status"] == "failed":
+            raise AssertionError(snap["error"])
+        time.sleep(0.01)
+    else:
+        raise AssertionError("timeline API session did not complete")
