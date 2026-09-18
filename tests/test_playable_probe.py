@@ -76,7 +76,7 @@ def test_interactive_session_previews_without_executing_and_records_human_choice
     assert session.environment.probes == 1
     assert snapshot["observations"]
     assert snapshot["human_events"][0]["selection"] == "runtime"
-    assert "posterior" in snapshot["trace"][-1]["attributes"]
+    assert "probe.posterior" in snapshot["trace"][-1]["attributes"]
 
 
 def test_interactive_session_can_override_runtime_with_another_candidate():
