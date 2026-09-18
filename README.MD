@@ -1,4 +1,4 @@
-> **[Open the live demo →](https://hippoley.github.io/CausalRAG/)** · CausalRAG interactive decision runtime, built and deployed by GitHub Actions.\n\n# CausalRAG v0.3 — from retrieval to causal decision
+> **[Open the verified Pages replay →](https://hippoley.github.io/CausalRAG/)** · static A/B evidence rebuilt from the current runtime by GitHub Actions. For the actual live tester, use `causalrag probe --open`.\n\n# CausalRAG v0.3 — from retrieval to causal decision
 
 CausalRAG is a **causal decision runtime for agents operating under uncertainty**.
 
@@ -29,6 +29,76 @@ Repeat or Stop
 The central distinction is simple:
 
 > **The model proposes. The runtime decides. The world corrects both.**
+
+## Playable Causal Probe
+
+The repository now has two deliberately different web surfaces:
+
+| surface | what it is | what it can do |
+| --- | --- | --- |
+| GitHub Pages | static, deployment-generated verified replay | show same-world vanilla-vs-causal A/B traces and benchmark evidence from the deployed commit |
+| Playable Causal Probe | live FastAPI control plane | external LLM proposer, session state, SSE trace, pre-execution human gate, candidate override, provisional hypotheses, natural-language operator messages, replanning, real tool execution, and same-world A/B |
+
+GitHub Pages cannot host the live FastAPI/session backend, so the public Pages site no longer pretends to be the live tester.
+
+Start the real probe locally:
+
+```bash
+pip install -e ".[api]"
+causalrag probe --open
+```
+
+By default it serves on `127.0.0.1:8765`. For a remote/container host:
+
+```bash
+causalrag probe --host 0.0.0.0 --port 8765
+```
+
+The repository `Dockerfile` launches that same surface on port `8765`.
+
+External proposer modes use server-side credentials:
+
+```bash
+export OPENAI_API_KEY=...       # frontier / OpenAI
+export ANTHROPIC_API_KEY=...    # frontier / Anthropic
+export LOCAL_LLM_URL=http://localhost:1234/v1
+export CAUSALRAG_SMALL_MODEL=local-model
+export CAUSALRAG_FRONTIER_MODEL=gpt-5.6-terra
+```
+
+The UI reports whether a provider is configured and exposes an explicit **Test** button for a real model call. Credentials are never sent to the browser.
+
+### What happens in one live step
+
+```text
+external model / deterministic proposer
+        ↓
+structured hypotheses + candidate actions
+        ↓
+causal runtime validates and scores
+        ↓
+HUMAN GATE — no tool has executed yet
+        ├─ approve runtime choice
+        ├─ choose another runtime-valid candidate
+        ├─ add a provisional hypothesis
+        └─ send an operator message → replan
+        ↓
+tool executes
+        ↓
+observation → posterior / world-model update
+        ↓
+next gate
+```
+
+Human overrides still pass through runtime temporal safety, and candidates rejected by runtime validation cannot be forced through the UI. Human messages are treated as operator context, not automatically true evidence.
+
+### Same-world A/B
+
+The probe can run a vanilla tool loop and the causal control plane on the same frozen task inputs. It holds the hidden mechanism, seed, goal, tools, budgets, and proposer configuration fixed. Only runtime capabilities change.
+
+For stochastic HiddenWorld comparisons, the A/B runner uses **action-indexed common random numbers**: the random variate is keyed by `seed + experiment_id + occurrence`, so the same experiment receives the same noise even if the two policies choose experiments in a different order.
+
+For external models, identical prompts are memoized across arms. If both arms present the same prompt, only one provider call is made and the exact structured output is replayed into the other arm. Model calls separate only after the runtime states—and therefore prompts—actually diverge.
 
 An LLM can suggest hypotheses and actions, but it does not own the belief state, capability economics, Bayesian update, or deployment consequence utility.
 
