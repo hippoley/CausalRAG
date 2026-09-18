@@ -103,3 +103,36 @@ def test_human_can_add_provisional_hypothesis_while_paused():
     assert any(row["hypothesis_id"] == "H4" for row in session.snapshot()["hypotheses"])
     session.resolve_decision("approve")
     session.gate.close()
+
+
+def test_human_world_model_edit_can_force_replan_before_execution():
+    session = ProbeSession(
+        ProbeRunConfig(
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    session.start()
+    _wait_until(session, "waiting_for_human")
+    first_gate = session.snapshot()["pending_decision"]["gate_id"]
+    assert session.environment.probes == 0
+
+    session.add_hypothesis("H4", "The sensor itself may be drifting.", probability=0.2)
+    session.resolve_decision("replan")
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        snap = session.snapshot()
+        pending = snap["pending_decision"]
+        if snap["status"] == "waiting_for_human" and pending and pending["gate_id"] != first_gate:
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("replanned decision gate did not appear")
+
+    assert session.environment.probes == 0
+    assert any(row["hypothesis_id"] == "H4" for row in snap["hypotheses"])
+    session.resolve_decision("approve")
+    final = _finish_by_approving(session)
+    names = [row["name"] for row in final["result"]["causal_trace"]]
+    assert "causalrag.human_gate.replan" in names
