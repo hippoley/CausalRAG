@@ -45,6 +45,11 @@ def test_probe_root_is_real_research_console():
     assert "1 PROPOSE" in response.text
     assert "7 EVALUATE" in response.text
     assert "renderExecutionTheater" in response.text
+    assert "CAUSAL AGENT · COMPLETE LIVE FLOW" in response.text
+    assert "Temporal attribution" in response.text
+    assert "Model mismatch" in response.text
+    assert "Hypothesis discovery" in response.text
+    assert "renderCompleteCausalFlow" in response.text
     assert "Challenge scenario" in response.text
     assert 'id="scenario"' in response.text
     assert "scenario:$('scenario').value" in response.text
