@@ -378,6 +378,10 @@ class InteractiveDecisionGate:
                 return None
             return _jsonable(self._pending) if self._pending is not None else None
 
+    def live_state(self):
+        with self._condition:
+            return self._state
+
     def respond(self, action: str, candidate_index: Optional[int] = None) -> None:
         action = str(action).strip().lower()
         if action not in {"approve", "choose", "replan"}:
@@ -455,6 +459,7 @@ class ProbeSession:
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.RLock()
         self._result: Optional[Dict[str, Any]] = None
+        self._agent_state = None
         self._error: Optional[str] = None
         self._started = False
         self._completed = False
@@ -482,6 +487,7 @@ class ProbeSession:
         )
         try:
             result = self.agent.run(self.goal, max_steps=int(self.config.max_steps))
+            self._agent_state = result.state
             metrics = self.environment.metrics(result)
             payload = result.to_dict()
             final = {
@@ -543,6 +549,47 @@ class ProbeSession:
             "result": result,
             "error": error,
             "trace_count": self.telemetry.count(),
+        }
+
+    def export_payload(self) -> Dict[str, Any]:
+        """Export a self-contained, replayable experiment session."""
+
+        live_state = self.gate.live_state()
+        state = live_state or self._agent_state
+        with self._lock:
+            result = _jsonable(self._result)
+            error = self._error
+
+        scratch = {} if state is None else state.scratch
+        ledger = (
+            _episode_ledger(state, self.agent.world_model)
+            if state is not None
+            else ((result or {}).get("episode_ledger") or [])
+        )
+        return {
+            "schema_version": "causalrag.playable_probe.session.v1",
+            "session_id": self.session_id,
+            "status": self.status(),
+            "config": self.config.to_dict(),
+            "goal": self.goal,
+            "runtime_capabilities": self.capabilities.to_dict(),
+            "pending_decision": self.gate.pending(),
+            "world_model": _jsonable(self.agent.world_model.snapshot()),
+            "episode_ledger": _jsonable(ledger),
+            "interactions": {
+                "human_gate_history": _jsonable(
+                    scratch.get("human_gate_history", [])
+                ),
+                "operator_messages": _jsonable(
+                    scratch.get("operator_messages", [])
+                ),
+                "human_hypothesis_events": _jsonable(
+                    scratch.get("human_hypothesis_events", [])
+                ),
+            },
+            "trace": self.telemetry.records(),
+            "result": result,
+            "error": error,
         }
 
     def resolve_decision(self, action: str, candidate_index: Optional[int] = None) -> None:
