@@ -16,6 +16,7 @@ from causalrag.probe import (
     available_probe_config,
     run_probe_episode,
     run_probe_comparison,
+    run_probe_ladder,
     sse_stream,
 )
 
@@ -115,6 +116,15 @@ def compare_probe(payload: ProbeRunRequest):
     """Run vanilla and causal control planes on the same frozen task inputs."""
     try:
         return run_probe_comparison(_config(payload))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/ladder")
+def ladder_probe(payload: ProbeRunRequest):
+    """Run cumulative causal-runtime capability profiles on paired task inputs."""
+    try:
+        return run_probe_ladder(_config(payload))
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
