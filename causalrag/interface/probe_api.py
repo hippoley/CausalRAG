@@ -62,6 +62,11 @@ class ModelTestRequest(BaseModel):
     model: str = Field(min_length=1, max_length=200)
 
 
+class OperatorMessageRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    replan: bool = True
+
+
 def _config(payload: ProbeRunRequest) -> ProbeRunConfig:
     return ProbeRunConfig(
         hidden_hypothesis=payload.hidden_hypothesis,
@@ -152,6 +157,16 @@ def add_human_hypothesis(session_id: str, payload: HumanHypothesisRequest):
             rationale=payload.rationale,
         )
         return {"hypothesis": hypothesis, "session": session.snapshot()}
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/messages")
+def add_operator_message(session_id: str, payload: OperatorMessageRequest):
+    session = _session(session_id)
+    try:
+        message = session.add_operator_message(payload.message, replan=payload.replan)
+        return {"message": message, "session": session.snapshot()}
     except Exception as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
