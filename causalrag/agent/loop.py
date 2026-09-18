@@ -338,6 +338,26 @@ class CausalAgentLoop:
                 rationale=selected.rationale,
                 action_scores=action_scores,
             )
+
+            if self.decision_hook is not None:
+                override = self.decision_hook(state, self.world_model, decision)
+                if override is not None:
+                    guarded_override = self._temporal_guard(override, state)
+                    selected = guarded_override
+                    decision.selected = selected
+                    decision.rationale = selected.rationale
+                    selected_score = next(
+                        (
+                            score
+                            for score in action_scores
+                            if score.action_name == selected.name
+                            and score.action_kind == selected.kind
+                        ),
+                        None,
+                    )
+                    if guarded_override is not override:
+                        selected_score = None
+
             state.decisions.append(decision)
 
             if selected.kind == ActionKind.STOP:
