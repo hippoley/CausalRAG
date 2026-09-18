@@ -83,6 +83,9 @@ class InteractiveDecisionGate:
             "step": int(state.step),
             "uncertainty": decision.uncertainty,
             "runtime_selected": _candidate_payload(decision.selected, -1),
+            "hypothesis_proposals": _jsonable(
+                state.scratch.get("last_hypothesis_proposals", [])
+            ),
             "candidates": candidates,
             "action_scores": scores,
             "hypotheses": world_model.snapshot().get("hypotheses", []),
