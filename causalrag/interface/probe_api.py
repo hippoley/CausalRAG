@@ -231,7 +231,21 @@ def test_model_connection(payload: ModelTestRequest):
         }
 
 
+def _template_response(name: str) -> HTMLResponse:
+    template = Path(__file__).resolve().parents[1] / "templates" / name
+    return HTMLResponse(template.read_text(encoding="utf-8"))
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
-    template = Path(__file__).resolve().parents[1] / "templates" / "playable_probe.html"
-    return HTMLResponse(template.read_text(encoding="utf-8"))
+    return _template_response("probe_landing.html")
+
+
+@app.get("/demo", response_class=HTMLResponse)
+def demo():
+    return _template_response("probe_demo.html")
+
+
+@app.get("/workbench", response_class=HTMLResponse)
+def workbench():
+    return _template_response("playable_probe.html")
