@@ -1,5 +1,10 @@
 from causalrag.agent import RuntimeCapabilities
-from causalrag.probe import (\n    InteractiveProbeSession,\n    ProbeRunConfig,\n    available_probe_config,\n    run_probe_episode,\n)
+from causalrag.probe import (
+    InteractiveProbeSession,
+    ProbeRunConfig,
+    available_probe_config,
+    run_probe_episode,
+)
 
 
 def test_probe_config_exposes_research_controls_without_credentials():
@@ -53,7 +58,6 @@ def test_probe_vanilla_arm_changes_execution_not_only_metadata():
     assert full["metrics"] != vanilla["metrics"]
 
 
-
 def test_interactive_session_previews_without_executing_and_records_human_choice():
     session = InteractiveProbeSession(
         ProbeRunConfig(
@@ -63,27 +67,30 @@ def test_interactive_session_previews_without_executing_and_records_human_choice
             proposer_family="deterministic",
         )
     )
+    try:
+        started = session.start()
+        preview = started["preview"]
+        assert preview["candidates"]
+        assert preview["ranking"]
+        assert session.environment.probes == 0
+        assert session.environment.interventions == 0
+        assert session.state.observations == []
+        assert started["trace_id"]
 
-    started = session.start()
-    preview = started["preview"]
-    assert preview["candidates"]
-    assert preview["ranking"]
-    assert session.environment.probes == 0
-    assert session.environment.interventions == 0
-    assert session.state.observations == []
-    assert started["trace_id"]
-
-    snapshot = session.commit("runtime", human_note="I accept the runtime diagnostic ranking.")
-    assert snapshot["step"] == 1
-    assert session.environment.probes == 1
-    assert snapshot["observations"]
-    assert snapshot["human_events"][0]["selection"] == "runtime"
-    assert any(
-        row["name"] == "causalrag.probe.human_choice"
-        for row in snapshot["trace"]
-    )
-    session.close()
-    session.close()
+        snapshot = session.commit(
+            "runtime",
+            human_note="I accept the runtime diagnostic ranking.",
+        )
+        assert snapshot["step"] == 1
+        assert session.environment.probes == 1
+        assert snapshot["observations"]
+        assert snapshot["human_events"][0]["selection"] == "runtime"
+        assert any(
+            row["name"] == "causalrag.probe.human_choice"
+            for row in snapshot["trace"]
+        )
+    finally:
+        session.close()
 
 
 def test_interactive_session_can_override_runtime_with_another_candidate():
@@ -95,21 +102,29 @@ def test_interactive_session_can_override_runtime_with_another_candidate():
             proposer_family="deterministic",
         )
     )
-    preview = session.start()["preview"]
-    runtime_name = preview["runtime_preference"]
-    alternative = next(
-        row["name"] for row in preview["candidates"] if row["name"] != runtime_name
-    )
+    try:
+        preview = session.start()["preview"]
+        runtime_name = preview["runtime_preference"]
+        alternative = next(
+            row["name"]
+            for row in preview["candidates"]
+            if row["name"] != runtime_name
+        )
 
-    snapshot = session.commit(alternative, human_note="Deliberate tester override.")
-    human = snapshot["human_events"][0]
-    assert human["selected_action"] == alternative
-    assert human["overrode_runtime"] is True
-    assert snapshot["observations"][0]["action_name"] == alternative
-    assert any(
-        row["name"] == "causalrag.probe.human_choice"
-        for row in snapshot["trace"]
-    )
+        snapshot = session.commit(
+            alternative,
+            human_note="Deliberate tester override.",
+        )
+        human = snapshot["human_events"][0]
+        assert human["selected_action"] == alternative
+        assert human["overrode_runtime"] is True
+        assert snapshot["observations"][0]["action_name"] == alternative
+        assert any(
+            row["name"] == "causalrag.probe.human_choice"
+            for row in snapshot["trace"]
+        )
+    finally:
+        session.close()
 
 
 def test_probe_config_reports_backend_readiness_without_api_keys():
