@@ -21,6 +21,7 @@ from .temporal import TimeDriver, VirtualTimeDriver, pending_effect_from_contrac
 BeliefUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
 HypothesisUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
 GoalEvaluator = Callable[[AgentState, CausalWorldModel], bool]
+DecisionHook = Callable[[AgentState, CausalWorldModel, DecisionRecord], Optional[CandidateAction]]
 
 
 class CausalAgentLoop:
@@ -37,6 +38,7 @@ class CausalAgentLoop:
         time_driver: Optional[TimeDriver] = None,
         mismatch_policy: Optional[ModelMismatchPolicy] = None,
         capabilities: Optional[RuntimeCapabilities] = None,
+        decision_hook: Optional[DecisionHook] = None,
     ) -> None:
         self.reasoner = reasoner
         self.tools = tools or ToolRegistry()
@@ -47,6 +49,7 @@ class CausalAgentLoop:
         self.time_driver = time_driver or VirtualTimeDriver()
         self.mismatch_policy = mismatch_policy or ModelMismatchPolicy()
         self.capabilities = capabilities or RuntimeCapabilities.full()
+        self.decision_hook = decision_hook
 
     def _sync_state_time(self, state: AgentState) -> None:
         state.virtual_time_seconds = float(self.time_driver.now_seconds)
