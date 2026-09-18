@@ -35,6 +35,7 @@ class ProbeRunRequest(BaseModel):
     proposer_family: Literal["deterministic", "small", "frontier"] = "deterministic"
     provider: Optional[Literal["openai", "anthropic", "local"]] = None
     model: Optional[str] = None
+    user_context: str = ""
     capabilities: Dict[str, bool] = Field(
         default_factory=lambda: RuntimeCapabilities.full().to_dict()
     )
@@ -64,6 +65,7 @@ def _to_config(payload: ProbeRunRequest) -> ProbeRunConfig:
         proposer_family=payload.proposer_family,
         provider=payload.provider,
         model=payload.model,
+        user_context=payload.user_context,
         capabilities=payload.capabilities,
     )
 
