@@ -112,8 +112,9 @@ def test_scenario_ladder_attributes_temporal_and_open_world_capabilities():
     )
     t = {row["id"]: row for row in temporal["arms"]}
     assert t["decision_value"]["episode"]["metrics"]["success"] is False
-    assert t["temporal_open_world"]["episode"]["metrics"]["success"] is True
-    assert t["temporal_open_world"]["marginal_delta_from_previous"]["premature_reads"] == -1.0
+    assert t["temporal_attribution"]["episode"]["metrics"]["success"] is True
+    assert t["temporal_attribution"]["marginal_delta_from_previous"]["premature_reads"] == -1.0
+    assert t["open_world"]["marginal_delta_from_previous"]["success"] == 0.0
 
     open_world = run_probe_ladder(
         ProbeRunConfig(
@@ -125,8 +126,9 @@ def test_scenario_ladder_attributes_temporal_and_open_world_capabilities():
     )
     o = {row["id"]: row for row in open_world["arms"]}
     assert o["decision_value"]["episode"]["metrics"]["success"] is False
-    assert o["temporal_open_world"]["episode"]["metrics"]["success"] is True
-    assert o["temporal_open_world"]["marginal_delta_from_previous"]["discovered_hypothesis"] == 1.0
+    assert o["temporal_attribution"]["episode"]["metrics"]["success"] is False
+    assert o["open_world"]["episode"]["metrics"]["success"] is True
+    assert o["open_world"]["marginal_delta_from_previous"]["discovered_hypothesis"] == 1.0
 
 
 def test_scenario_validation_rejects_impossible_mode_or_hidden_hypothesis():
