@@ -159,21 +159,29 @@ def add_human_hypothesis(session_id: str, payload: HumanHypothesisRequest):
 @app.post("/api/model/test")
 def test_model_connection(payload: ModelTestRequest):
     """User-triggered live model check using server-side credentials only."""
-    llm = LLMInterface(model=payload.model, provider=payload.provider)
-    text = llm.generate(
-        "Reply with exactly CAUSALRAG_MODEL_OK and nothing else.",
-        temperature=0.0,
-        max_tokens=32,
-    )
-    ok = str(text).strip() == "CAUSALRAG_MODEL_OK"
-    if str(text).startswith("Error generating response:"):
-        ok = False
-    return {
-        "provider": payload.provider,
-        "model": payload.model,
-        "ok": ok,
-        "response": str(text)[:240],
-    }
+    try:
+        llm = LLMInterface(model=payload.model, provider=payload.provider)
+        text = llm.generate(
+            "Reply with exactly CAUSALRAG_MODEL_OK and nothing else.",
+            temperature=0.0,
+            max_tokens=32,
+        )
+        ok = str(text).strip() == "CAUSALRAG_MODEL_OK"
+        if str(text).startswith("Error generating response:"):
+            ok = False
+        return {
+            "provider": payload.provider,
+            "model": payload.model,
+            "ok": ok,
+            "response": str(text)[:240],
+        }
+    except Exception as exc:
+        return {
+            "provider": payload.provider,
+            "model": payload.model,
+            "ok": False,
+            "response": f"{type(exc).__name__}: {exc}"[:240],
+        }
 
 
 @app.get("/", response_class=HTMLResponse)
