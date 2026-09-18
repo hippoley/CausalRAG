@@ -32,6 +32,7 @@ class ProbeRunConfig:
     max_steps: int = 6
     max_probes: int = 3
     confidence_threshold: float = 0.8
+    goal: Optional[str] = None
     proposer_family: str = "deterministic"
     provider: Optional[str] = None
     model: Optional[str] = None
@@ -50,6 +51,8 @@ class ProbeRunConfig:
             raise ValueError("proposer_family must be deterministic, small, or frontier")
         if int(self.max_steps) <= 0 or int(self.max_probes) < 0:
             raise ValueError("max_steps must be positive and max_probes non-negative")
+        if self.goal is not None and not str(self.goal).strip():
+            raise ValueError("goal must be non-empty when supplied")
         unknown = set(self.capabilities) - set(_CAPABILITY_NAMES)
         if unknown:
             raise ValueError(f"unknown runtime capabilities: {sorted(unknown)}")
@@ -109,8 +112,25 @@ def _resolve_model(config: ProbeRunConfig) -> tuple[Optional[str], Optional[str]
     )
 
 
-def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
-    """Run one real episode through the canonical agent + telemetry stack."""
+DEFAULT_PROBE_GOAL = (
+    "Identify the hidden HVAC causal mechanism using the available diagnostic "
+    "experiments, then apply the intervention most likely to fix it. Minimize "
+    "unnecessary probes, cost, and incorrect interventions."
+)
+
+
+def build_probe_agent(
+    config: ProbeRunConfig,
+    *,
+    telemetry: Optional[CausalTelemetry] = None,
+    decision_gate: Optional[Any] = None,
+):
+    """Build one probe episode without running it.
+
+    This is the shared construction path for one-shot benchmark runs and the
+    human-in-the-loop Playable Probe session. The world, tools, model tier, and
+    runtime capabilities therefore stay identical across both surfaces.
+    """
 
     scenario = build_hvac_hidden_world(config.hidden_hypothesis)
     environment = HiddenWorldEnvironment(
@@ -119,7 +139,7 @@ def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
         seed=int(config.seed),
     )
     world = environment.world_model()
-    telemetry = CausalTelemetry(capture_content=False)
+    telemetry = telemetry or CausalTelemetry(capture_content=False)
     capabilities = config.resolved_capabilities()
 
     provider, model = _resolve_model(config)
@@ -128,6 +148,7 @@ def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
         "world_model": world,
         "tools": environment.tools(),
         "telemetry": telemetry,
+        "decision_gate": decision_gate,
     }
     if config.proposer_family == "deterministic":
         kwargs["reasoner"] = HiddenWorldReasoner(
@@ -140,11 +161,14 @@ def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
         kwargs["model_name"] = model
 
     agent = create_ablation_agent(**kwargs)
-    goal = (
-        "Identify the hidden HVAC causal mechanism using the available diagnostic "
-        "experiments, then apply the intervention most likely to fix it. Minimize "
-        "unnecessary probes, cost, and incorrect interventions."
-    )
+    goal = str(config.goal or DEFAULT_PROBE_GOAL)
+    return environment, agent, goal, capabilities
+
+
+def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
+    """Run one real episode through the canonical agent + telemetry stack."""
+
+    environment, agent, goal, capabilities = build_probe_agent(config)
     result = agent.run(goal, max_steps=int(config.max_steps))
     metrics = environment.metrics(result)
     payload = result.to_dict()
