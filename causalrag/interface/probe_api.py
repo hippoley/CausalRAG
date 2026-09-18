@@ -90,6 +90,13 @@ def _session(session_id: str):
         raise HTTPException(status_code=404, detail="probe session not found") from exc
 
 
+def _arena(arena_id: str):
+    try:
+        return ARENA_MANAGER.get(arena_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="tester arena not found") from exc
+
+
 @app.get("/health")
 def health():
     return {"status": "healthy", "version": __version__, "surface": "playable_probe"}
@@ -169,6 +176,53 @@ def add_operator_message(session_id: str, payload: OperatorMessageRequest):
         return {"message": message, "session": session.snapshot()}
     except Exception as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/arenas")
+def create_arena(payload: ProbeRunRequest):
+    try:
+        arena = ARENA_MANAGER.create(_config(payload))
+        return arena.snapshot()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/arenas/{arena_id}")
+def get_arena(arena_id: str):
+    return _arena(arena_id).snapshot()
+
+
+@app.post("/api/arenas/{arena_id}/advance")
+def advance_arena(arena_id: str):
+    try:
+        return _arena(arena_id).approve_waiting()
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/arenas/{arena_id}/{arm}/decision")
+def resolve_arena_arm(arena_id: str, arm: Literal["baseline", "tester"], payload: DecisionRequest):
+    try:
+        return _arena(arena_id).resolve_arm(
+            arm,
+            payload.action,
+            payload.candidate_index,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.delete("/api/arenas/{arena_id}")
+def delete_arena(arena_id: str):
+    if not ARENA_MANAGER.delete(arena_id):
+        raise HTTPException(status_code=404, detail="tester arena not found")
+    return {"deleted": True, "arena_id": arena_id}
+
+
+@app.get("/arena", response_class=HTMLResponse)
+def arena_index():
+    template = Path(__file__).resolve().parents[1] / "templates" / "tester_arena.html"
+    return HTMLResponse(template.read_text(encoding="utf-8"))
 
 
 @app.post("/api/model/test")
