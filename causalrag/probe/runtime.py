@@ -124,7 +124,7 @@ def _resolve_model(config: ProbeRunConfig) -> tuple[Optional[str], Optional[str]
     )
 
 
-def _build_probe_agent(config: ProbeRunConfig) -> Dict[str, Any]:
+def _build_probe_agent(config: ProbeRunConfig, decision_hook=None) -> Dict[str, Any]:
     """Build the canonical probe runtime without executing an episode."""
 
     scenario = build_hvac_hidden_world(config.hidden_hypothesis)
@@ -143,6 +143,7 @@ def _build_probe_agent(config: ProbeRunConfig) -> Dict[str, Any]:
         "world_model": world,
         "tools": environment.tools(),
         "telemetry": telemetry,
+        "decision_hook": decision_hook,
     }
     if config.proposer_family == "deterministic":
         kwargs["reasoner"] = HiddenWorldReasoner(
