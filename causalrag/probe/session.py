@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import queue
 import threading
 import time
@@ -12,6 +13,12 @@ from causalrag.agent.actions import ActionKind, CandidateAction, DecisionRecord
 from causalrag.agent.loop import DecisionGateReplan
 from causalrag.observability import CausalTelemetry, CausalTraceRecord
 from causalrag.world_model import CausalWorldModel
+from causalrag.experiments import (
+    expanded_experiment_contract,
+    experiment_decision_value,
+    intervention_value,
+    posterior_for_outcome,
+)
 
 from .runtime import ProbeRunConfig, build_probe_agent
 
@@ -152,7 +159,143 @@ def _hypothesis_map(snapshot: Dict[str, Any]) -> Dict[str, float]:
     }
 
 
-def _episode_ledger(state, world_model: CausalWorldModel) -> list[Dict[str, Any]]:
+def _world_from_snapshot(snapshot: Dict[str, Any]) -> CausalWorldModel:
+    world = CausalWorldModel()
+    for row in snapshot.get("hypotheses") or []:
+        hypothesis_id = str(row.get("id") or row.get("hypothesis_id") or "").strip()
+        if not hypothesis_id:
+            continue
+        world.upsert_hypothesis(
+            hypothesis_id,
+            str(row.get("statement") or hypothesis_id),
+            probability=float(row.get("probability", 0.5)),
+            rationale=str(row.get("rationale") or ""),
+            falsifiers=row.get("falsifiers") or [],
+            origin=str(row.get("origin") or "authored"),
+            validated=bool(row.get("validated", True)),
+            experiment_predictions=row.get("experiment_predictions") or {},
+        )
+    return world
+
+
+def _entropy(values) -> float:
+    return -sum(float(p) * math.log(float(p)) for p in values if float(p) > 0.0)
+
+
+def _score_provenance(decision: DecisionRecord, tools=None) -> Dict[str, Any]:
+    if tools is None:
+        return {}
+    world = _world_from_snapshot(decision.beliefs_before)
+    score_by_index = {int(score.candidate_index): score for score in decision.action_scores}
+    provenance: Dict[str, Any] = {}
+
+    for index, candidate in enumerate(decision.candidates):
+        score = score_by_index.get(index)
+        row: Dict[str, Any] = {
+            "candidate_index": index,
+            "action_name": candidate.name,
+            "action_kind": candidate.kind.value,
+            "formula": (
+                "decision_value"
+                if score is not None and score.decision_value is not None
+                else "goal_gain + information_gain - cost - risk - irreversibility"
+            ),
+            "score": _jsonable(score),
+        }
+        if score is None or candidate.kind in {ActionKind.STOP, ActionKind.WAIT}:
+            provenance[str(index)] = row
+            continue
+
+        try:
+            tool_spec = tools.get(candidate.name)
+        except KeyError:
+            provenance[str(index)] = row
+            continue
+
+        experiment = getattr(tool_spec, "experiment_contract", None)
+        intervention = getattr(tool_spec, "intervention_contract", None)
+
+        if experiment is not None:
+            expanded = expanded_experiment_contract(experiment, world)
+            ids = expanded.hypothesis_ids()
+            raw_prior = {
+                hypothesis_id: max(
+                    0.0,
+                    float(world.get_hypothesis(hypothesis_id).probability),
+                )
+                for hypothesis_id in ids
+                if world.get_hypothesis(hypothesis_id) is not None
+            }
+            total = sum(raw_prior.values())
+            prior = (
+                {hypothesis_id: value / total for hypothesis_id, value in raw_prior.items()}
+                if total > 0.0
+                else ({hypothesis_id: 1.0 / len(raw_prior) for hypothesis_id in raw_prior} if raw_prior else {})
+            )
+            prior_entropy = _entropy(prior.values())
+            expected_posterior_entropy = 0.0
+            outcomes = []
+            for outcome in expanded.outcomes:
+                outcome_probability = sum(
+                    prior.get(hypothesis_id, 0.0) * float(outcome.likelihoods[hypothesis_id])
+                    for hypothesis_id in prior
+                )
+                posterior = posterior_for_outcome(expanded, world, outcome.outcome)
+                posterior_entropy = _entropy(posterior.values())
+                expected_posterior_entropy += outcome_probability * posterior_entropy
+                outcomes.append(
+                    {
+                        "outcome": outcome.outcome,
+                        "predictive_probability": outcome_probability,
+                        "likelihoods": {
+                            str(hypothesis_id): float(value)
+                            for hypothesis_id, value in outcome.likelihoods.items()
+                        },
+                        "posterior": posterior,
+                        "posterior_entropy": posterior_entropy,
+                    }
+                )
+            normalized_eig = (
+                max(0.0, min(1.0, (prior_entropy - expected_posterior_entropy) / prior_entropy))
+                if prior_entropy > 0.0
+                else 0.0
+            )
+            row["experiment"] = {
+                "experiment_id": expanded.experiment_id,
+                "outcome_key": expanded.outcome_key,
+                "prior": prior,
+                "prior_entropy": prior_entropy,
+                "outcomes": outcomes,
+                "expected_posterior_entropy": expected_posterior_entropy,
+                "normalized_eig": normalized_eig,
+            }
+            if score.expected_value_of_sample_information is not None:
+                value = experiment_decision_value(
+                    candidate.name,
+                    expanded,
+                    world,
+                    tools,
+                    experiment_cost=float(score.cost),
+                )
+                if value is not None:
+                    row["evsi"] = _jsonable(value)
+
+        if intervention is not None:
+            value = intervention_value(
+                candidate.name,
+                intervention,
+                world,
+                capability_cost=float(score.cost),
+            )
+            if value is not None:
+                row["intervention_value"] = _jsonable(value)
+
+        provenance[str(index)] = row
+
+    return provenance
+
+
+def _episode_ledger(state, world_model: CausalWorldModel, tools=None) -> list[Dict[str, Any]]:
     """Build a human-readable ledger from canonical runtime state.
 
     Only completed actions are included. The currently paused decision is not
@@ -223,6 +366,7 @@ def _episode_ledger(state, world_model: CausalWorldModel) -> list[Dict[str, Any]
                     for candidate_index, candidate in enumerate(decision.candidates)
                 ],
                 "action_scores": [_jsonable(score) for score in decision.action_scores],
+                "score_provenance": _score_provenance(decision, tools),
                 "selected": _candidate_payload(decision.selected, -1),
                 "runtime_score": _jsonable(selected_score),
                 "decision_inspector": _decision_inspector(decision),
@@ -255,6 +399,7 @@ class InteractiveDecisionGate:
         self._response: Optional[Dict[str, Any]] = None
         self._state = None
         self._closed = False
+        self.tools = None
 
     def __call__(
         self,
@@ -283,9 +428,10 @@ class InteractiveDecisionGate:
             ),
             "candidates": candidates,
             "action_scores": scores,
+            "score_provenance": _score_provenance(decision, self.tools),
             "decision_inspector": _decision_inspector(decision),
             "hypotheses": world_model.snapshot().get("hypotheses", []),
-            "episode_ledger": _episode_ledger(state, world_model),
+            "episode_ledger": _episode_ledger(state, world_model, self.tools),
         }
         with self._condition:
             self._pending = pending
@@ -474,6 +620,7 @@ class ProbeSession:
         )
         self.environment = environment
         self.agent = agent
+        self.gate.tools = self.agent.loop.tools
         self.goal = goal
         self.capabilities = capabilities
         self._thread: Optional[threading.Thread] = None
@@ -522,7 +669,7 @@ class ProbeSession:
                 "transitions": payload["transitions"],
                 "causal_trace": payload["causal_trace"],
                 "runtime_capabilities": self.capabilities.to_dict(),
-                "episode_ledger": _episode_ledger(result.state, result.world_model),
+                "episode_ledger": _episode_ledger(result.state, result.world_model, self.agent.loop.tools),
             }
             with self._lock:
                 self._result = final
@@ -582,7 +729,7 @@ class ProbeSession:
 
         scratch = {} if state is None else state.scratch
         ledger = (
-            _episode_ledger(state, self.agent.world_model)
+            _episode_ledger(state, self.agent.world_model, self.agent.loop.tools)
             if state is not None
             else ((result or {}).get("episode_ledger") or [])
         )
