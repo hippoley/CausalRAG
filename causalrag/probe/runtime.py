@@ -109,8 +109,8 @@ def _resolve_model(config: ProbeRunConfig) -> tuple[Optional[str], Optional[str]
     )
 
 
-def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
-    """Run one real episode through the canonical agent + telemetry stack."""
+def _build_probe_agent(config: ProbeRunConfig) -> Dict[str, Any]:
+    """Build the canonical probe runtime without executing an episode."""
 
     scenario = build_hvac_hidden_world(config.hidden_hypothesis)
     environment = HiddenWorldEnvironment(
@@ -145,6 +145,26 @@ def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
         "experiments, then apply the intervention most likely to fix it. Minimize "
         "unnecessary probes, cost, and incorrect interventions."
     )
+    return {
+        "scenario": scenario,
+        "environment": environment,
+        "world": world,
+        "telemetry": telemetry,
+        "capabilities": capabilities,
+        "agent": agent,
+        "goal": goal,
+    }
+
+
+def run_probe_episode(config: ProbeRunConfig) -> Dict[str, Any]:
+    """Run one real episode through the canonical agent + telemetry stack."""
+
+    built = _build_probe_agent(config)
+    environment = built["environment"]
+    telemetry = built["telemetry"]
+    capabilities = built["capabilities"]
+    agent = built["agent"]
+    goal = built["goal"]
     result = agent.run(goal, max_steps=int(config.max_steps))
     metrics = environment.metrics(result)
     payload = result.to_dict()
