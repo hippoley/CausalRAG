@@ -21,6 +21,11 @@ from .temporal import TimeDriver, VirtualTimeDriver, pending_effect_from_contrac
 BeliefUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
 HypothesisUpdater = Callable[[AgentState, CausalWorldModel, DecisionRecord, Observation], None]
 GoalEvaluator = Callable[[AgentState, CausalWorldModel], bool]
+class DecisionGateReplan(RuntimeError):
+    """Signal that a paused, not-yet-executed decision must be recomputed."""
+
+
+DecisionGate = Callable[[AgentState, CausalWorldModel, DecisionRecord], Optional[CandidateAction]]
 
 
 class CausalAgentLoop:
@@ -37,6 +42,7 @@ class CausalAgentLoop:
         time_driver: Optional[TimeDriver] = None,
         mismatch_policy: Optional[ModelMismatchPolicy] = None,
         capabilities: Optional[RuntimeCapabilities] = None,
+        decision_gate: Optional[DecisionGate] = None,
     ) -> None:
         self.reasoner = reasoner
         self.tools = tools or ToolRegistry()
@@ -47,6 +53,7 @@ class CausalAgentLoop:
         self.time_driver = time_driver or VirtualTimeDriver()
         self.mismatch_policy = mismatch_policy or ModelMismatchPolicy()
         self.capabilities = capabilities or RuntimeCapabilities.full()
+        self.decision_gate = decision_gate
 
     def _sync_state_time(self, state: AgentState) -> None:
         state.virtual_time_seconds = float(self.time_driver.now_seconds)
@@ -290,7 +297,11 @@ class CausalAgentLoop:
             candidates = list(self.reasoner.propose(state, self.world_model))
             proposal_method = getattr(self.reasoner, "hypothesis_proposals", None)
             if self.capabilities.causal_updates and callable(proposal_method):
-                self.world_model.sync_hypotheses(proposal_method(state, self.world_model))
+                hypothesis_proposals = list(proposal_method(state, self.world_model))
+                state.scratch["last_hypothesis_proposals"] = hypothesis_proposals
+                self.world_model.sync_hypotheses(hypothesis_proposals)
+            else:
+                state.scratch["last_hypothesis_proposals"] = []
 
             if self.capabilities.causal_selection:
                 ranked = rank_actions(
@@ -339,6 +350,51 @@ class CausalAgentLoop:
                 action_scores=action_scores,
             )
             state.decisions.append(decision)
+
+            # Optional human/control-plane gate. The runtime has already proposed,
+            # scored, and temporally guarded an action, but no tool has executed yet.
+            # A gate may block for external approval and may return one of the
+            # candidate actions as an explicit override. Runtime temporal safety is
+            # re-applied to overrides before execution.
+            if self.decision_gate is not None:
+                try:
+                    override = self.decision_gate(state, self.world_model, decision)
+                except DecisionGateReplan:
+                    # The decision has not executed yet, so it is safe to discard
+                    # this preview and recompute from the mutated world model.
+                    state.decisions.pop()
+                    state.scratch.setdefault("decision_gate_events", []).append(
+                        {"step": state.step, "kind": "replan"}
+                    )
+                    continue
+                if override is not None:
+                    selected = self._temporal_guard(override, state)
+                    selected_score = next(
+                        (
+                            score
+                            for score in action_scores
+                            if score.action_name == selected.name
+                            and score.action_kind == selected.kind
+                        ),
+                        None,
+                    )
+                    decision = DecisionRecord(
+                        step=decision.step,
+                        uncertainty=decision.uncertainty,
+                        candidates=decision.candidates,
+                        selected=selected,
+                        beliefs_before=decision.beliefs_before,
+                        rationale=selected.rationale or decision.rationale,
+                        action_scores=decision.action_scores,
+                    )
+                    state.decisions[-1] = decision
+                    state.scratch.setdefault("decision_gate_events", []).append(
+                        {
+                            "step": state.step,
+                            "selected": selected.name,
+                            "kind": selected.kind.value,
+                        }
+                    )
 
             if selected.kind == ActionKind.STOP:
                 answer = selected.arguments.get("answer")

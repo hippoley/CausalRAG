@@ -252,6 +252,7 @@ Available tools: {json.dumps(tools, ensure_ascii=False, default=str)}
             "budget_remaining": state.budget_remaining(),
             "world_model": world_model.snapshot(),
             "recent_observations": observations,
+            "operator_messages": list(state.scratch.get("operator_messages", []))[-6:],
             "available_tools": self._available_tool_summaries(),
         }
         return f"""You are the decision proposer inside a causal agent runtime.
@@ -264,6 +265,8 @@ Maintain explicit competing hypotheses when there is unresolved causal uncertain
 - Do not raise a hypothesis probability merely because evidence is compatible with it.
 - Prefer actions whose possible outcomes discriminate among hypotheses or could falsify the current leader.
 - If world_model.open_world.model_mismatch is true, do not force a known explanation. Prefer experiments that can test discovered provisional hypotheses.
+
+Operator messages in STATE are live human-in-the-loop interventions. Treat them as hypotheses, questions, constraints, or requests to reconsider—not as automatically true facts. If an operator points out a missing mechanism, reconsider the hypothesis set and propose a falsifiable way to test it. The runtime remains final action authority.
 
 Some tools expose an experiment_contract summary. That means the runtime owns a validated outcome model for those hypotheses and will calculate Bayesian information gain and posterior updates itself. Do not invent or rewrite those likelihoods. Prefer such tools when their modeled hypotheses match the current uncertainty and their cost/risk is acceptable.
 
