@@ -309,9 +309,15 @@ function renderChoicePreview(){
   $("previewTargets").textContent=candidateTargets(candidate);
   $("previewUnlock").textContent=candidateUnlock(candidate);
   $("previewCost").textContent=(candidate.kind==="observe"||candidate.kind==="retrieve"?"probe -1 · ":"")+"cost +"+candidate.cost.toFixed(2);
-  $("previewWarning").textContent=candidate.id===state.recommendedId
-    ? "你现在只是选中了 Runtime 推荐。还没有执行；Human Gate 才会真正提交。"
-    : "你已经改变了计划，但还没有改变世界。Human Gate 提交后，后续 observation 才会走另一条 trajectory。";
+  var runtimePick=state.candidates.find(function(x){return x.id===state.recommendedId;});
+  if(candidate.id===state.recommendedId || !runtimePick){
+    $("previewWarning").textContent="这是当前 Runtime 的基准路线。你仍然没有执行任何东西；切换到别的 candidate 后，这里会直接告诉你相对基准“放弃了什么、换来了什么”。";
+  }else{
+    var deig=candidate.score.eig-runtimePick.score.eig;
+    var devsi=candidate.score.evsi-runtimePick.score.evsi;
+    var drisk=candidate.score.risk-runtimePick.score.risk;
+    $("previewWarning").textContent="相对 Runtime pick：区分信息 "+(deig>=0?"+":"")+Math.round(deig*100)+" pts · 改变决策价值 "+(devsi>=0?"+":"")+Math.round(devsi*100)+" pts · 风险 "+(drisk>=0?"+":"")+Math.round(drisk*100)+" pts。你已经换了下注，但还没有改变世界；Human Gate 才会提交。";
+  }
 }
 
 function renderCandidates(){
