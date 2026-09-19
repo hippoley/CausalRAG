@@ -34,7 +34,7 @@ jobs:
           cache: pip
       - name: Install runtime
         run: pip install -e '.[dev]'
-      - name: Verify runtime and build static replay
+      - name: Verify browser workbench syntax\n        run: node --check site/app.js\n      - name: Verify runtime and build static replay
         run: |
           pytest -q tests/test_experiment_contracts.py tests/test_hidden_world_stochastic.py tests/test_playable_probe_compare.py
           python scripts/build_pages.py
