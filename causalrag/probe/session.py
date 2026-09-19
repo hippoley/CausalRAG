@@ -21,6 +21,7 @@ from causalrag.experiments import (
 )
 
 from .runtime import ProbeRunConfig, build_probe_agent
+from .counterfactual import counterfactual_support, run_one_step_counterfactual
 
 
 def _jsonable(value: Any) -> Any:
@@ -43,6 +44,9 @@ def _candidate_payload(candidate: CandidateAction, index: int) -> Dict[str, Any]
         "arguments": _jsonable(candidate.arguments),
         "expected_goal_gain": float(candidate.expected_goal_gain),
         "expected_information_gain": float(candidate.expected_information_gain),
+        "cost": float(candidate.cost),
+        "risk": float(candidate.risk),
+        "irreversibility": float(candidate.irreversibility),
         "tests_hypotheses": list(candidate.tests_hypotheses),
         "falsification_target": candidate.falsification_target,
         "rationale": candidate.rationale,
@@ -828,18 +832,27 @@ class ProbeSession:
             "operator_messages": _jsonable(operator_messages),
             "human_hypothesis_events": _jsonable(hypothesis_events),
         }
+        support = counterfactual_support(self.config)
         context["counterfactual"] = {
-            "available": False,
-            "mode": "not_yet_forkable",
+            **support,
             "alternatives": _jsonable(alternatives),
-            "reason": (
-                "This step is fully inspectable, but the current runtime does not yet expose a "
-                "generic frozen-environment fork API. Use same-world A/B for whole-run evidence; "
-                "the IDE will not fabricate a step-level what-if result."
-            ),
             "whole_run_ab_available": True,
+            "step_level_scope": "one_step_fork_then_stop",
         }
         return context
+
+    def run_counterfactual(self, step: int, candidate_index: int) -> Dict[str, Any]:
+        live_state = self.gate.live_state()
+        state = live_state or self._agent_state
+        if state is None:
+            raise RuntimeError("counterfactual requires an active or completed session")
+        ledger = _episode_ledger(state, self.agent.world_model, self.agent.loop.tools)
+        return run_one_step_counterfactual(
+            self.config,
+            ledger,
+            step=int(step),
+            candidate_index=int(candidate_index),
+        )
 
     def resolve_decision(self, action: str, candidate_index: Optional[int] = None) -> None:
         self.gate.respond(action, candidate_index)
