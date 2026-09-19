@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: causalrag-playable-probe
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: CAUSALRAG_API_HOST
+        value: 0.0.0.0
+      - key: CAUSALRAG_API_PORT
+        value: 8765

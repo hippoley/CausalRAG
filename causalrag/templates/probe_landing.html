@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CausalRAG · Choose a surface</title>
+<style>
+:root{--bg:#f3f1ea;--ink:#12201c;--muted:#66736e;--line:#d8d7cf;--card:#fffdf8;--green:#143f34;--mint:#d7f6e8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}
+main{max-width:1180px;margin:auto;padding:64px 28px}.eyebrow{font:11px ui-monospace,monospace;letter-spacing:.13em;color:#4f6e64}.hero{max-width:860px;margin-bottom:34px}.hero h1{font-size:58px;line-height:.96;letter-spacing:-.055em;margin:10px 0 15px}.hero p{font-size:18px;color:var(--muted);max-width:760px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:28px;min-height:340px;position:relative;transition:.18s}.card:hover{transform:translateY(-2px);box-shadow:0 14px 40px #17231f12}.tag{display:inline-block;padding:5px 8px;border-radius:999px;background:var(--mint);font:10px ui-monospace,monospace}.card h2{font-size:34px;letter-spacing:-.04em;margin:18px 0 8px}.card p{color:var(--muted);max-width:470px}.flow{margin-top:30px;font:12px ui-monospace,monospace;color:#385149}.arrow{position:absolute;right:26px;bottom:24px;font-size:28px}.dark{background:var(--green);color:white;border-color:var(--green)}.dark p,.dark .flow{color:#bbd1c9}.dark .tag{background:#255b4d;color:#eafff7}@media(max-width:760px){.grid{grid-template-columns:1fr}.hero h1{font-size:42px}}
+</style></head><body><main>
+<div class="eyebrow">CAUSALRAG · TWO SURFACES</div>
+<section class="hero"><h1>先看它真的跑一次，<br>再进入真正的工作台。</h1><p>Demo 用一个固定但真实执行的案例解释 CausalRAG 为什么有用；Workbench 是研发与操作后台，连接 live session，展示并允许干预完整 Agent 生命周期。</p></section>
+<section class="grid">
+<a class="card" href="/demo"><span class="tag">FOR FIRST-TIME EXPERIENCE</span><h2>Demo</h2><p>不用配置模型，不用理解架构。点一次运行，直接看一个 Causal Agent 如何从目标、假设、实验，到 observation、posterior 和最终评价。</p><div class="flow">Run one real case → understand the value → inspect evidence</div><span class="arrow">→</span></a>
+<a class="card dark" href="/workbench"><span class="tag">FOR REAL WORK</span><h2>Live Workbench</h2><p>输入真实任务，选择 proposer / scenario / runtime capabilities。逐步观察 Agent，并在 Human Gate 动态 approve、override、replan、补假设与发 operator message。</p><div class="flow">Goal → Agent loop → Human control → Evidence → Evaluation</div><span class="arrow">→</span></a>
+</section>
+</main></body></html>

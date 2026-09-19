@@ -28,6 +28,30 @@
       </div>
     </section>
 
+    <section class="play-lab" id="play">
+      <div class="section-copy">
+        <p class="kicker">PLAY A REAL GENERATED EPISODE</p>
+        <h2>Choose a policy. Step through what actually happened.</h2>
+        <p>This interaction replays trajectories produced by the real runtime during deployment. You can switch policies, advance one step at a time, and inspect the selected action, observation, and final outcome.</p>
+      </div>
+      <div class="play-shell">
+        <div class="play-controls">
+          <button class="play-arm active" data-play-arm="causal">Causal Runtime</button>
+          <button class="play-arm" data-play-arm="vanilla">Vanilla Loop</button>
+          <button class="reset" id="playReset">Restart episode</button>
+        </div>
+        <div class="play-progress" id="playProgress"></div>
+        <div class="play-card">
+          <div class="panel-label" id="playLabel">STEP 0</div>
+          <h3 id="playAction">Loading runtime episode…</h3>
+          <p id="playRationale"></p>
+          <div class="play-observation"><span>OBSERVATION</span><pre id="playObservation">—</pre></div>
+          <div class="play-outcome" id="playOutcome"></div>
+          <button class="primary" id="playNext">Run next step →</button>
+        </div>
+      </div>
+    </section>
+
     <section class="ab-section" id="ab">
       <div class="section-copy">
         <p class="kicker">SAME-WORLD A/B · H2 · DETERMINISTIC</p>

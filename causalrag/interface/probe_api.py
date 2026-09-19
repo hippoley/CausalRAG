@@ -54,6 +54,10 @@ class DecisionRequest(BaseModel):
     candidate_index: Optional[int] = Field(default=None, ge=0)
 
 
+class CounterfactualRequest(BaseModel):
+    candidate_index: int = Field(ge=0)
+
+
 class HumanHypothesisRequest(BaseModel):
     hypothesis_id: str = Field(min_length=1, max_length=80)
     statement: str = Field(min_length=1, max_length=1000)
@@ -155,6 +159,30 @@ def export_session(session_id: str):
     return _session(session_id).export_payload()
 
 
+@app.get("/api/sessions/{session_id}/steps/{step}")
+def get_step_context(session_id: str, step: int):
+    try:
+        return _session(session_id).step_context(step)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="step not found") from exc
+
+
+@app.post("/api/sessions/{session_id}/steps/{step}/counterfactual")
+def run_step_counterfactual(
+    session_id: str,
+    step: int,
+    payload: CounterfactualRequest,
+):
+    try:
+        return _session(session_id).run_counterfactual(step, payload.candidate_index)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="step not found") from exc
+    except (ValueError, IndexError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.get("/api/sessions/{session_id}/events")
 def session_events(session_id: str):
     session = _session(session_id)
@@ -231,7 +259,21 @@ def test_model_connection(payload: ModelTestRequest):
         }
 
 
+def _template_response(name: str) -> HTMLResponse:
+    template = Path(__file__).resolve().parents[1] / "templates" / name
+    return HTMLResponse(template.read_text(encoding="utf-8"))
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
-    template = Path(__file__).resolve().parents[1] / "templates" / "playable_probe.html"
-    return HTMLResponse(template.read_text(encoding="utf-8"))
+    return _template_response("probe_landing.html")
+
+
+@app.get("/demo", response_class=HTMLResponse)
+def demo():
+    return _template_response("probe_demo.html")
+
+
+@app.get("/workbench", response_class=HTMLResponse)
+def workbench():
+    return _template_response("playable_probe.html")

@@ -1,3 +1,40 @@
+let playableReport = null;
+let playArm = 'causal';
+let playIndex = 0;
+
+function playEpisode() {
+  return playableReport ? playableReport[playArm] : null;
+}
+
+function renderPlayableStep() {
+  const episode = playEpisode();
+  if (!episode) return;
+  const decisions = episode.decisions || [];
+  const observations = episode.observations || [];
+  const metrics = episode.metrics || {};
+  const total = decisions.length;
+  const idx = Math.min(playIndex, Math.max(0, total - 1));
+  const decision = decisions[idx] || {};
+  const selected = decision.selected || {};
+  const obs = observations[idx];
+  $('playLabel').textContent = total ? `STEP ${idx + 1} / ${total} · ${playArm.toUpperCase()}` : 'NO STEPS';
+  $('playAction').textContent = total ? `${selected.kind || 'action'} · ${selected.name || '—'}` : 'No decision trace';
+  $('playRationale').textContent = selected.rationale || decision.rationale || 'No rationale recorded.';
+  $('playObservation').textContent = obs ? JSON.stringify(obs.result ?? obs, null, 2) : 'No observation at this step.';
+  $('playProgress').innerHTML = decisions.map((_, i) => `<i class="${i < idx ? 'done' : i === idx ? 'active' : ''}"></i>`).join('');
+  const finished = playIndex >= total - 1;
+  $('playOutcome').innerHTML = finished ? `<b>FINAL</b><span>success ${metrics.success ? 'YES' : 'NO'} · regret ${Number(metrics.causal_regret || 0).toFixed(3)} · cost ${Number(metrics.total_cost || 0).toFixed(3)}</span>` : '';
+  $('playNext').textContent = finished ? 'Episode complete' : 'Run next step →';
+  $('playNext').disabled = finished;
+}
+
+function setPlayArm(arm) {
+  playArm = arm;
+  playIndex = 0;
+  document.querySelectorAll('.play-arm').forEach(b => b.classList.toggle('active', b.dataset.playArm === arm));
+  renderPlayableStep();
+}
+
 const $ = id => document.getElementById(id);
 let finished = false;
 
@@ -102,7 +139,9 @@ async function loadEvidence() {
     $('posterior').textContent = suite.mean_true_hypothesis_posterior.toFixed(3);
     $('regret').textContent = suite.mean_causal_regret.toFixed(3);
     $('probes').textContent = suite.mean_probes.toFixed(1);
+    playableReport = data.playable_ab;
     renderAB(data.playable_ab);
+    renderPlayableStep();
     $('raw').textContent = JSON.stringify({
       playable_ab: data.playable_ab,
       bayesian_experiment: data.bayesian_experiment,
@@ -118,3 +157,7 @@ async function loadEvidence() {
 document.querySelectorAll('.action').forEach(b => b.addEventListener('click', () => choose(b.dataset.action)));
 $('reset').addEventListener('click', reset);
 loadEvidence();
+
+document.querySelectorAll('.play-arm').forEach(b => b.addEventListener('click', () => setPlayArm(b.dataset.playArm)));
+$('playNext').addEventListener('click', () => { playIndex++; renderPlayableStep(); });
+$('playReset').addEventListener('click', () => { playIndex = 0; renderPlayableStep(); });
