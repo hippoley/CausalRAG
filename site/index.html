@@ -155,7 +155,45 @@
           <h3 id="decisionQuestion">如果只能做一件事，哪一步最可能改变后续决定？</h3>
         </div>
 
+        <div class="decision-origin" id="decisionOrigin">
+          <span>YOU ARE HERE</span>
+          <div id="originBelief">当前 belief 正在加载…</div>
+          <small>下面每个选项不是“答案”，而是在当前不确定性上向世界提出一个不同的问题。</small>
+        </div>
+
         <div id="candidates" class="candidate-list"></div>
+
+        <section class="choice-preview" id="choicePreview">
+          <div class="choice-preview-head">
+            <span>BEFORE YOU COMMIT</span>
+            <b id="previewTitle">先看清楚：你点这个，究竟会改变什么？</b>
+          </div>
+          <div class="choice-chain">
+            <div class="choice-chain-node before">
+              <span>现在</span>
+              <strong id="previewBefore">—</strong>
+              <small id="previewBeforeSub">当前 belief</small>
+            </div>
+            <i>→</i>
+            <div class="choice-chain-node action">
+              <span>你选择问世界</span>
+              <strong id="previewAction">—</strong>
+              <small id="previewQuestion">—</small>
+            </div>
+            <i>→</i>
+            <div class="choice-chain-node after">
+              <span>这条证据可能改变</span>
+              <strong id="previewAfter">—</strong>
+              <small id="previewAfterSub">预演，不是已发生结果</small>
+            </div>
+          </div>
+          <div class="choice-consequence">
+            <div><span>它主要在区分</span><b id="previewTargets">—</b></div>
+            <div><span>如果信息足够</span><b id="previewUnlock">—</b></div>
+            <div><span>你付出的代价</span><b id="previewCost">—</b></div>
+          </div>
+          <div class="choice-warning" id="previewWarning">选择 candidate 只是在预演。只有点击下方 Human Gate 才会真正执行。</div>
+        </section>
 
         <div class="human-gate hidden" id="humanGate">
           <div class="gate-copy">
@@ -177,6 +215,12 @@
         </div>
 
         <div class="observation-card hidden" id="observationCard">
+          <div class="observation-linkback">
+            <span>YOU CHOSE</span>
+            <b id="observationChosen">—</b>
+            <i>→</i>
+            <span>WORLD RETURNED</span>
+          </div>
           <div class="observation-top">
             <span>THE WORLD ANSWERED</span>
             <b id="observationTitle">—</b>
