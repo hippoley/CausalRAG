@@ -44,7 +44,7 @@ def test_probe_surfaces_are_separated():
     assert "TASK COMPOSER" in workbench.text
     assert "EVIDENCE & DEBUG" in workbench.text
     assert "STEP INSPECTOR" in workbench.text
-    assert "ALL CANDIDATES + RUNTIME SCORE BREAKDOWN" in workbench.text
+    assert "candidateHTML" in workbench.text
     assert "POSTERIOR UPDATE BASIS" in workbench.text
     assert "SCORE PROVENANCE" in workbench.text
     assert "WORLD SNAPSHOT · BEFORE" in workbench.text
