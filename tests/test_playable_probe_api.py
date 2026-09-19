@@ -51,6 +51,8 @@ def test_probe_surfaces_are_separated():
     assert "HUMAN / OPERATOR CONTEXT" in workbench.text
     assert "RELATED TELEMETRY" in workbench.text
     assert "COUNTERFACTUAL" in workbench.text
+    assert "Truthful one-step fork available" in workbench.text
+    assert "runCounterfactual" in workbench.text
     assert "EIG = (H(prior)" in workbench.text
     assert "EVSI = expected best value after" in workbench.text
     assert "inspectStep" in workbench.text
@@ -97,6 +99,97 @@ def test_probe_step_context_api_exposes_full_frozen_debug_state():
         raise AssertionError("session did not reach a human gate")
 
     client.post(f"/api/sessions/{session_id}/decision", json={"action": "approve"})
+
+
+def test_probe_completed_step_counterfactual_fork_is_real_and_not_frontend_simulation():
+    created = client.post(
+        "/api/sessions",
+        json={
+            "scenario": "hvac_hidden_world",
+            "hidden_hypothesis": "H2",
+            "outcome_mode": "deterministic",
+            "seed": 0,
+            "proposer_family": "deterministic",
+        },
+    )
+    assert created.status_code == 200
+    session_id = created.json()["session_id"]
+
+    first_completed_step = None
+    first_candidates = None
+    deadline = time.time() + 8.0
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        if snap["status"] == "waiting_for_human":
+            pending = snap["pending_decision"]
+            ledger = pending.get("episode_ledger") or []
+            if ledger and first_completed_step is None:
+                first_completed_step = ledger[0]["step"]
+                first_candidates = ledger[0]["candidates"]
+                break
+            approved = client.post(
+                f"/api/sessions/{session_id}/decision",
+                json={"action": "approve"},
+            )
+            assert approved.status_code == 200
+        elif snap["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.01)
+
+    assert first_completed_step is not None
+    ctx = client.get(f"/api/sessions/{session_id}/steps/{first_completed_step}")
+    assert ctx.status_code == 200
+    body = ctx.json()
+    assert body["status"] == "completed"
+    assert body["counterfactual"]["available"] is True
+
+    actual = body["selected"]
+    alternative = next(
+        row for row in first_candidates
+        if (row["name"], row["kind"]) != (actual["name"], actual["kind"])
+    )
+    forked = client.post(
+        f"/api/sessions/{session_id}/steps/{first_completed_step}/counterfactual",
+        json={"candidate_index": alternative["index"]},
+    )
+    assert forked.status_code == 200
+    fork = forked.json()
+    assert fork["available"] is True
+    assert fork["truthfulness"]["environment_rebuilt_from_same_config"] is True
+    assert fork["truthfulness"]["runtime_guards_reapplied"] is True
+    assert fork["truthfulness"]["front_end_simulation"] is False
+    assert fork["counterfactual"]["requested_candidate"]["name"] == alternative["name"]
+
+    # Release the live session if it is still waiting at a later gate.
+    snap = client.get(f"/api/sessions/{session_id}").json()
+    if snap["status"] == "waiting_for_human":
+        client.post(f"/api/sessions/{session_id}/decision", json={"action": "approve"})
+
+
+def test_probe_pending_step_prefers_live_override_over_counterfactual():
+    created = client.post(
+        "/api/sessions",
+        json={
+            "scenario": "temporal_delayed_effect",
+            "hidden_hypothesis": "H1",
+            "outcome_mode": "deterministic",
+            "proposer_family": "deterministic",
+        },
+    )
+    session_id = created.json()["session_id"]
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        if snap["status"] == "waiting_for_human":
+            step = snap["pending_decision"]["step"]
+            body = client.get(f"/api/sessions/{session_id}/steps/{step}").json()
+            assert body["counterfactual"]["available"] is False
+            assert body["counterfactual"]["replay_mode"] == "live_override_preferred"
+            client.post(f"/api/sessions/{session_id}/decision", json={"action": "approve"})
+            break
+        time.sleep(0.01)
+    else:
+        raise AssertionError("session did not reach a human gate")
 
 
 def test_probe_deterministic_no_key_run():
