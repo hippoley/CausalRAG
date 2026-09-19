@@ -21,7 +21,7 @@ from causalrag.experiments import (
 )
 
 from .runtime import ProbeRunConfig, build_probe_agent
-from .counterfactual import counterfactual_support, run_one_step_counterfactual
+from .counterfactual import counterfactual_support, run_trajectory_counterfactual
 
 
 def _jsonable(value: Any) -> Any:
@@ -857,12 +857,68 @@ class ProbeSession:
         if state is None:
             raise RuntimeError("counterfactual requires an active or completed session")
         ledger = _episode_ledger(state, self.agent.world_model, self.agent.loop.tools)
-        return run_one_step_counterfactual(
+        fork = run_trajectory_counterfactual(
             self.config,
             ledger,
             step=int(step),
             candidate_index=int(candidate_index),
         )
+        if not fork.get("available"):
+            return fork
+
+        actual_result = _jsonable(self._result) or {}
+        actual_decisions = actual_result.get("decisions") or []
+        actual_observations = actual_result.get("observations") or []
+        target_step = int(step)
+        actual_suffix = {
+            "decisions": actual_decisions[target_step:],
+            "observations": actual_observations[target_step:],
+            "metrics": actual_result.get("metrics"),
+            "answer": actual_result.get("answer"),
+            "hypotheses": actual_result.get("hypotheses") or [],
+            "open_world": actual_result.get("open_world") or {},
+        }
+        fork["actual_trajectory"] = actual_suffix
+
+        cf = fork.get("counterfactual") or {}
+        cf_decisions = cf.get("decisions") or []
+        first_divergence = None
+        width = max(len(actual_decisions), len(cf_decisions))
+        for index in range(target_step, width):
+            left = actual_decisions[index] if index < len(actual_decisions) else None
+            right = cf_decisions[index] if index < len(cf_decisions) else None
+            left_selected = None if left is None else (left.get("selected") or {})
+            right_selected = None if right is None else (right.get("selected") or {})
+            left_key = None if left_selected is None else (
+                left_selected.get("kind"),
+                left_selected.get("name"),
+                left_selected.get("arguments") or {},
+            )
+            right_key = None if right_selected is None else (
+                right_selected.get("kind"),
+                right_selected.get("name"),
+                right_selected.get("arguments") or {},
+            )
+            if left_key != right_key:
+                first_divergence = {
+                    "step": index,
+                    "actual": left_selected,
+                    "counterfactual": right_selected,
+                }
+                break
+        fork["first_future_divergence"] = first_divergence
+
+        actual_metrics = actual_result.get("metrics") or {}
+        cf_metrics = cf.get("metrics") or {}
+        metric_deltas: Dict[str, float] = {}
+        for name in sorted(set(actual_metrics).intersection(cf_metrics)):
+            left, right = actual_metrics[name], cf_metrics[name]
+            if isinstance(left, bool) and isinstance(right, bool):
+                metric_deltas[name] = float(int(right) - int(left))
+            elif isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                metric_deltas[name] = float(right) - float(left)
+        fork["metric_deltas_counterfactual_minus_actual"] = metric_deltas
+        return fork
 
     def resolve_decision(self, action: str, candidate_index: Optional[int] = None) -> None:
         self.gate.respond(action, candidate_index)
