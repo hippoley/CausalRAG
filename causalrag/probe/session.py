@@ -833,6 +833,16 @@ class ProbeSession:
             "human_hypothesis_events": _jsonable(hypothesis_events),
         }
         support = counterfactual_support(self.config)
+        if context.get("status") == "pending":
+            support = {
+                "available": False,
+                "replay_mode": "live_override_preferred",
+                "reason": (
+                    "This step has not executed yet. Use the live Human Gate to choose an "
+                    "alternative candidate or replan; a counterfactual fork would duplicate "
+                    "an action you can still take for real."
+                ),
+            }
         context["counterfactual"] = {
             **support,
             "alternatives": _jsonable(alternatives),
