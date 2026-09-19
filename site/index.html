@@ -16,94 +16,48 @@
 <main>
   <section class="hero">
     <div class="hero-copy">
-      <p class="kicker">CAUSAL AGENT · PLAY IT, DON'T WATCH IT</p>
-      <h1>不是看它答对没有。<br><em>是看世界能不能让它改信。</em></h1>
-      <p class="lede">你给一个现实问题。Agent 先押注几个原因，再决定下一条最值得购买的证据。你可以不同意它、改掉它的下一步，然后亲眼看 observation 如何重排 belief，最后从历史节点分叉另一条未来。</p>
+      <p class="kicker">PLAY THE DECISION</p>
+      <h1>选一步。<br><em>看现实怎么改掉下一步。</em></h1>
+      <p class="lede">不用先理解 EIG、EVSI 或 posterior。先做一个选择，看它带来什么证据，再看 Agent 因此改变了什么判断。</p>
       <div class="hero-actions">
-        <button class="primary hero-cta" id="jumpStart" type="button">直接玩一个案例 →</button>
-        <a class="text-link" href="#verified">先看它是不是真的</a>
+        <button class="primary hero-cta" id="jumpStart" type="button">直接开始 →</button>
+        <a class="text-link" href="#verified">技术细节放在后面</a>
       </div>
     </div>
-    <div class="hero-manifesto">
-      <span class="manifesto-index">THE IDEA</span>
-      <blockquote>“一个 Agent 真正值得信任，不是因为它解释得漂亮，而是因为现实反驳它时，它会改下一步。”</blockquote>
-      <div class="truth-row">
-        <span>Browser interaction</span><b>scenario-backed</b>
-        <span>Python evidence</span><b>CI-generated</b>
-      </div>
-    </div>
-  </section>
-
-  <section class="how-it-feels" aria-label="Experience flow">
-    <div class="flow-node"><span>01</span><b>先押原因</b><small>不是单答案</small></div>
-    <i>→</i>
-    <div class="flow-node"><span>02</span><b>买一条证据</b><small>看值不值得</small></div>
-    <i>→</i>
-    <div class="flow-node"><span>03</span><b>世界返回结果</b><small>不是模型自说自话</small></div>
-    <i>→</i>
-    <div class="flow-node"><span>04</span><b>信念必须变化</b><small>posterior update</small></div>
-    <i>→</i>
-    <div class="flow-node"><span>05</span><b>分叉另一条未来</b><small>counterfactual</small></div>
   </section>
 
   <section class="start-card" id="start">
     <div class="start-heading">
       <div>
-        <p class="kicker">START IN 10 SECONDS</p>
-        <h2>选一个“会让 Agent 犯错”的场景</h2>
-        <p>第一次玩建议直接选 CO₂。重点不是解题，而是故意在 Human Gate 跟它唱反调。</p>
+        <p class="kicker">PICK A CASE</p>
+        <h2>先玩一个具体问题</h2>
       </div>
       <button class="ghost subtle" id="resetAll" type="button">Reset</button>
     </div>
 
     <div class="scenario-grid" aria-label="Scenario presets">
-      <button class="scenario active" data-preset="hvac" type="button">
-        <span class="scenario-no">01 · START HERE</span>
-        <b>窗开了，CO₂ 还在涨</b>
-        <small>区分传感器漂移、无有效气流、回风受阻</small>
-      </button>
-      <button class="scenario" data-preset="temporal" type="button">
-        <span class="scenario-no">02 · TEMPORAL</span>
-        <b>阀门开了，流量没变</b>
-        <small>体验“太早读取”为什么不是合法证据</small>
-      </button>
-      <button class="scenario" data-preset="retrieval" type="button">
-        <span class="scenario-no">03 · AI SYSTEM</span>
-        <b>RAG 刷新后质量掉了</b>
-        <small>隔离 corpus / embedding / reranker 漂移</small>
-      </button>
-      <button class="scenario" data-preset="custom" type="button">
-        <span class="scenario-no">04 · YOUR TASK</span>
-        <b>我自己的问题</b>
-        <small>用通用因果模板跑一遍决策动线</small>
-      </button>
+      <button class="scenario active" data-preset="hvac" type="button"><span class="scenario-no">01</span><b>窗开了，CO₂ 还在涨</b><small>为什么？下一步先查什么？</small></button>
+      <button class="scenario" data-preset="temporal" type="button"><span class="scenario-no">02</span><b>阀门开了，流量没变</b><small>是真的坏了，还是你看得太早？</small></button>
+      <button class="scenario" data-preset="retrieval" type="button"><span class="scenario-no">03</span><b>RAG 刷新后质量掉了</b><small>先查 corpus、embedding 还是 reranker？</small></button>
+      <button class="scenario" data-preset="custom" type="button"><span class="scenario-no">04</span><b>我自己的问题</b><small>用通用因果模板跑一次</small></button>
     </div>
 
     <div class="goal-box">
-      <div class="goal-label">
-        <label for="goal">你要它解决什么？</label>
-        <span id="goalHint">建议保留“判断原因 + 决定下一步验证什么”</span>
-      </div>
+      <label for="goal">问题</label>
       <textarea id="goal" rows="3">卧室 CO₂ 一直升高，但窗户已经开了。判断真正原因，并决定下一步应该验证什么。</textarea>
+      <span id="goalHint" class="goal-hint">你只需要描述问题，不需要写推理过程。</span>
       <div class="start-bottom">
-        <div class="micro-proof">
-          <span>你会看到</span>
-          <b>belief → candidate → human gate → observation → posterior → fork</b>
-        </div>
-        <button class="primary large" id="startSession" type="button">进入第 1 个决策 →</button>
+        <button class="primary large" id="startSession" type="button">开始 →</button>
       </div>
     </div>
   </section>
 
   <section class="workbench hidden" id="workbench">
     <div class="session-top">
-      <div class="session-id">
-        <span class="live-dot"></span>
-        <div><strong id="sessionTitle">SESSION</strong><small id="sessionMeta">step 0</small></div>
-      </div>
+      <div class="session-id"><span class="live-dot"></span><div><strong id="sessionTitle">SESSION</strong><small id="sessionMeta">step 0</small></div></div>
       <div class="view-switch" role="group" aria-label="Information depth">
-        <button class="view-btn active" data-view="play" type="button">体验模式</button>
-        <button class="view-btn" data-view="deep" type="button">深度审计</button>
+        <button class="view-btn active" data-view="play" type="button">体验</button>
+        <button class="view-btn" data-view="deep" type="button">技术</button>
       </div>
       <div class="session-actions">
         <button class="ghost" id="exportSession" type="button">Export</button>
@@ -112,194 +66,122 @@
     </div>
 
     <div class="journey" id="journey">
-      <div class="journey-step done" data-j="0"><span>1</span><b>问题</b></div>
+      <div class="journey-step active" data-j="2"><span>1</span><b>选一步</b></div>
       <div class="journey-line"></div>
-      <div class="journey-step done" data-j="1"><span>2</span><b>信念</b></div>
+      <div class="journey-step" data-j="4"><span>2</span><b>看变化</b></div>
       <div class="journey-line"></div>
-      <div class="journey-step active" data-j="2"><span>3</span><b>下一步</b></div>
-      <div class="journey-line"></div>
-      <div class="journey-step" data-j="3"><span>4</span><b>世界反馈</b></div>
-      <div class="journey-line"></div>
-      <div class="journey-step" data-j="4"><span>5</span><b>改信</b></div>
-      <div class="journey-line"></div>
-      <div class="journey-step" data-j="5"><span>6</span><b>分叉未来</b></div>
+      <div class="journey-step" data-j="5"><span>3</span><b>回看未来</b></div>
     </div>
 
     <section class="now-card">
       <div class="now-number" id="nowNumber">01</div>
       <div class="now-copy">
-        <p class="kicker" id="stageKicker">STEP 1 · HUMAN GATE</p>
-        <h2 id="stageTitle">现在只做一件事：决定下一条证据怎么买。</h2>
-        <p id="stageSubtitle">Runtime 已经把“看起来合理”和“真的值得做”分开。你可以跟它走，也可以故意改选另一条路。</p>
+        <p class="kicker" id="stageKicker">STEP 1</p>
+        <h2 id="stageTitle">下一步先做什么？</h2>
+        <p id="stageSubtitle">选一个你认为最值得先验证的动作。</p>
       </div>
       <div class="now-stats">
-        <div><span>leading belief</span><strong id="topBelief">—</strong></div>
-        <div><span>probe budget</span><strong id="budget">3 / 3</strong></div>
-        <div><span>cost</span><strong id="cost">0.00</strong></div>
+        <div><span>当前最可能</span><strong id="topBelief">—</strong></div>
+        <div><span>剩余验证次数</span><strong id="budget">3 / 3</strong></div>
+        <div class="deep-only"><span>cost</span><strong id="cost">0.00</strong></div>
       </div>
     </section>
 
     <div class="play-grid">
       <aside class="belief-pane">
-        <div class="pane-title">
-          <div><span>WHAT IT BELIEVES</span><b>它现在押什么？</b></div>
-          <button class="tiny-link deep-only" id="addHypothesis" type="button">+ 加一个假设</button>
-        </div>
+        <div class="pane-title"><div><span>当前判断</span><b>现在它更相信什么？</b></div><button class="tiny-link deep-only" id="addHypothesis" type="button">+ 假设</button></div>
         <div id="beliefs" class="belief-list"></div>
-        <div class="belief-explainer" id="beliefExplainer">这些不是答案，而是当前可被推翻的下注。</div>
+        <div class="belief-explainer">不是结论，只是此刻的倾向。</div>
       </aside>
 
       <section class="decision-pane">
         <div class="decision-question">
-          <span id="decisionEyebrow">THE NEXT BET</span>
-          <h3 id="decisionQuestion">如果只能做一件事，哪一步最可能改变后续决定？</h3>
-        </div>
-
-        <div class="decision-origin" id="decisionOrigin">
-          <span>YOU ARE HERE</span>
-          <div id="originBelief">当前 belief 正在加载…</div>
-          <small>下面每个选项不是“答案”，而是在当前不确定性上向世界提出一个不同的问题。</small>
+          <span id="decisionEyebrow">CHOOSE ONE</span>
+          <h3 id="decisionQuestion">你想让它下一步先做什么？</h3>
         </div>
 
         <div id="candidates" class="candidate-list"></div>
 
-        <section class="choice-preview" id="choicePreview">
-          <div class="choice-preview-head">
-            <span>BEFORE YOU COMMIT</span>
-            <b id="previewTitle">先看清楚：你点这个，究竟会改变什么？</b>
-          </div>
-          <div class="choice-chain">
-            <div class="choice-chain-node before">
-              <span>现在</span>
-              <strong id="previewBefore">—</strong>
-              <small id="previewBeforeSub">当前 belief</small>
-            </div>
-            <i>→</i>
-            <div class="choice-chain-node action">
-              <span>你选择问世界</span>
-              <strong id="previewAction">—</strong>
-              <small id="previewQuestion">—</small>
-            </div>
-            <i>→</i>
-            <div class="choice-chain-node after">
-              <span>这条证据可能改变</span>
-              <strong id="previewAfter">—</strong>
-              <small id="previewAfterSub">预演，不是已发生结果</small>
-            </div>
-          </div>
-          <div class="choice-consequence">
-            <div><span>它主要在区分</span><b id="previewTargets">—</b></div>
-            <div><span>如果信息足够</span><b id="previewUnlock">—</b></div>
-            <div><span>你付出的代价</span><b id="previewCost">—</b></div>
-          </div>
-          <div class="choice-warning" id="previewWarning">选择 candidate 只是在预演。只有点击下方 Human Gate 才会真正执行。</div>
-        </section>
+        <div class="selection-summary" id="selectionSummary">
+          <span>已选</span>
+          <b id="selectionText">—</b>
+          <small id="selectionMeaning">点一个选项，看它主要想验证什么。</small>
+        </div>
 
         <div class="human-gate hidden" id="humanGate">
-          <div class="gate-copy">
-            <span>HUMAN GATE · NOTHING EXECUTED YET</span>
-            <h3>这是你改变轨迹的唯一检查点。</h3>
-            <p id="gateNarrative">跟 Runtime 走，或者选一个你更相信的 candidate。想挑战它，就直接告诉它“重新考虑什么”。</p>
-          </div>
           <div class="gate-actions">
-            <button class="primary" id="approve" type="button">跟 Runtime 走 →</button>
-            <button class="secondary" id="executeSelected" type="button">执行我选的</button>
+            <button class="primary" id="executeSelected" type="button">执行这个选择 →</button>
+            <button class="secondary deep-only" id="approve" type="button">执行 Runtime 推荐</button>
           </div>
-          <div class="challenge-box">
-            <label for="operatorMessage">不服？直接改它的注意力</label>
+          <details class="challenge-box">
+            <summary>我不同意这些选项</summary>
             <div class="operator-row">
-              <input id="operatorMessage" type="text" placeholder="例如：先别修，优先排除传感器漂移">
-              <button class="ghost" id="replan" type="button">让它重排下一步</button>
+              <input id="operatorMessage" type="text" placeholder="例如：先排除传感器问题">
+              <button class="ghost" id="replan" type="button">重新排</button>
             </div>
-          </div>
+            <p id="gateNarrative" class="muted"></p>
+          </details>
         </div>
 
         <div class="observation-card hidden" id="observationCard">
-          <div class="observation-linkback">
-            <span>YOU CHOSE</span>
-            <b id="observationChosen">—</b>
+          <div class="result-chain">
+            <div><span>你刚才做了</span><b id="observationTitle">—</b></div>
             <i>→</i>
-            <span>WORLD RETURNED</span>
+            <div><span>世界返回</span><b id="observationBody">—</b></div>
           </div>
-          <div class="observation-top">
-            <span>THE WORLD ANSWERED</span>
-            <b id="observationTitle">—</b>
+          <div class="impact-card">
+            <span>所以它改了哪里？</span>
+            <b id="impactSummary">—</b>
+            <div id="beliefChange" class="belief-change deep-only"></div>
           </div>
-          <div class="observation-quote" id="observationBody">—</div>
-          <div class="belief-change" id="beliefChange"></div>
           <div class="observation-bottom">
-            <p id="observationLesson">这条结果只有在被写回 belief 之后，才会真正改变 Agent。</p>
-            <button class="primary" id="continueBtn" type="button">让证据改变它 →</button>
+            <p id="observationLesson">下一步会从新的判断出发。</p>
+            <button class="primary" id="continueBtn" type="button">看下一步 →</button>
           </div>
         </div>
 
         <div class="final-card hidden" id="finalCard">
-          <span>TRAJECTORY COMPLETE</span>
+          <span>DONE</span>
           <h2 id="finalTitle">Decision reached</h2>
           <p id="finalText"></p>
-          <div class="final-metrics" id="finalMetrics"></div>
+          <div class="final-metrics deep-only" id="finalMetrics"></div>
           <div class="final-actions">
-            <button class="primary" id="openFork" type="button">从历史分叉另一条未来 →</button>
+            <button class="primary" id="openFork" type="button">换一个过去的选择看看 →</button>
             <button class="secondary" id="restartSame" type="button">再跑一次</button>
           </div>
         </div>
       </section>
 
-      <aside class="inspector">
-        <div class="inspector-head">
-          <div><span>WHY THIS MOVE?</span><b id="ctxSelected">—</b></div>
-          <button class="tiny-link" id="expandDeep" type="button">展开技术细节</button>
-        </div>
-        <p class="plain-why" id="ctxWhy">选择一个 candidate 后，这里会告诉你为什么它值得做。</p>
+      <aside class="inspector deep-only">
+        <div class="inspector-head"><div><span>WHY THIS MOVE?</span><b id="ctxSelected">—</b></div><button class="tiny-link" id="expandDeep" type="button">技术细节</button></div>
+        <p class="plain-why" id="ctxWhy">—</p>
         <div class="plain-score" id="plainScore"></div>
-
-        <div class="deep-zone deep-only">
+        <div class="deep-zone">
           <div class="inspector-tabs">
             <button class="tab active" data-tab="context" type="button">Score</button>
             <button class="tab" data-tab="trace" type="button">Trace</button>
             <button class="tab" data-tab="counterfactual" type="button">Fork</button>
           </div>
-          <section class="tab-panel" id="tab-context">
-            <div class="panel-label">SCORE PROVENANCE</div>
-            <div class="score-table" id="scoreTable"></div>
-            <details class="math">
-              <summary>Bayesian / EVSI math</summary>
-              <pre id="mathBody">No candidate selected yet.</pre>
-            </details>
-          </section>
-          <section class="tab-panel hidden" id="tab-trace">
-            <div class="panel-label">EXECUTION TRACE</div>
-            <div class="trace-list" id="traceList"></div>
-          </section>
-          <section class="tab-panel hidden" id="tab-counterfactual">
-            <div class="panel-label">FORK FROM A FROZEN STEP</div>
-            <p class="muted">从历史节点换一个 candidate，比较另一条未来。</p>
-            <div id="forkControls"></div>
-            <div id="forkResult"></div>
-          </section>
+          <section class="tab-panel" id="tab-context"><div class="panel-label">SCORE PROVENANCE</div><div class="score-table" id="scoreTable"></div><details class="math"><summary>Bayesian / EVSI math</summary><pre id="mathBody">No candidate selected yet.</pre></details></section>
+          <section class="tab-panel hidden" id="tab-trace"><div class="panel-label">EXECUTION TRACE</div><div class="trace-list" id="traceList"></div></section>
+          <section class="tab-panel hidden" id="tab-counterfactual"><div class="panel-label">FORK FROM A FROZEN STEP</div><div id="forkControls"></div><div id="forkResult"></div></section>
         </div>
       </aside>
     </div>
 
-    <section class="memory-strip">
-      <div class="memory-heading">
-        <div><span>DECISION MEMORY</span><b>每一步都冻结下来，之后可以反事实重跑。</b></div>
-        <small id="memoryHint">完成第一步后，这里会出现轨迹。</small>
-      </div>
+    <section class="memory-strip deep-only">
+      <div class="memory-heading"><div><span>DECISION MEMORY</span><b>历史选择</b></div><small id="memoryHint">完成第一步后出现</small></div>
       <div class="history-track" id="historyTrack"></div>
     </section>
 
-    <section class="raw-state hidden" id="rawState">
-      <div class="panel-label">RAW SESSION STATE</div>
-      <pre id="rawJson"></pre>
-    </section>
+    <section class="raw-state hidden" id="rawState"><div class="panel-label">RAW SESSION STATE</div><pre id="rawJson"></pre></section>
   </section>
 
   <section class="verified" id="verified">
     <div class="verified-copy">
-      <p class="kicker">DON'T TRUST THE UI</p>
-      <h2>上面负责让你“感受到”因果决策。<br>这里负责证明仓库不是只有一个漂亮壳。</h2>
-      <p>Pages 上的体验层是 scenario-backed browser runtime；每次发布时，GitHub Actions 仍会运行仓库里的 Python tests、HiddenWorld 与 same-world A/B，再把结果写进这页。</p>
+      <p class="kicker">TECHNICAL PROOF</p>
+      <h2>体验层保持简单，证据放在这里。</h2>
+      <p>GitHub Actions 仍会运行 Python tests、HiddenWorld 与 same-world A/B。体验模式不要求用户先读这些东西。</p>
     </div>
     <div class="metrics">
       <div class="metric"><span>Identification</span><strong id="accuracy">—</strong><small>fixed seeded suite</small></div>
@@ -307,19 +189,11 @@
       <div class="metric"><span>Causal regret</span><strong id="regret">—</strong><small>lower is better</small></div>
       <div class="metric"><span>Mean probes</span><strong id="probes">—</strong><small>before intervention</small></div>
     </div>
-    <details>
-      <summary>Open CI-generated Python runtime evidence</summary>
-      <pre id="verifiedRaw">Loading…</pre>
-    </details>
+    <details><summary>Open CI-generated Python runtime evidence</summary><pre id="verifiedRaw">Loading…</pre></details>
   </section>
 </main>
 
-<footer>
-  <span>CausalRAG</span>
-  <span>belief → decision value → human gate → world → posterior → fork</span>
-  <a href="https://github.com/hippoley/CausalRAG">Source</a>
-</footer>
-
+<footer><span>CausalRAG</span><span>choose → observe → belief changes → choose again</span><a href="https://github.com/hippoley/CausalRAG">Source</a></footer>
 <script src="app.js"></script>
 </body>
 </html>
