@@ -10,34 +10,47 @@ from .runtime import ProbeRunConfig
 from .scenarios import build_scenario_runtime, scenario_metrics
 
 
-class ScriptedForkReasoner:
-    """Replay a frozen prefix, then inject one counterfactual candidate.
+class ForkThenDelegateReasoner:
+    """Replay a frozen prefix, inject one alternative, then resume the real policy.
 
-    Runtime arbitration and temporal guards remain active. Only proposer choice
-    is scripted so the branch stays attributable to the changed decision.
+    The prefix and branch action are scripted. After the branch point, the
+    scenario's canonical deterministic reasoner resumes from the counterfactual
+    world state, so the fork can run to its natural stop condition.
     """
 
-    def __init__(self, actions: Iterable[CandidateAction]) -> None:
-        self.actions = list(actions)
+    def __init__(
+        self,
+        scripted_actions: Iterable[CandidateAction],
+        delegate: Any,
+    ) -> None:
+        self.scripted_actions = list(scripted_actions)
+        self.delegate = delegate
 
     def propose(self, state, world_model):
         index = int(state.step)
-        if index < len(self.actions):
-            return [self.actions[index]]
-        return [
-            CandidateAction(
-                kind=ActionKind.STOP,
-                name="stop",
-                arguments={"answer": "counterfactual_branch_complete"},
-                rationale="Stop after the requested one-step counterfactual branch.",
-            )
-        ]
+        if index < len(self.scripted_actions):
+            return [self.scripted_actions[index]]
+        return self.delegate.propose(state, world_model)
 
     def hypothesis_proposals(self, state, world_model):
-        return []
+        method = getattr(self.delegate, "hypothesis_proposals", None)
+        return method(state, world_model) if callable(method) else []
+
+    def discover_hypotheses(self, state, world_model, mismatch_context):
+        method = getattr(self.delegate, "discover_hypotheses", None)
+        return (
+            method(state, world_model, mismatch_context)
+            if callable(method)
+            else []
+        )
 
     def uncertainty(self, state, world_model):
-        return "counterfactual replay"
+        method = getattr(self.delegate, "uncertainty", None)
+        return (
+            method(state, world_model)
+            if callable(method)
+            else "counterfactual replay"
+        )
 
 
 def candidate_from_payload(payload: Mapping[str, Any]) -> CandidateAction:
@@ -59,6 +72,18 @@ def candidate_from_payload(payload: Mapping[str, Any]) -> CandidateAction:
 
 
 def counterfactual_support(config: ProbeRunConfig) -> Dict[str, Any]:
+    if config.proposer_family != "deterministic":
+        return {
+            "available": False,
+            "replay_mode": "unfrozen_external_proposer",
+            "paired_randomness": None,
+            "reason": (
+                "Full trajectory forks currently require proposer_family='deterministic'. "
+                "For an external LLM proposer, later model outputs are not yet frozen/shared, "
+                "so a divergent future could reflect fresh model sampling rather than only "
+                "the changed Step decision."
+            ),
+        }
     if config.outcome_mode == "deterministic":
         return {
             "available": True,
@@ -83,7 +108,7 @@ def counterfactual_support(config: ProbeRunConfig) -> Dict[str, Any]:
     }
 
 
-def run_one_step_counterfactual(
+def run_trajectory_counterfactual(
     config: ProbeRunConfig,
     ledger: list[Dict[str, Any]],
     *,
@@ -133,7 +158,6 @@ def run_one_step_counterfactual(
     scenario = build_scenario_runtime(replay_config)
     telemetry = CausalTelemetry(capture_content=False)
     kwargs: Dict[str, Any] = {
-        "reasoner": ScriptedForkReasoner(scripted),
         "world_model": scenario.world_model,
         "tools": scenario.tools,
         "capabilities": replay_config.resolved_capabilities(),
@@ -144,10 +168,14 @@ def run_one_step_counterfactual(
     if scenario.mismatch_policy is not None:
         kwargs["mismatch_policy"] = scenario.mismatch_policy
 
+    kwargs["reasoner"] = ForkThenDelegateReasoner(
+        scripted,
+        scenario.default_reasoner,
+    )
     agent = create_ablation_agent(**kwargs)
     result = agent.run(
         str(replay_config.goal or scenario.goal),
-        max_steps=max(int(step) + 2, len(scripted) + 1),
+        max_steps=int(replay_config.max_steps),
     )
     payload = result.to_dict()
     metrics = scenario_metrics(scenario.environment, result)
@@ -199,15 +227,25 @@ def run_one_step_counterfactual(
             "transition": branch_transition,
             "posterior": payload.get("hypotheses") or [],
             "stop_reason": payload.get("stop_reason"),
+            "answer": payload.get("answer"),
             "metrics": metrics,
             "trace_id": payload.get("trace_id"),
+            "decisions": payload.get("decisions") or [],
+            "observations": payload.get("observations") or [],
+            "transitions": payload.get("transitions") or [],
+            "open_world": payload.get("open_world") or {},
+            "causal_trace": payload.get("causal_trace") or [],
         },
         "posterior_delta_counterfactual_minus_actual": posterior_delta_vs_actual,
         "prefix_replayed_steps": len(prefix_rows),
+        "branch_trajectory_start_step": int(step),
+        "branch_trajectory_decision_count": len(payload.get("decisions") or []),
         "truthfulness": {
             "environment_rebuilt_from_same_config": True,
             "runtime_guards_reapplied": True,
             "prefix_actions_replayed": True,
+            "canonical_reasoner_resumed_after_branch": True,
+            "full_branch_ran_to_stop_or_budget": True,
             "front_end_simulation": False,
         },
     }
