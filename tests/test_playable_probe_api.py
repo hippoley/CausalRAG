@@ -51,7 +51,7 @@ def test_probe_surfaces_are_separated():
     assert "HUMAN / OPERATOR CONTEXT" in workbench.text
     assert "RELATED TELEMETRY" in workbench.text
     assert "COUNTERFACTUAL" in workbench.text
-    assert "Truthful one-step fork available" in workbench.text
+    assert "Truthful full-trajectory fork available" in workbench.text
     assert "runCounterfactual" in workbench.text
     assert "EIG = (H(prior)" in workbench.text
     assert "EVSI = expected best value after" in workbench.text
@@ -159,6 +159,13 @@ def test_probe_completed_step_counterfactual_fork_is_real_and_not_frontend_simul
     assert fork["truthfulness"]["runtime_guards_reapplied"] is True
     assert fork["truthfulness"]["front_end_simulation"] is False
     assert fork["counterfactual"]["requested_candidate"]["name"] == alternative["name"]
+    assert fork["truthfulness"]["canonical_reasoner_resumed_after_branch"] is True
+    assert fork["truthfulness"]["full_branch_ran_to_stop_or_budget"] is True
+    assert fork["branch_trajectory_decision_count"] >= first_completed_step + 1
+    assert "decisions" in fork["counterfactual"]
+    assert "observations" in fork["counterfactual"]
+    assert "first_future_divergence" in fork
+    assert "metric_deltas_counterfactual_minus_actual" in fork
 
     # Release the live session if it is still waiting at a later gate.
     snap = client.get(f"/api/sessions/{session_id}").json()
