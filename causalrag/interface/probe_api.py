@@ -54,6 +54,10 @@ class DecisionRequest(BaseModel):
     candidate_index: Optional[int] = Field(default=None, ge=0)
 
 
+class CounterfactualRequest(BaseModel):
+    candidate_index: int = Field(ge=0)
+
+
 class HumanHypothesisRequest(BaseModel):
     hypothesis_id: str = Field(min_length=1, max_length=80)
     statement: str = Field(min_length=1, max_length=1000)
@@ -161,6 +165,22 @@ def get_step_context(session_id: str, step: int):
         return _session(session_id).step_context(step)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="step not found") from exc
+
+
+@app.post("/api/sessions/{session_id}/steps/{step}/counterfactual")
+def run_step_counterfactual(
+    session_id: str,
+    step: int,
+    payload: CounterfactualRequest,
+):
+    try:
+        return _session(session_id).run_counterfactual(step, payload.candidate_index)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="step not found") from exc
+    except (ValueError, IndexError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/sessions/{session_id}/events")
