@@ -242,82 +242,54 @@ function renderBeliefs(){
   }).join("");
 }
 
-function beliefName(id){
-  var h=state && state.hypotheses ? state.hypotheses.find(function(x){return x.id===id;}) : null;
-  return h ? h.name : id;
+function candidateIntent(candidate){
+  var map={
+    reference_sensor:"先确认是不是传感器在骗你",
+    airflow_test:"先确认空气有没有真的穿过房间",
+    open_door:"不再继续猜，直接改变气流看 CO₂ 会不会下降",
+    door_crack:"只改门的状态，看 CO₂ 走势会不会反转",
+    exhaust_check:"先排除回风 / 排风堵塞",
+    keep_door_open:"按当前最可能原因直接干预",
+    read_now:"马上读数，但这一步可能太早",
+    wait90:"先等到读数有资格成为证据",
+    inspect_actuator:"先确认阀门到底有没有真的打开",
+    read_after:"在有效时间窗里重新读一次",
+    sensor_crosscheck:"换一个测点确认是不是传感器滞后",
+    replace_valve:"直接换执行器，代价高但反馈直接",
+    accept_delay:"把真实延迟写进控制策略",
+    centroid_shift:"先看 embedding 空间是不是整体漂了",
+    corpus_diff:"先看语料本身是不是变了",
+    reranker_off:"先把 reranker 拿掉做一次 A/B",
+    old_embed_ab:"只换 embedding，其他条件都不动",
+    reranker_trace:"只查 reranker 的分数分布",
+    rollback_embed:"直接回滚 embedding 看质量是否恢复",
+    discriminating_probe:"先找一条真正能区分几个原因的证据",
+    cheap_check:"先做一个便宜但信息有限的检查",
+    direct_action:"直接做一个可逆动作，让现实反馈",
+    confirm_probe:"专门找一条可能推翻当前判断的证据"
+  };
+  return map[candidate.id] || candidate.reason || "先做这一步，看它会不会改变当前判断";
 }
 
-function candidateDeltas(candidate){
-  var posterior=candidate && candidate.posterior ? candidate.posterior : null;
-  if(!posterior || !state) return [];
-  return state.hypotheses.map(function(h){
-    var after=posterior[h.id] == null ? h.p : posterior[h.id];
-    return {id:h.id,name:h.name,before:h.p,after:after,delta:after-h.p};
-  }).sort(function(a,b){return Math.abs(b.delta)-Math.abs(a.delta);});
+function biggestBeliefShift(before,after){
+  var best=null;
+  Object.keys(after||{}).forEach(function(id){
+    var b=Number((before||{})[id]||0),a=Number(after[id]||0),d=a-b;
+    if(!best || Math.abs(d)>Math.abs(best.delta)) best={id:id,before:b,after:a,delta:d};
+  });
+  return best;
 }
 
-function candidateTargets(candidate){
-  var d=candidateDeltas(candidate);
-  if(!d.length) return "保持当前 belief，主要改变证据资格或行动条件";
-  return d.slice(0,2).map(function(x){return x.id+" · "+x.name;}).join(" ↔ ");
-}
-
-function candidateQuestion(candidate){
-  var d=candidateDeltas(candidate);
-  if(candidate.kind==="wait") return "先不问“谁对”，而是问：什么时候读取，才有资格算证据？";
-  if(candidate.kind==="intervene") return "如果我真的改变世界，目标指标会不会按当前 leading hypothesis 的方向移动？";
-  if(d.length>=2) return "这条 evidence 能不能把 "+d[0].id+" 和 "+d[1].id+" 真正拉开？";
-  return "这条 observation 会不会改变当前 leading belief？";
-}
-
-function candidateUnlock(candidate){
-  if(candidate.kind==="wait") return "让下一条 observation 进入合法 causal window";
-  if(candidate.kind==="intervene") return "把“继续诊断”切到“让现实直接验证 / 改善”";
-  var posterior=candidate.posterior||{};
-  var max=0;
-  Object.keys(posterior).forEach(function(k){max=Math.max(max,Number(posterior[k]||0));});
-  if(max>=.8) return "若结果有区分力，下一轮可从探索转向确认或干预";
-  if(candidate.score.evsi>=.65) return "很可能重排下一轮 candidate，改变接下来做什么";
-  return "主要减少不确定性，但未必改变下一步动作";
-}
-
-function previewAfterText(candidate){
-  var d=candidateDeltas(candidate);
-  if(!d.length) return "belief 暂不变化";
-  var biggest=d[0];
-  return biggest.id+" "+Math.round(biggest.before*100)+"% → "+Math.round(biggest.after*100)+"% ("+(biggest.delta>=0?"+":"")+Math.round(biggest.delta*100)+" pts)";
-}
-
-function renderChoicePreview(){
-  if(!state) return;
+function renderSelectionSummary(){
   var candidate=selectedCandidate();
-  var top=topHypothesis();
-  $("originBelief").textContent="当前最相信 "+top.id+" · "+top.name+"（"+Math.round(top.p*100)+"%），但仍有 "+(state.hypotheses.length-1)+" 个竞争解释没有被排除。";
   if(!candidate){
-    $("previewTitle").textContent="先选一个 candidate，再看它会改变什么。";
-    $("previewBefore").textContent="—";$("previewAction").textContent="—";$("previewAfter").textContent="—";
-    $("previewQuestion").textContent="—";$("previewTargets").textContent="—";$("previewUnlock").textContent="—";$("previewCost").textContent="—";
+    $("selectionText").textContent="—";
+    $("selectionMeaning").textContent="点一个选项，看它主要想验证什么。";
     return;
   }
-  $("previewTitle").textContent=candidate.id===state.recommendedId ? "Runtime 的下注：为什么它认为这一问最值？" : "你的下注：这会把 Agent 带离 Runtime 原本的路线。";
-  $("previewBefore").textContent=top.id+" · "+Math.round(top.p*100)+"%";
-  $("previewBeforeSub").textContent=top.name;
-  $("previewAction").textContent=candidate.name;
-  $("previewQuestion").textContent=candidateQuestion(candidate);
-  $("previewAfter").textContent=previewAfterText(candidate);
-  $("previewAfterSub").textContent="这是当前 scenario 的结果预演，不是已经发生的事实";
-  $("previewTargets").textContent=candidateTargets(candidate);
-  $("previewUnlock").textContent=candidateUnlock(candidate);
-  $("previewCost").textContent=(candidate.kind==="observe"||candidate.kind==="retrieve"?"probe -1 · ":"")+"cost +"+candidate.cost.toFixed(2);
-  var runtimePick=state.candidates.find(function(x){return x.id===state.recommendedId;});
-  if(candidate.id===state.recommendedId || !runtimePick){
-    $("previewWarning").textContent="这是当前 Runtime 的基准路线。你仍然没有执行任何东西；切换到别的 candidate 后，这里会直接告诉你相对基准“放弃了什么、换来了什么”。";
-  }else{
-    var deig=candidate.score.eig-runtimePick.score.eig;
-    var devsi=candidate.score.evsi-runtimePick.score.evsi;
-    var drisk=candidate.score.risk-runtimePick.score.risk;
-    $("previewWarning").textContent="相对 Runtime pick：区分信息 "+(deig>=0?"+":"")+Math.round(deig*100)+" pts · 改变决策价值 "+(devsi>=0?"+":"")+Math.round(devsi*100)+" pts · 风险 "+(drisk>=0?"+":"")+Math.round(drisk*100)+" pts。你已经换了下注，但还没有改变世界；Human Gate 才会提交。";
-  }
+  $("selectionText").textContent=candidate.name;
+  $("selectionMeaning").textContent=candidateIntent(candidate)+"。还没执行。";
+  $("executeSelected").textContent="执行「"+candidate.name+"」 →";
 }
 
 function renderCandidates(){
@@ -330,19 +302,9 @@ function renderCandidates(){
     if(c.id===state.selectedId) cls+=" selected";
     if(c.id===state.recommendedId) cls+=" recommended";
     if(!c.valid) cls+=" invalid";
-    var info=qualitative(c.score.eig,false);
-    var decision=qualitative(c.score.evsi,false);
-    var risk=qualitative(c.score.risk,false);
-    var cost=qualitative(c.score.cost,false);
     return '<button class="'+cls+'" data-id="'+esc(c.id)+'" type="button" '+(!c.valid?'disabled':'')+'>'+
-      '<div class="candidate-top"><span class="rank">0'+(idx+1)+'</span><div class="candidate-copy"><h4>'+esc(c.name)+'</h4><p>'+esc(c.reason)+(c.valid?'':' · '+esc(c.invalidReason))+'</p><div class="candidate-link">针对当前 belief：'+esc(candidateTargets(c))+'<br><b>'+esc(candidateQuestion(c))+'</b></div></div>'+
-      (c.id===state.recommendedId?'<span class="pick-badge">RUNTIME PICK</span>':'')+'</div>'+
-      '<div class="choice-signal">'+
-        '<div class="signal '+(c.score.eig>=.7?'good':'')+'"><span>区分原因</span><b>'+info+'</b></div>'+
-        '<div class="signal '+(c.score.evsi>=.65?'good':'')+'"><span>改变决策</span><b>'+decision+'</b></div>'+
-        '<div class="signal '+(c.score.risk>.18?'warn':'')+'"><span>风险</span><b>'+risk+'</b></div>'+
-        '<div class="signal '+(c.score.cost>.18?'warn':'')+'"><span>成本</span><b>'+cost+'</b></div>'+
-      '</div>'+
+      '<div class="candidate-top"><span class="rank">0'+(idx+1)+'</span><div class="candidate-copy"><h4>'+esc(c.name)+'</h4><p>'+esc(candidateIntent(c))+'</p></div>'+
+      (c.id===state.recommendedId?'<span class="pick-badge">RECOMMENDED</span>':'')+'</div>'+
       '<div class="technical-chips deep-only"><span>EIG '+c.score.eig.toFixed(2)+'</span><span>EVSI '+c.score.evsi.toFixed(2)+'</span><span>risk '+c.score.risk.toFixed(2)+'</span><span>total '+c.score.total.toFixed(3)+'</span></div>'+
     '</button>';
   }).join("");
@@ -352,7 +314,7 @@ function renderCandidates(){
       state.selectedId=btn.getAttribute("data-id");
       renderCandidates();
       renderInspector();
-      renderChoicePreview();
+      renderSelectionSummary();
       renderGateNarrative();
     });
   });
@@ -380,10 +342,9 @@ function renderInspector(){
 function renderGateNarrative(){
   var c=selectedCandidate();
   if(!c) return;
-  var isRuntime=c.id===state.recommendedId;
-  $("gateNarrative").textContent=isRuntime
-    ? "你不是在选择“答案”，而是在同意 Runtime 用这一条 evidence 去挑战当前 belief。提交后，世界返回的 observation 才有机会把 "+candidateTargets(c)+" 拉开。"
-    : "你正在覆盖 Runtime 的下一步。提交后，真正变化的不是按钮高亮，而是“向世界问了另一个问题”，所以后面的 observation、posterior 和下一轮 candidate 都可能不同。";
+  $("gateNarrative").textContent=c.id===state.recommendedId
+    ? "这是 Runtime 当前推荐。"
+    : "你选了另一条路；执行后结果会从这条路继续。";
 }
 
 function renderTrace(){
@@ -448,17 +409,23 @@ function renderHistory(){
 function renderBeliefChange(before,after,pending){
   if(!before || !after){ $("beliefChange").innerHTML=""; return; }
   var names={}; state.hypotheses.forEach(function(h){names[h.id]=h.name;});
+  var shift=biggestBeliefShift(before,after);
+  if(shift){
+    var name=names[shift.id]||shift.id;
+    $("impactSummary").textContent=shift.id+" · "+name+"："+Math.round(shift.before*100)+"% → "+Math.round(shift.after*100)+"%";
+  }else{
+    $("impactSummary").textContent="这一步没有明显改变当前判断。";
+  }
   $("beliefChange").innerHTML=Object.keys(after).map(function(id){
     var b=before[id]||0,a=after[id]||0,d=a-b;
     return '<div class="change-row"><span class="name">'+esc(id+" · "+(names[id]||""))+'</span><strong>'+Math.round(b*100)+'%</strong><span class="arrow">→</span><strong>'+Math.round(a*100)+'%</strong><span class="delta '+(d>=0?'up':'down')+'">'+(d>=0?'+':'')+Math.round(d*100)+'</span></div>';
-  }).join("")+(pending?'<div class="muted">上面是这条 evidence 将要造成的 belief shift；点击按钮后才正式写入当前 belief。</div>':'');
+  }).join("");
 }
 
 function journeyIndex(){
-  if(!state) return 0;
+  if(!state) return 2;
   if(state.phase==="gate") return 2;
-  if(state.phase==="observation") return 3;
-  if(state.phase==="update") return 4;
+  if(state.phase==="result") return 4;
   if(state.phase==="final") return 5;
   return 2;
 }
@@ -475,50 +442,36 @@ function renderJourney(){
 function renderPhase(){
   var c=selectedCandidate();
   $("humanGate").classList.toggle("hidden",state.phase!=="gate");
-  $("observationCard").classList.toggle("hidden",state.phase!=="observation" && state.phase!=="update");
+  $("observationCard").classList.toggle("hidden",state.phase!=="result");
   $("finalCard").classList.toggle("hidden",state.phase!=="final");
   $("candidates").classList.toggle("hidden",state.phase!=="gate");
-  $("choicePreview").classList.toggle("hidden",state.phase!=="gate");
-  $("decisionOrigin").classList.toggle("hidden",state.phase!=="gate");
+  $("selectionSummary").classList.toggle("hidden",state.phase!=="gate");
   $("decisionQuestion").parentElement.classList.toggle("hidden",state.phase!=="gate");
 
   if(state.phase==="gate"){
-    $("stageKicker").textContent="STEP "+(state.step+1)+" · CHOOSE THE QUESTION";
-    $("stageTitle").textContent="你不是在选答案。你是在决定下一步向世界问什么。";
-    $("stageSubtitle").textContent="每个 candidate 都从同一个当前 belief 出发，但会购买不同的 evidence，因此可能把下一轮带向不同方向。";
-    $("decisionEyebrow").textContent="FROM CURRENT BELIEF → NEXT EVIDENCE";
-    $("decisionQuestion").textContent="先看当前还不确定什么，再选哪条证据最值得买。";
+    $("stageKicker").textContent="STEP "+(state.step+1);
+    $("stageTitle").textContent="下一步先做什么？";
+    $("stageSubtitle").textContent="选一个你认为最值得先验证的动作。";
+    $("decisionEyebrow").textContent="CHOOSE ONE";
+    $("decisionQuestion").textContent="你想让它下一步先做什么？";
     $("nowNumber").textContent=String(state.step+1).padStart(2,"0");
-  }else if(state.phase==="observation"){
-    $("stageKicker").textContent="STEP "+(state.step+1)+" · WORLD FEEDBACK";
-    $("stageTitle").textContent="你刚才的选择已经变成了一条现实 observation。";
-    $("stageSubtitle").textContent="现在把它和选择前的 belief 对照：它支持了谁、削弱了谁、有没有资格改变下一步？";
-    $("observationLesson").textContent="先看“选择前 → 世界反馈 → belief 位移”的连续关系，再决定是否写回。";
-    $("continueBtn").textContent="把这条 evidence 写回 belief →";
-    var p=state.pendingObservation;
-    if(p){
-      $("observationChosen").textContent=p.candidate.name;
-      $("observationTitle").textContent=p.candidate.name;
-      $("observationBody").textContent=p.text;
-      renderBeliefChange(p.before,p.posterior||p.before,true);
+    renderSelectionSummary();
+  }else if(state.phase==="result"){
+    var r=state.lastResult;
+    $("stageKicker").textContent="STEP "+(state.step+1)+" · RESULT";
+    $("stageTitle").textContent="这一步改变了什么？";
+    $("stageSubtitle").textContent="把刚才的选择、现实反馈和判断变化放在一起看。";
+    if(r){
+      $("observationTitle").textContent=r.candidate.name;
+      $("observationBody").textContent=r.text;
+      renderBeliefChange(r.before,r.after,false);
     }
-  }else if(state.phase==="update"){
-    $("stageKicker").textContent="STEP "+(state.step+1)+" · POSTERIOR UPDATE";
-    $("stageTitle").textContent="看见关联了吗？这一步不是“得到结果”，而是结果真的改了它下一步。";
-    $("stageSubtitle").textContent="比较选择前后的 posterior。下一轮 candidate 会基于新的 belief 重新排序，这就是这次点击真正造成的后果。";
-    $("observationLesson").textContent="belief 已写回。下一轮不再从旧世界观出发。";
-    $("continueBtn").textContent=state.shouldFinish ? "看这条轨迹最后走到哪里 →" : "看新的 belief 会生成什么下一步 →";
-    var h=state.history[state.history.length-1];
-    if(h){
-      $("observationChosen").textContent=h.chosen.name;
-      $("observationTitle").textContent=h.chosen.name;
-      $("observationBody").textContent=h.observation;
-      renderBeliefChange(h.beliefsBefore,h.posteriorAfter,false);
-    }
+    $("observationLesson").textContent=state.shouldFinish ? "这条证据已经足够进入结果。" : "下一步会从新的判断出发。";
+    $("continueBtn").textContent=state.shouldFinish ? "看结果 →" : "看下一步 →";
   }else if(state.phase==="final"){
-    $("stageKicker").textContent="TRAJECTORY COMPLETE";
-    $("stageTitle").textContent="现在回看：哪一次“选什么证据”真正改变了未来？";
-    $("stageSubtitle").textContent="从 frozen step 换一个 candidate，你会看到选择并不是按钮偏好，而是对后续 observation 与 posterior 的结构性改写。";
+    $("stageKicker").textContent="DONE";
+    $("stageTitle").textContent="这一条路走完了。";
+    $("stageSubtitle").textContent="想看选择有没有意义，换一个过去的选择再跑。";
   }
 
   if(c) renderGateNarrative();
@@ -528,14 +481,14 @@ function renderAll(){
   if(!state) return;
   var top=topHypothesis();
   $("sessionTitle").textContent=state.id+" · "+(presets[preset]?presets[preset].title:"Custom");
-  $("sessionMeta").textContent="step "+state.step+" · "+state.phase+" · "+state.history.length+" frozen";
+  $("sessionMeta").textContent="step "+state.step+" · "+state.phase;
   $("topBelief").textContent=top.id+" · "+Math.round(top.p*100)+"%";
   $("budget").textContent=state.budget+" / 3";
   $("cost").textContent=state.cost.toFixed(2);
   renderBeliefs();
   renderCandidates();
   renderInspector();
-  renderChoicePreview();
+  renderSelectionSummary();
   renderTrace();
   renderForks();
   renderHistory();
@@ -551,10 +504,10 @@ function start(){
     id:uid(),goal:goal,step:0,phase:"gate",budget:3,cost:0,view:"play",
     hypotheses:scenarioForCurrentGoal(),candidates:[],selectedId:null,recommendedId:null,
     history:[],trace:[],operatorMessage:"",startedAt:new Date().toISOString(),
-    pendingObservation:null,lastBeliefDelta:null,shouldFinish:false
+    pendingObservation:null,lastBeliefDelta:null,lastResult:null,shouldFinish:false
   };
   state.trace.push({type:"goal",label:"Goal accepted",detail:goal});
-  state.trace.push({type:"world_model",label:"Competing hypotheses initialized",detail:"Beliefs are explicit, defeasible, and must move when evidence arrives."});
+  state.trace.push({type:"world_model",label:"Competing hypotheses initialized",detail:"Beliefs are explicit and defeasible."});
   generateCandidates();
   $("workbench").classList.remove("hidden");
   $("workbench").classList.remove("view-deep");
@@ -569,11 +522,30 @@ function execute(candidate){
   var frozen=state.candidates.map(function(c){return JSON.parse(JSON.stringify(c));});
   state.cost+=candidate.cost;
   if(candidate.kind==="observe" || candidate.kind==="retrieve") state.budget=Math.max(0,state.budget-1);
-  state.pendingObservation={candidate:JSON.parse(JSON.stringify(candidate)),text:candidate.observation||"World returned an observation.",posterior:candidate.posterior,before:before,candidates:frozen};
-  state.phase="observation";
-  state.trace.push({type:"human_gate",label:candidate.id===state.recommendedId?"Runtime choice approved":"Human override accepted",detail:candidate.name});
-  state.trace.push({type:"execute",label:candidate.kind+" · "+candidate.name,detail:"Capability executed after the Human Gate."});
-  state.trace.push({type:"observe",label:"World observation",detail:state.pendingObservation.text});
+
+  applyPosterior(candidate.posterior);
+  var after=beliefSnapshot();
+  state.lastBeliefDelta={};
+  Object.keys(after).forEach(function(id){state.lastBeliefDelta[id]=(after[id]||0)-(before[id]||0);});
+
+  var observation=candidate.observation||"World returned an observation.";
+  state.history.push({
+    step:state.step,
+    topBefore:Object.keys(before).sort(function(a,b){return before[b]-before[a];})[0],
+    beliefsBefore:before,
+    candidates:frozen,
+    chosen:JSON.parse(JSON.stringify(candidate)),
+    observation:observation,
+    posteriorAfter:after
+  });
+  state.lastResult={candidate:JSON.parse(JSON.stringify(candidate)),text:observation,before:before,after:after};
+  var top=topHypothesis();
+  state.shouldFinish=candidate.kind==="intervene" || state.step>=3 || (state.budget===0 && top.p>=.70);
+  state.phase="result";
+
+  state.trace.push({type:"execute",label:candidate.kind+" · "+candidate.name,detail:"Executed after user choice."});
+  state.trace.push({type:"observe",label:"World observation",detail:observation});
+  state.trace.push({type:"belief_update",label:"Belief changed",detail:top.id+" "+Math.round(top.p*100)+"% · "+top.name});
   renderAll();
 }
 
@@ -603,6 +575,7 @@ function advanceAfterUpdate(){
   state.step+=1;
   state.phase="gate";
   state.lastBeliefDelta=null;
+  state.lastResult=null;
   state.shouldFinish=false;
   generateCandidates();
   renderAll();
@@ -613,7 +586,7 @@ function finish(){
   var top=topHypothesis();
   state.trace.push({type:"final",label:"Trajectory complete",detail:"Leading hypothesis: "+top.id+" "+Math.round(top.p*100)+"%"});
   $("finalTitle").textContent=top.id+" · "+top.name;
-  $("finalText").textContent="最终 posterior "+Math.round(top.p*100)+"%。真正值得看的不是这个答案本身，而是哪条 observation 让 belief 发生了最大位移，以及如果当时选另一条 candidate 会发生什么。";
+  $("finalText").textContent="当前判断到 "+Math.round(top.p*100)+"%。如果你想知道前面的选择有没有真的影响结果，最直接的方法是换一个历史选择再看另一条路。";
   $("finalMetrics").innerHTML='<span>steps '+state.history.length+'</span><span>cost '+state.cost.toFixed(2)+'</span><span>remaining probes '+state.budget+'</span><span>posterior '+Math.round(top.p*100)+'%</span>';
   renderAll();
 }
@@ -720,8 +693,7 @@ $("replan").addEventListener("click",replan);
 $("operatorMessage").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();replan();}});
 $("continueBtn").addEventListener("click",function(){
   if(!state)return;
-  if(state.phase==="observation")writeEvidence();
-  else if(state.phase==="update")advanceAfterUpdate();
+  if(state.phase==="result")advanceAfterUpdate();
 });
 $("addHypothesis").addEventListener("click",addHypothesis);
 $("exportSession").addEventListener("click",exportSession);
