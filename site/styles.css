@@ -172,6 +172,8 @@ textarea:focus,input:focus{border-color:#4f8b76;box-shadow:0 0 0 3px #79f2c010}
 .candidate-top{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start}
 .rank{font:700 11px ui-monospace,monospace;color:#5e7a74;padding-top:2px}
 .candidate-copy h4{margin:0;font-size:16px;line-height:1.35}.candidate-copy p{margin:6px 0 0;color:var(--muted);font-size:12px}
+.candidate-link{margin-top:9px;padding-top:8px;border-top:1px solid #1b3032;color:#8ea7a1;font-size:10px;line-height:1.45}
+.candidate-link b{color:#c9dad5;font-weight:650}
 .pick-badge{font:9px ui-monospace,monospace;color:var(--mint);border:1px solid #315d4c;border-radius:99px;padding:4px 6px;white-space:nowrap}
 .choice-signal{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
 .signal{padding:7px 8px;border-radius:8px;background:#071214;border:1px solid #162a2c}
