@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, Mapping, Optional, Tuple
 
-from causalrag.world_model.models import CausalWorldModel
+from branchpoint.world_model.models import CausalWorldModel
 
 from .models import ExperimentContract, posterior_for_outcome
 
