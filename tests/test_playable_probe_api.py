@@ -65,6 +65,7 @@ def test_probe_surfaces_are_separated():
     assert "PROPOSER AUDIT" in workbench.text
     assert "proposerMetaLine" in workbench.text
     assert "formal structured submission" in workbench.text
+    assert "MODEL PROPOSER FAILED" in workbench.text
 
 
 def test_probe_step_context_api_exposes_full_frozen_debug_state():
