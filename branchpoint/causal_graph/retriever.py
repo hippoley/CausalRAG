@@ -6,7 +6,7 @@ from typing import List, Set, Tuple
 import networkx as nx
 import numpy as np
 
-from causalrag.embeddings import cosine_similarity
+from branchpoint.embeddings import cosine_similarity
 
 logger = logging.getLogger(__name__)
 
