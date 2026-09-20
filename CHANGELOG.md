@@ -2,7 +2,7 @@
 
 ## 0.3.0 — 2026-09-16
 
-CausalRAG v0.3 moves the project from causal retrieval toward a causal decision runtime with explicit uncertainty, experiments, interventions, and behavioral evaluation.
+Branchpoint v0.3 moves the project from causal retrieval toward a causal decision runtime with explicit uncertainty, experiments, interventions, and behavioral evaluation.
 
 ### Added
 
@@ -42,5 +42,5 @@ These numbers describe that repository benchmark only. They are not general clai
 
 ### Compatibility
 
-- The legacy `CausalRAGPipeline` and one-shot RAG CLI path remain available.
+- The legacy `BranchpointPipeline` and one-shot retrieval CLI path remain available.
 - Python 3.10+ is supported by the v0.3 runtime; core CI covers Python 3.10 and 3.12.
