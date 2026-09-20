@@ -19,11 +19,19 @@ class LLMCausalReasoner:
         self.max_candidates = max_candidates
         self._last_uncertainty: Optional[str] = None
         self._last_hypotheses: List[HypothesisProposal] = []
+        self._last_structured_payload: Dict[str, Any] = {}
+        self._last_proposal_error: Optional[str] = None
 
     def propose(self, state: AgentState, world_model: CausalWorldModel) -> Sequence[CandidateAction]:
         prompt = self._build_prompt(state, world_model)
         raw = self.llm.generate(prompt, temperature=0.1, max_tokens=1800, json_mode=True)
+        self._last_proposal_error = None
+        if isinstance(raw, str) and raw.startswith("Error generating response:"):
+            self._last_proposal_error = raw[:500]
         payload = self._parse_json(raw)
+        if not payload and self._last_proposal_error is None:
+            self._last_proposal_error = "Model response was not valid structured JSON."
+        self._last_structured_payload = dict(payload)
         self._last_uncertainty = payload.get("uncertainty")
         self._last_hypotheses = self._parse_hypotheses(payload)
 
@@ -91,6 +99,21 @@ class LLMCausalReasoner:
                 )
             )
         return candidates
+
+    def proposal_metadata(self) -> Dict[str, Any]:
+        """Return the formal proposer submission received by the runtime.
+
+        This is auditable structured output, not hidden chain-of-thought.
+        """
+        return {
+            "kind": "llm",
+            "provider": str(getattr(self.llm, "provider", "unknown")),
+            "model": str(getattr(self.llm, "model", "unknown")),
+            "usage": dict(getattr(self.llm, "last_usage", {}) or {}),
+            "ok": self._last_proposal_error is None,
+            "error": self._last_proposal_error,
+            "structured_payload": dict(self._last_structured_payload),
+        }
 
     def uncertainty(self, state: AgentState, world_model: CausalWorldModel) -> Optional[str]:
         return self._last_uncertainty
