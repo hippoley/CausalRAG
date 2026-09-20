@@ -4,9 +4,9 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from causalrag.agent.actions import DecisionRecord
-from causalrag.agent.state import AgentState, Observation
-from causalrag.world_model.models import CausalWorldModel, Evidence
+from branchpoint.agent.actions import DecisionRecord
+from branchpoint.agent.state import AgentState, Observation
+from branchpoint.world_model.models import CausalWorldModel, Evidence
 
 
 @dataclass
