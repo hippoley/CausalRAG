@@ -1,5 +1,5 @@
 # interface/api.py
-# FastAPI interface for remote access to the CausalRAG pipeline
+# FastAPI interface for remote access to the Branchpoint pipeline
 
 from fastapi import FastAPI, Body, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +13,7 @@ import json
 from contextlib import asynccontextmanager
 
 # Import pipeline
-from ..pipeline import CausalRAGPipeline
+from ..pipeline import BranchpointPipeline
 from ..utils.logging import Timer, logger
 
 # Define API models
@@ -52,11 +52,11 @@ async def lifespan(app: FastAPI):
     # Setup: Load models and resources when API starts
     logger.info("API starting up - initializing resources")
     # Initialize global pipeline with config from environment
-    app.state.pipeline = CausalRAGPipeline(
-        model_name=os.getenv("CAUSALRAG_MODEL", "gpt-3.5-turbo"),
-        embedding_model=os.getenv("CAUSALRAG_EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
-        graph_path=os.getenv("CAUSALRAG_GRAPH_PATH", None),
-        index_path=os.getenv("CAUSALRAG_INDEX_PATH", None)
+    app.state.pipeline = BranchpointPipeline(
+        model_name=os.getenv("BRANCHPOINT_MODEL", "gpt-3.5-turbo"),
+        embedding_model=os.getenv("BRANCHPOINT_EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
+        graph_path=os.getenv("BRANCHPOINT_GRAPH_PATH", None),
+        index_path=os.getenv("BRANCHPOINT_INDEX_PATH", None)
     )
     app.state.start_time = time.time()
     yield
@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="CausalRAG API",
+    title="Branchpoint API",
     description="API for causal graph enhanced retrieval-augmented generation",
     version="0.1.0",
     lifespan=lifespan
@@ -74,7 +74,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CAUSALRAG_CORS_ORIGINS", "*").split(","),
+    allow_origins=os.getenv("BRANCHPOINT_CORS_ORIGINS", "*").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -113,9 +113,9 @@ def health_check():
     )
 
 @app.post("/query")
-def query_endpoint(payload: QueryRequest, pipeline: CausalRAGPipeline = Depends(get_pipeline)):
+def query_endpoint(payload: QueryRequest, pipeline: BranchpointPipeline = Depends(get_pipeline)):
     """
-    Main endpoint for querying the CausalRAG system
+    Main endpoint for querying the Branchpoint system
     
     Returns an answer generated from causal-enhanced retrieval
     """
@@ -141,11 +141,11 @@ def query_endpoint(payload: QueryRequest, pipeline: CausalRAGPipeline = Depends(
             raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/rerank")
-def rerank_endpoint(payload: RerankRequest, pipeline: CausalRAGPipeline = Depends(get_pipeline)):
+def rerank_endpoint(payload: RerankRequest, pipeline: BranchpointPipeline = Depends(get_pipeline)):
     """
     Endpoint for just reranking documents using causal path information
     
-    Useful for integration with external RAG systems
+    Useful for integration with external retrieval systems
     """
     try:
         reranked = pipeline.reranker.rerank(
@@ -170,7 +170,7 @@ def rerank_endpoint(payload: RerankRequest, pipeline: CausalRAGPipeline = Depend
 @app.post("/causal-paths")
 def causal_paths_endpoint(
     payload: CausalPathRequest, 
-    pipeline: CausalRAGPipeline = Depends(get_pipeline)
+    pipeline: BranchpointPipeline = Depends(get_pipeline)
 ):
     """
     Endpoint to retrieve relevant causal paths for a query
@@ -194,7 +194,7 @@ def causal_paths_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/index")
-def index_documents_endpoint(payload: IndexRequest, pipeline: CausalRAGPipeline = Depends(get_pipeline)):
+def index_documents_endpoint(payload: IndexRequest, pipeline: BranchpointPipeline = Depends(get_pipeline)):
     """
     Endpoint to index new documents into the system
     
@@ -224,7 +224,7 @@ def index_documents_endpoint(payload: IndexRequest, pipeline: CausalRAGPipeline 
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/stats")
-def get_stats(pipeline: CausalRAGPipeline = Depends(get_pipeline)):
+def get_stats(pipeline: BranchpointPipeline = Depends(get_pipeline)):
     """
     Get statistics about the current state of the system
     
@@ -254,7 +254,7 @@ def get_stats(pipeline: CausalRAGPipeline = Depends(get_pipeline)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/explain")
-def explain_endpoint(query: str = Body(...), document: str = Body(...), pipeline: CausalRAGPipeline = Depends(get_pipeline)):
+def explain_endpoint(query: str = Body(...), document: str = Body(...), pipeline: BranchpointPipeline = Depends(get_pipeline)):
     """
     Explain why a document is relevant to a query from a causal perspective
     
@@ -267,7 +267,7 @@ def explain_endpoint(query: str = Body(...), document: str = Body(...), pipeline
         logger.error(f"Error generating explanation: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Run with: uvicorn causalrag.interface.api:app --reload
+# Run with: uvicorn branchpoint.interface.api:app --reload
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
