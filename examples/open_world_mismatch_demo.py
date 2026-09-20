@@ -1,10 +1,10 @@
 """No-key demonstration of model mismatch -> hypothesis discovery -> validation."""
 
-from causalrag.agent import ActionKind, CandidateAction, CausalAgentLoop
-from causalrag.experiments import ExperimentContract, ModelMismatchPolicy, OutcomeLikelihood
-from causalrag.reasoning.hypothesis import HypothesisProposal
-from causalrag.tools import ToolRegistry, ToolSpec
-from causalrag.world_model import CausalWorldModel
+from branchpoint.agent import ActionKind, CandidateAction, CausalAgentLoop
+from branchpoint.experiments import ExperimentContract, ModelMismatchPolicy, OutcomeLikelihood
+from branchpoint.reasoning.hypothesis import HypothesisProposal
+from branchpoint.tools import ToolRegistry, ToolSpec
+from branchpoint.world_model import CausalWorldModel
 
 
 def contract(experiment_id, h1_rare, h2_rare):
