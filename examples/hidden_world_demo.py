@@ -4,7 +4,7 @@ Run:
     python examples/hidden_world_demo.py
 """
 
-from causalrag.benchmarks import build_hvac_hidden_world, run_hidden_world
+from branchpoint.benchmarks import build_hvac_hidden_world, run_hidden_world
 
 
 def main():
