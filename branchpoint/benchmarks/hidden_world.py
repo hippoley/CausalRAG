@@ -5,9 +5,9 @@ import random
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-from causalrag import ActionKind, CandidateAction, ToolSpec, create_agent
-from causalrag.experiments import ExperimentContract, OutcomeLikelihood
-from causalrag.world_model import CausalWorldModel
+from branchpoint import ActionKind, CandidateAction, ToolSpec, create_agent
+from branchpoint.experiments import ExperimentContract, OutcomeLikelihood
+from branchpoint.world_model import CausalWorldModel
 
 
 @dataclass(frozen=True)
