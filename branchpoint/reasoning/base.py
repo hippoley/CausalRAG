@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Optional, Protocol, Sequence
 
-from causalrag.agent.actions import CandidateAction
-from causalrag.agent.state import AgentState
-from causalrag.world_model.models import CausalWorldModel
+from branchpoint.agent.actions import CandidateAction
+from branchpoint.agent.state import AgentState
+from branchpoint.world_model.models import CausalWorldModel
 
 
 class Reasoner(Protocol):
