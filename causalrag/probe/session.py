@@ -299,6 +299,51 @@ def _score_provenance(decision: DecisionRecord, tools=None) -> Dict[str, Any]:
     return provenance
 
 
+def _hypothesis_changes(before: Dict[str, Any], after: Dict[str, Any]) -> Dict[str, Any]:
+    """Describe structural hypothesis-model changes across one completed step."""
+
+    def rows(snapshot: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        result: Dict[str, Dict[str, Any]] = {}
+        for row in snapshot.get("hypotheses") or []:
+            hypothesis_id = str(row.get("id") or row.get("hypothesis_id") or "").strip()
+            if hypothesis_id:
+                result[hypothesis_id] = row
+        return result
+
+    before_rows = rows(before)
+    after_rows = rows(after)
+    added = [
+        _jsonable(after_rows[hypothesis_id])
+        for hypothesis_id in after_rows
+        if hypothesis_id not in before_rows
+    ]
+    removed = [
+        _jsonable(before_rows[hypothesis_id])
+        for hypothesis_id in before_rows
+        if hypothesis_id not in after_rows
+    ]
+    validation_changed = []
+    for hypothesis_id in sorted(set(before_rows).intersection(after_rows)):
+        left = bool(before_rows[hypothesis_id].get("validated", True))
+        right = bool(after_rows[hypothesis_id].get("validated", True))
+        if left != right:
+            validation_changed.append(
+                {
+                    "hypothesis_id": hypothesis_id,
+                    "before": left,
+                    "after": right,
+                    "statement": after_rows[hypothesis_id].get("statement"),
+                    "origin": after_rows[hypothesis_id].get("origin"),
+                }
+            )
+    return {
+        "added": added,
+        "removed": removed,
+        "validation_changed": validation_changed,
+        "structural_change": bool(added or removed or validation_changed),
+    }
+
+
 def _episode_ledger(state, world_model: CausalWorldModel, tools=None) -> list[Dict[str, Any]]:
     """Build a human-readable ledger from canonical runtime state.
 
@@ -388,6 +433,7 @@ def _episode_ledger(state, world_model: CausalWorldModel, tools=None) -> list[Di
                 "posterior": after.get("hypotheses", []),
                 "world_after": _jsonable(after),
                 "posterior_delta": posterior_delta,
+                "hypothesis_changes": _hypothesis_changes(before, after),
             }
         )
     return ledger
