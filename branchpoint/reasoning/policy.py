@@ -3,17 +3,17 @@ from __future__ import annotations
 import math
 from typing import List, Optional, Sequence, Tuple
 
-from causalrag.agent.actions import ActionKind, ActionScore, CandidateAction
-from causalrag.agent.capabilities import RuntimeCapabilities
-from causalrag.experiments import (
+from branchpoint.agent.actions import ActionKind, ActionScore, CandidateAction
+from branchpoint.agent.capabilities import RuntimeCapabilities
+from branchpoint.experiments import (
     contract_applicable,
     expanded_experiment_contract,
     expected_information_gain,
     experiment_decision_value,
     intervention_value,
 )
-from causalrag.tools.base import ToolRegistry
-from causalrag.world_model.models import CausalWorldModel, Hypothesis
+from branchpoint.tools.base import ToolRegistry
+from branchpoint.world_model.models import CausalWorldModel, Hypothesis
 
 
 def _clamp01(value: float) -> float:
