@@ -3,16 +3,16 @@ from __future__ import annotations
 from time import perf_counter
 from typing import Any, Callable, Optional
 
-from causalrag.experiments import (
+from branchpoint.experiments import (
     ModelMismatchPolicy,
     apply_experiment_observation,
     assess_model_mismatch,
     expanded_experiment_contract,
     maybe_resolve_model_mismatch,
 )
-from causalrag.reasoning.policy import rank_actions
-from causalrag.tools.base import ToolRegistry
-from causalrag.world_model.models import CausalWorldModel, Evidence, Transition
+from branchpoint.reasoning.policy import rank_actions
+from branchpoint.tools.base import ToolRegistry
+from branchpoint.world_model.models import CausalWorldModel, Evidence, Transition
 
 from .actions import ActionKind, CandidateAction, DecisionRecord
 from .capabilities import RuntimeCapabilities
@@ -387,17 +387,17 @@ class CausalAgentLoop:
             telemetry = getattr(self.tools, "telemetry", None)
             if telemetry is not None:
                 telemetry.event(
-                    "causalrag.proposer.submitted",
+                    "branchpoint.proposer.submitted",
                     {
-                        "causalrag.step": int(state.step),
-                        "causalrag.proposer.attempt": int(attempt),
-                        "causalrag.proposer.kind": proposer_trace["kind"],
-                        "causalrag.proposer.provider": proposer_trace["provider"] or "",
-                        "causalrag.proposer.model": proposer_trace["model"] or "",
-                        "causalrag.proposer.duration_ms": proposal_duration_ms,
-                        "causalrag.proposer.ok": bool(proposer_trace["ok"]),
-                        "causalrag.proposer.candidate_count": len(candidates),
-                        "causalrag.proposer.hypothesis_count": len(hypothesis_proposals),
+                        "branchpoint.step": int(state.step),
+                        "branchpoint.proposer.attempt": int(attempt),
+                        "branchpoint.proposer.kind": proposer_trace["kind"],
+                        "branchpoint.proposer.provider": proposer_trace["provider"] or "",
+                        "branchpoint.proposer.model": proposer_trace["model"] or "",
+                        "branchpoint.proposer.duration_ms": proposal_duration_ms,
+                        "branchpoint.proposer.ok": bool(proposer_trace["ok"]),
+                        "branchpoint.proposer.candidate_count": len(candidates),
+                        "branchpoint.proposer.hypothesis_count": len(hypothesis_proposals),
                         "gen_ai.usage.input_tokens": proposer_trace["usage"].get("input_tokens", 0),
                         "gen_ai.usage.output_tokens": proposer_trace["usage"].get("output_tokens", 0),
                     },
