@@ -1,5 +1,5 @@
-from causalrag.agent import ActionKind, CandidateAction, CausalAgentLoop
-from causalrag.tools import ToolRegistry, ToolSpec
+from branchpoint.agent import ActionKind, CandidateAction, CausalAgentLoop
+from branchpoint.tools import ToolRegistry, ToolSpec
 
 
 class TwoStepReasoner:
