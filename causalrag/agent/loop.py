@@ -369,6 +369,8 @@ class CausalAgentLoop:
                 "provider": proposer_metadata.get("provider"),
                 "model": proposer_metadata.get("model"),
                 "usage": dict(proposer_metadata.get("usage") or {}),
+                "ok": proposer_metadata.get("ok", True),
+                "error": proposer_metadata.get("error") or proposer_metadata.get("audit_error"),
                 "structured_payload": proposer_metadata.get("structured_payload"),
                 "hypothesis_proposals": [
                     _hypothesis_trace_payload(item)
@@ -393,6 +395,7 @@ class CausalAgentLoop:
                         "causalrag.proposer.provider": proposer_trace["provider"] or "",
                         "causalrag.proposer.model": proposer_trace["model"] or "",
                         "causalrag.proposer.duration_ms": proposal_duration_ms,
+                        "causalrag.proposer.ok": bool(proposer_trace["ok"]),
                         "causalrag.proposer.candidate_count": len(candidates),
                         "causalrag.proposer.hypothesis_count": len(hypothesis_proposals),
                         "gen_ai.usage.input_tokens": proposer_trace["usage"].get("input_tokens", 0),
