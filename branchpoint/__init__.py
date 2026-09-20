@@ -1,13 +1,13 @@
-"""CausalRAG: causal world models for goal-directed agents.
+"""Branchpoint: causal world models for goal-directed agents.
 
-The default import exposes the lightweight causal-agent runtime. Legacy RAG,
+The default import exposes the lightweight causal-agent runtime. Legacy retrieval,
 graph and evaluation surfaces are loaded only when explicitly requested.
 """
 
 import logging
 
 __version__ = "0.3.0"
-__author__ = "CausalRAG Team"
+__author__ = "Branchpoint Team"
 
 from .agent import (
     ActionKind,
@@ -56,36 +56,36 @@ def __getattr__(name):
         try:
             from .evaluation.evaluator import CausalEvaluator, EvaluationResult
         except (ImportError, ModuleNotFoundError) as exc:
-            raise RuntimeError("Evaluation requires optional dependencies. Install them with: pip install 'causalrag[evaluation]'") from exc
+            raise RuntimeError("Evaluation requires optional dependencies. Install them with: pip install 'branchpoint[evaluation]'") from exc
         return {"CausalEvaluator": CausalEvaluator, "EvaluationResult": EvaluationResult}[name]
-    if name == "CausalRAGPipeline":
+    if name == "BranchpointPipeline":
         try:
-            from .pipeline import CausalRAGPipeline
+            from .pipeline import BranchpointPipeline
         except (ImportError, ModuleNotFoundError) as exc:
-            raise RuntimeError("CausalRAGPipeline requires optional RAG dependencies. Install them with: pip install 'causalrag[rag]'") from exc
-        return CausalRAGPipeline
+            raise RuntimeError("BranchpointPipeline requires optional retrieval dependencies. Install them with: pip install 'branchpoint[retrieval]'") from exc
+        return BranchpointPipeline
     if name == "CausalGraphBuilder":
         try:
             from .causal_graph.builder import CausalGraphBuilder
         except (ImportError, ModuleNotFoundError) as exc:
-            raise RuntimeError("CausalGraphBuilder requires optional RAG dependencies. Install them with: pip install 'causalrag[rag]'") from exc
+            raise RuntimeError("CausalGraphBuilder requires optional retrieval dependencies. Install them with: pip install 'branchpoint[retrieval]'") from exc
         return CausalGraphBuilder
     if name == "CausalPathRetriever":
         try:
             from .causal_graph.retriever import CausalPathRetriever
         except (ImportError, ModuleNotFoundError) as exc:
-            raise RuntimeError("CausalPathRetriever requires optional RAG dependencies. Install them with: pip install 'causalrag[rag]'") from exc
+            raise RuntimeError("CausalPathRetriever requires optional retrieval dependencies. Install them with: pip install 'branchpoint[retrieval]'") from exc
         return CausalPathRetriever
-    raise AttributeError("module 'causalrag' has no attribute %r" % name)
+    raise AttributeError("module 'branchpoint' has no attribute %r" % name)
 
 
 def create_pipeline(model_name="gpt-5.6-terra", embedding_model="text-embedding-3-small", graph_path=None, index_path=None, config_path=None, provider="openai", api_key=None, extractor_method="rule", embedding_provider_name=None, embedding_api_key=None, embedding_provider=None, vector_backend="memory"):
-    """Create the legacy one-shot RAG pipeline on demand."""
+    """Create the legacy one-shot retrieval pipeline on demand."""
     try:
-        from .pipeline import CausalRAGPipeline
+        from .pipeline import BranchpointPipeline
     except (ImportError, ModuleNotFoundError) as exc:
-        raise RuntimeError("The legacy RAG pipeline requires optional dependencies. Install them with: pip install 'causalrag[rag]'" ) from exc
-    return CausalRAGPipeline(
+        raise RuntimeError("The legacy retrieval pipeline requires optional dependencies. Install them with: pip install 'branchpoint[retrieval]'" ) from exc
+    return BranchpointPipeline(
         model_name=model_name,
         embedding_model=embedding_model,
         graph_path=graph_path,
