@@ -1,12 +1,12 @@
 # retriever/base.py
-# Base class and interfaces for CausalRAG retrievers
+# Base class and interfaces for Branchpoint retrievers
 
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Union, Tuple
 
 
 class BaseRetriever(ABC):
-    """Base class for all retrieval components in CausalRAG"""
+    """Base class for all retrieval components in Branchpoint"""
     
     def __init__(self, **kwargs):
         """
