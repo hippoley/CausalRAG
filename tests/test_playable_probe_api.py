@@ -61,6 +61,10 @@ def test_probe_surfaces_are_separated():
     assert "Challenge scenario" in workbench.text
     assert 'id="scenario"' in workbench.text
     assert "scenario:$('scenario').value" in workbench.text
+    assert "Test live model" in workbench.text
+    assert "PROPOSER AUDIT" in workbench.text
+    assert "proposerMetaLine" in workbench.text
+    assert "formal structured submission" in workbench.text
 
 
 def test_probe_step_context_api_exposes_full_frozen_debug_state():
@@ -238,6 +242,9 @@ def test_probe_interactive_session_api_pauses_and_accepts_human_decisions():
             saw_gate = True
             pending = snap["pending_decision"]
             assert pending["runtime_selected"]["name"]
+            assert pending["proposer"]["kind"] == "deterministic"
+            assert pending["proposer"]["attempt"] >= 1
+            assert pending["proposer_attempts"]
             approved = client.post(
                 f"/api/sessions/{session_id}/decision",
                 json={"action": "approve"},
@@ -536,3 +543,6 @@ def test_probe_session_export_api_returns_replay_schema_and_ledger():
     assert all("candidates" in row and "action_scores" in row for row in body["episode_ledger"])
     assert all("world_before" in row and "world_after" in row for row in body["episode_ledger"])
     assert all("score_provenance" in row for row in body["episode_ledger"])
+    assert all("proposer" in row and "proposer_attempts" in row for row in body["episode_ledger"])
+    assert body["proposer_traces"]
+    assert all(row["kind"] == "deterministic" for row in body["proposer_traces"])
