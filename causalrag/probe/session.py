@@ -307,6 +307,7 @@ def _episode_ledger(state, world_model: CausalWorldModel, tools=None) -> list[Di
     """
     ledger: list[Dict[str, Any]] = []
     human_history = list(state.scratch.get("human_gate_history", []))
+    proposer_history = list(state.scratch.get("proposer_traces", []))
     current_snapshot = world_model.snapshot()
 
     transition_cursor = 0
@@ -359,10 +360,18 @@ def _episode_ledger(state, world_model: CausalWorldModel, tools=None) -> list[Di
             ),
             None,
         )
+        proposer_attempts = [
+            row
+            for row in proposer_history
+            if int(row.get("step", -1)) == int(decision.step)
+        ]
+        effective_proposer = proposer_attempts[-1] if proposer_attempts else None
         ledger.append(
             {
                 "step": int(decision.step),
                 "uncertainty": decision.uncertainty,
+                "proposer": _jsonable(effective_proposer),
+                "proposer_attempts": _jsonable(proposer_attempts),
                 "prior": before.get("hypotheses", []),
                 "world_before": _jsonable(before),
                 "candidates": [
@@ -427,6 +436,14 @@ class InteractiveDecisionGate:
             "step": int(state.step),
             "uncertainty": decision.uncertainty,
             "runtime_selected": _candidate_payload(decision.selected, -1),
+            "proposer": _jsonable(state.scratch.get("last_proposer_trace")),
+            "proposer_attempts": _jsonable(
+                [
+                    row
+                    for row in state.scratch.get("proposer_traces", [])
+                    if int(row.get("step", -1)) == int(state.step)
+                ]
+            ),
             "hypothesis_proposals": _jsonable(
                 state.scratch.get("last_hypothesis_proposals", [])
             ),
@@ -673,6 +690,7 @@ class ProbeSession:
                 "transitions": payload["transitions"],
                 "causal_trace": payload["causal_trace"],
                 "runtime_capabilities": self.capabilities.to_dict(),
+                "proposer_traces": _jsonable(result.state.scratch.get("proposer_traces", [])),
                 "episode_ledger": _episode_ledger(result.state, result.world_model, self.agent.loop.tools),
             }
             with self._lock:
@@ -744,6 +762,7 @@ class ProbeSession:
             "config": self.config.to_dict(),
             "goal": self.goal,
             "runtime_capabilities": self.capabilities.to_dict(),
+            "proposer_traces": _jsonable(scratch.get("proposer_traces", [])),
             "pending_decision": self.gate.pending(),
             "world_model": _jsonable(self.agent.world_model.snapshot()),
             "episode_ledger": _jsonable(ledger),
