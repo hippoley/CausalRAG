@@ -46,6 +46,8 @@ def test_probe_surfaces_are_separated():
     assert "Safe Auto evidence" in workbench.text
     assert "Capability pack" in workbench.text
     assert "scenarioSpec" in workbench.text
+    assert "new EventSource('/api/sessions/'" in workbench.text
+    assert "phaseFromTrace" in workbench.text
     assert "WORLD MODEL CHANGED" in workbench.text
     assert "applyLaunchParams" in workbench.text
     assert "Test live model" in workbench.text
