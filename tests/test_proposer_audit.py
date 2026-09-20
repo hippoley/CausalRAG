@@ -115,7 +115,7 @@ def test_agent_loop_records_provider_model_latency_tokens_and_submission_event()
     assert trace["candidates"][0]["name"] == "measure_filter"
     assert trace["hypothesis_proposals"][0]["id"] == "H1"
 
-    events = [row.to_dict() for row in registry.telemetry.records()]
+    events = list(registry.telemetry.records())
     submitted = [row for row in events if row["name"] == "causalrag.proposer.submitted"]
     assert submitted
     assert submitted[0]["attributes"]["causalrag.proposer.model"] == "fake-frontier"
