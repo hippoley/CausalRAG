@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from causalrag.world_model.models import CausalWorldModel, ModelMismatch
+from branchpoint.world_model.models import CausalWorldModel, ModelMismatch
 
 from .models import ExperimentContract, outcome_surprisal, predictive_probability
 
