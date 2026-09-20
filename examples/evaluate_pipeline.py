@@ -1,11 +1,11 @@
 # examples/evaluate_pipeline.py
 """
-Example script to evaluate CausalRAG pipeline using Ragas and custom metrics
+Example script to evaluate Branchpoint pipeline using Ragas and custom metrics
 """
 
-from causalrag import CausalRAGPipeline
-from causalrag.evaluation.evaluator import CausalEvaluator
-from causalrag.generator.llm_interface import LLMInterface
+from branchpoint import BranchpointPipeline
+from branchpoint.evaluation.evaluator import CausalEvaluator
+from branchpoint.generator.llm_interface import LLMInterface
 import json
 import logging
 import argparse
@@ -24,9 +24,9 @@ def main(args):
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    # Initialize CausalRAG pipeline
+    # Initialize Branchpoint pipeline
     logging.info("Initializing pipeline...")
-    pipeline = CausalRAGPipeline(
+    pipeline = BranchpointPipeline(
         model_name=args.model_name,
         embedding_model=args.embedding_model
     )
@@ -76,7 +76,7 @@ def main(args):
     logging.info(f"Detailed results saved to {results_dir}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate CausalRAG pipeline")
+    parser = argparse.ArgumentParser(description="Evaluate Branchpoint pipeline")
     parser.add_argument("--eval-data", required=True, help="Path to evaluation dataset JSON")
     parser.add_argument("--output-dir", default="./eval_results", help="Directory to save results")
     parser.add_argument("--model-name", default="gpt-4", help="LLM model for pipeline")
