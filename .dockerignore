@@ -36,7 +36,7 @@ ENV/
 *.swo
 
 # Project specific
-causalrag_index/
+branchpoint_index/
 .env
 logs/
 *.log
