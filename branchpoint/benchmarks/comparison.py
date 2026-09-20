@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Sequence, Tuple
 
-from causalrag import create_agent
-from causalrag.experiments import InterventionContract
+from branchpoint import create_agent
+from branchpoint.experiments import InterventionContract
 
 from .hidden_world import (
     HiddenWorldEnvironment,
