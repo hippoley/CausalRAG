@@ -1,4 +1,4 @@
-from causalrag.observability import CausalTelemetry
+from branchpoint.observability import CausalTelemetry
 
 
 def test_live_subscriber_receives_records_in_creation_order():
