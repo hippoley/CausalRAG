@@ -15,10 +15,10 @@ def __getattr__(name):
         except (ImportError, ModuleNotFoundError) as exc:
             raise RuntimeError(
                 "Graph visualization requires optional visualization dependencies. "
-                "Install them with: pip install 'causalrag[visualization]'"
+                "Install them with: pip install 'branchpoint[visualization]'"
             ) from exc
         return CausalGraphExplainer
-    raise AttributeError("module 'causalrag.causal_graph' has no attribute %r" % name)
+    raise AttributeError("module 'branchpoint.causal_graph' has no attribute %r" % name)
 
 
 __all__ = ["CausalGraphBuilder", "CausalPathRetriever"]
