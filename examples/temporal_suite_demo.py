@@ -1,6 +1,6 @@
 import json
 
-from causalrag.benchmarks import compare_temporal_suite
+from branchpoint.benchmarks import compare_temporal_suite
 
 
 if __name__ == "__main__":
