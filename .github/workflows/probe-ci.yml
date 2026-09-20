@@ -39,6 +39,7 @@ on:
       - 'site/**'
       - 'scripts/build_pages.py'
       - 'Dockerfile'
+      - 'render.yaml'
       - 'README.MD'
       - '.env.example'
       - 'tests/test_playable_probe.py'
