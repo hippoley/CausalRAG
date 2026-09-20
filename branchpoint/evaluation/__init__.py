@@ -1,4 +1,4 @@
-"""Evaluation utilities for CausalRAG."""
+"""Evaluation utilities for Branchpoint."""
 
 from .evaluator import CausalEvaluator, EvaluationResult
 
