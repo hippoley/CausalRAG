@@ -4,7 +4,7 @@ Run:
     python examples/hypothesis_falsification_demo.py
 """
 
-from causalrag import (
+from branchpoint import (
     ActionKind,
     CandidateAction,
     Evidence,
