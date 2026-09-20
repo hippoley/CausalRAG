@@ -1,5 +1,5 @@
 # evaluation/evaluator.py
-# Comprehensive evaluation module for CausalRAG using Ragas framework with causal extensions
+# Comprehensive evaluation module for Branchpoint using Ragas framework with causal extensions
 
 import os
 import json
@@ -32,7 +32,7 @@ try:
 except ImportError:
     try:
         # Alternative import path
-        from causalrag.generator.llm_interface import LLMInterface
+        from branchpoint.generator.llm_interface import LLMInterface
     except ImportError:
         # Handle case where module is used standalone
         LLMInterface = None
@@ -48,7 +48,7 @@ class EvaluationResult:
     raw_evaluations: Optional[Dict[str, Any]] = None
 
 class CausalEvaluator:
-    """Evaluates RAG pipeline with focus on causal reasoning capabilities"""
+    """Evaluates retrieval pipeline with focus on causal reasoning capabilities"""
     
     def __init__(self, 
                 llm_interface=None, 
@@ -487,7 +487,7 @@ Overall rating:"""
             # Create summary report as markdown
             report_file = self.results_dir / f"evaluation_report_{timestamp}.md"
             with open(report_file, 'w') as f:
-                f.write(f"# CausalRAG Evaluation Report\n\n")
+                f.write(f"# Branchpoint Evaluation Report\n\n")
                 f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
                 
                 f.write("## Metrics Summary\n\n")
@@ -520,10 +520,10 @@ Overall rating:"""
                          llm_interface = None,
                          results_dir: Optional[str] = None) -> EvaluationResult:
         """
-        Convenience method to evaluate a complete CausalRAG pipeline
+        Convenience method to evaluate a complete Branchpoint pipeline
         
         Args:
-            pipeline: CausalRAG pipeline to evaluate
+            pipeline: Branchpoint pipeline to evaluate
             eval_data: List of evaluation examples (each with 'question' and optionally 'ground_truth')
             metrics: List of metrics to compute
             llm_interface: LLM interface for critique-based evaluation
