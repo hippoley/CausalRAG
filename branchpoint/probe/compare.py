@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Dict, Optional, Tuple
 
-from causalrag.agent import RuntimeCapabilities
-from causalrag.generator.llm_interface import LLMInterface
+from branchpoint.agent import RuntimeCapabilities
+from branchpoint.generator.llm_interface import LLMInterface
 
 from .runtime import ProbeRunConfig, run_probe_episode
 
@@ -49,12 +49,12 @@ class MemoizedLLM:
             self.last_usage = {}
             if self.telemetry is not None:
                 self.telemetry.event(
-                    "causalrag.llm.memoized_replay",
+                    "branchpoint.llm.memoized_replay",
                     {
-                        "causalrag.ab.arm": self.arm,
+                        "branchpoint.ab.arm": self.arm,
                         "gen_ai.request.model": self.model,
                         "gen_ai.provider.name": self.provider,
-                        "causalrag.llm.prompt_characters": len(prompt),
+                        "branchpoint.llm.prompt_characters": len(prompt),
                     },
                 )
             return self.memo.values[key]
