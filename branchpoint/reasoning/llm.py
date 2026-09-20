@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional, Sequence
 
-from causalrag.agent.actions import ActionKind, CandidateAction
-from causalrag.agent.state import AgentState
-from causalrag.reasoning.hypothesis import HypothesisProposal
-from causalrag.tools.base import ToolRegistry
-from causalrag.world_model.models import CausalWorldModel
+from branchpoint.agent.actions import ActionKind, CandidateAction
+from branchpoint.agent.state import AgentState
+from branchpoint.reasoning.hypothesis import HypothesisProposal
+from branchpoint.tools.base import ToolRegistry
+from branchpoint.world_model.models import CausalWorldModel
 
 
 class LLMCausalReasoner:
