@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Dict, List
 
-from causalrag.agent import RuntimeCapabilities
-from causalrag.generator.llm_interface import LLMInterface
+from branchpoint.agent import RuntimeCapabilities
+from branchpoint.generator.llm_interface import LLMInterface
 
 from .compare import MemoizedLLM, SharedPromptMemo
 from .runtime import ProbeRunConfig, _resolve_model, run_probe_episode
