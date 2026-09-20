@@ -1,6 +1,6 @@
 import pytest
 
-from causalrag.benchmarks import (
+from branchpoint.benchmarks import (
     build_hvac_hidden_world,
     run_hidden_world,
     run_hidden_world_suite,
