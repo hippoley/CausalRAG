@@ -4,13 +4,13 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from causalrag.agent.temporal import TemporalEffectContract
-    from causalrag.experiments import (
+    from branchpoint.agent.temporal import TemporalEffectContract
+    from branchpoint.experiments import (
         DecisionPreferences,
         ExperimentContract,
         InterventionContract,
     )
-    from causalrag.observability import CausalTelemetry
+    from branchpoint.observability import CausalTelemetry
 
 
 @dataclass
@@ -64,17 +64,17 @@ class ToolRegistry:
         attributes: Dict[str, Any] = {
             "gen_ai.operation.name": "execute_tool",
             "gen_ai.tool.name": tool.name,
-            "causalrag.tool.kind": tool.metadata.get("kind", "tool"),
-            "causalrag.tool.cost": float(tool.cost),
-            "causalrag.tool.risk": float(tool.risk),
-            "causalrag.tool.reversible": bool(tool.reversible),
-            "causalrag.tool.argument_names": sorted(str(key) for key in arguments),
+            "branchpoint.tool.kind": tool.metadata.get("kind", "tool"),
+            "branchpoint.tool.cost": float(tool.cost),
+            "branchpoint.tool.risk": float(tool.risk),
+            "branchpoint.tool.reversible": bool(tool.reversible),
+            "branchpoint.tool.argument_names": sorted(str(key) for key in arguments),
         }
         if self.telemetry.capture_content:
-            attributes["causalrag.tool.arguments"] = dict(arguments)
+            attributes["branchpoint.tool.arguments"] = dict(arguments)
 
         with self.telemetry.span(f"execute_tool {tool.name}", attributes) as span:
             result = tool.handler(**arguments)
             if self.telemetry.capture_content:
-                span.set_attribute("causalrag.tool.result", result)
+                span.set_attribute("branchpoint.tool.result", result)
             return result
