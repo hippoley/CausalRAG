@@ -1,9 +1,9 @@
 import pytest
 
-from causalrag.agent import ActionKind, CandidateAction
-from causalrag.benchmarks import build_hvac_hidden_world, run_hidden_world
-from causalrag.reasoning.policy import score_action
-from causalrag.tools import ToolRegistry, ToolSpec
+from branchpoint.agent import ActionKind, CandidateAction
+from branchpoint.benchmarks import build_hvac_hidden_world, run_hidden_world
+from branchpoint.reasoning.policy import score_action
+from branchpoint.tools import ToolRegistry, ToolSpec
 
 
 @pytest.mark.parametrize("hidden", ["H1", "H2", "H3"])
