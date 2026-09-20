@@ -1,13 +1,13 @@
 import json
 
-from causalrag.agent.actions import ActionKind, CandidateAction, DecisionRecord
-from causalrag.agent.loop import CausalAgentLoop
-from causalrag.agent.runtime import AgentRunResult, CausalAgent
-from causalrag.agent.state import AgentState, Observation
-from causalrag.reasoning.belief import LLMBeliefUpdater
-from causalrag.reasoning.llm import LLMCausalReasoner
-from causalrag.tools.base import ToolRegistry, ToolSpec
-from causalrag.world_model.models import CausalWorldModel
+from branchpoint.agent.actions import ActionKind, CandidateAction, DecisionRecord
+from branchpoint.agent.loop import CausalAgentLoop
+from branchpoint.agent.runtime import AgentRunResult, CausalAgent
+from branchpoint.agent.state import AgentState, Observation
+from branchpoint.reasoning.belief import LLMBeliefUpdater
+from branchpoint.reasoning.llm import LLMCausalReasoner
+from branchpoint.tools.base import ToolRegistry, ToolSpec
+from branchpoint.world_model.models import CausalWorldModel
 
 
 class FakeLLM:
