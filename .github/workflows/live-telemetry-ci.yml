@@ -3,14 +3,14 @@ name: live-telemetry-ci
 on:
   pull_request:
     paths:
-      - 'causalrag/observability/**'
+      - 'branchpoint/observability/**'
       - 'tests/test_live_telemetry.py'
       - 'tests/test_observability.py'
       - '.github/workflows/live-telemetry-ci.yml'
   push:
     branches: [main]
     paths:
-      - 'causalrag/observability/**'
+      - 'branchpoint/observability/**'
       - 'tests/test_live_telemetry.py'
 
 jobs:
