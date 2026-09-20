@@ -6,7 +6,7 @@ on:
     branches:
       - feature/boptest-environment-v05-rebased
     paths:
-      - causalrag/environments/**
+      - branchpoint/environments/**
       - examples/boptest_live_smoke.py
       - .github/workflows/boptest-live.yml
 
