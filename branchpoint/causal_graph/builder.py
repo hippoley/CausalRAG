@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import networkx as nx
 import numpy as np
 
-from causalrag.embeddings import EmbeddingProvider, cosine_similarity, create_embedding_provider
+from branchpoint.embeddings import EmbeddingProvider, cosine_similarity, create_embedding_provider
 
 logger = logging.getLogger(__name__)
 
