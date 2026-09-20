@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional
 
-from causalrag.agent.capabilities import RuntimeCapabilities
+from branchpoint.agent.capabilities import RuntimeCapabilities
 
 
 @dataclass(frozen=True)
