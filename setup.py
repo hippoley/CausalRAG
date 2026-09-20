@@ -5,7 +5,7 @@ import os
 import re
 from setuptools import find_packages, setup
 
-with open(os.path.join("causalrag", "__init__.py"), "r", encoding="utf-8") as f:
+with open(os.path.join("branchpoint", "__init__.py"), "r", encoding="utf-8") as f:
     version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", f.read(), re.M)
     version = version_match.group(1) if version_match else "0.3.0"
 
@@ -17,9 +17,9 @@ core_requirements = [
     "python-dotenv>=0.19.0",
 ]
 
-# Hosted embeddings + in-memory cosine search are the default RAG path.
+# Hosted embeddings + in-memory cosine search are the default retrieval path.
 # Local neural embeddings and FAISS are intentionally separate extras.
-rag_requirements = [
+retrieval_requirements = [
     "numpy>=1.20.0",
     "networkx>=2.6.0",
     "jinja2>=3.0.0",
@@ -40,7 +40,7 @@ observability_requirements = [
 ]
 
 extra_requirements = {
-    "rag": rag_requirements,
+    "retrieval": retrieval_requirements,
     "local-embeddings": ["sentence-transformers>=2.2.0"],
     "faiss": ["faiss-cpu>=1.7.0"],
     "api": api_requirements,
@@ -69,19 +69,19 @@ extra_requirements["full"] = sorted(
 )
 
 setup(
-    name="causalrag",
+    name="branchpoint",
     version=version,
     description="Causal world models and goal-directed agent runtime",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="CausalRAG Team",
-    url="https://github.com/hippoley/CausalRAG",
-    packages=find_packages(include=["causalrag", "causalrag.*"]),
+    author="Branchpoint Team",
+    url="https://github.com/hippoley/Branchpoint",
+    packages=find_packages(include=["branchpoint", "branchpoint.*"]),
     include_package_data=True,
     python_requires=">=3.10",
     install_requires=core_requirements,
     extras_require=extra_requirements,
-    entry_points={"console_scripts": ["causalrag=causalrag.cli:main"]},
+    entry_points={"console_scripts": ["branchpoint=branchpoint.cli:main"]},
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -93,10 +93,10 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    keywords="causal agent world-model rag intervention reasoning",
+    keywords="causal agent world-model retrieval intervention reasoning",
     project_urls={
-        "Documentation": "https://github.com/hippoley/CausalRAG",
-        "Source": "https://github.com/hippoley/CausalRAG",
-        "Tracker": "https://github.com/hippoley/CausalRAG/issues",
+        "Documentation": "https://github.com/hippoley/Branchpoint",
+        "Source": "https://github.com/hippoley/Branchpoint",
+        "Tracker": "https://github.com/hippoley/Branchpoint/issues",
     },
 )
