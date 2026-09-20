@@ -10,10 +10,10 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from causalrag import __version__
-from causalrag.agent import RuntimeCapabilities
-from causalrag.generator.llm_interface import LLMInterface
-from causalrag.probe import (
+from branchpoint import __version__
+from branchpoint.agent import RuntimeCapabilities
+from branchpoint.generator.llm_interface import LLMInterface
+from branchpoint.probe import (
     ProbeRunConfig,
     SESSION_MANAGER,
     available_probe_config,
@@ -25,7 +25,7 @@ from causalrag.probe import (
 
 
 app = FastAPI(
-    title="CausalRAG Playable Probe",
+    title="Branchpoint Playable Probe",
     description="Human-in-the-loop research probe for causal-runtime and proposer-model ablations.",
     version=__version__,
 )
@@ -81,7 +81,7 @@ class AccessRequest(BaseModel):
     token: str = Field(min_length=1, max_length=500)
 
 
-_AUTH_COOKIE = "causalrag_probe_access"
+_AUTH_COOKIE = "branchpoint_probe_access"
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -90,15 +90,15 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 
 def _auth_required() -> bool:
-    return _env_flag("CAUSALRAG_REQUIRE_PROBE_AUTH", False)
+    return _env_flag("BRANCHPOINT_REQUIRE_PROBE_AUTH", False)
 
 
 def _access_token() -> str:
-    return str(os.getenv("CAUSALRAG_PROBE_ACCESS_TOKEN", "")).strip()
+    return str(os.getenv("BRANCHPOINT_PROBE_ACCESS_TOKEN", "")).strip()
 
 
 def _session_credential(token: str) -> str:
-    return hashlib.sha256(("causalrag-probe-session:" + token).encode("utf-8")).hexdigest()
+    return hashlib.sha256(("branchpoint-probe-session:" + token).encode("utf-8")).hexdigest()
 
 
 def _authenticated(request: Request) -> bool:
@@ -127,7 +127,7 @@ def _require_auth(request: Request) -> None:
     if not _access_token():
         raise HTTPException(
             status_code=503,
-            detail="Probe auth is required but CAUSALRAG_PROBE_ACCESS_TOKEN is not configured.",
+            detail="Probe auth is required but BRANCHPOINT_PROBE_ACCESS_TOKEN is not configured.",
         )
     if not _authenticated(request):
         raise HTTPException(status_code=401, detail="Owner access required for external model use.")
@@ -200,7 +200,7 @@ def unlock_probe_access(payload: AccessRequest, request: Request, response: Resp
     if not configured:
         raise HTTPException(
             status_code=503,
-            detail="CAUSALRAG_PROBE_ACCESS_TOKEN is not configured.",
+            detail="BRANCHPOINT_PROBE_ACCESS_TOKEN is not configured.",
         )
     if not secrets.compare_digest(payload.token, configured):
         raise HTTPException(status_code=401, detail="Invalid access token.")
@@ -208,7 +208,7 @@ def unlock_probe_access(payload: AccessRequest, request: Request, response: Resp
         _AUTH_COOKIE,
         _session_credential(configured),
         httponly=True,
-        secure=_env_flag("CAUSALRAG_PROBE_COOKIE_SECURE", False),
+        secure=_env_flag("BRANCHPOINT_PROBE_COOKIE_SECURE", False),
         samesite="strict",
         path="/",
     )
@@ -364,11 +364,11 @@ def test_model_connection(payload: ModelTestRequest, request: Request):
     try:
         llm = LLMInterface(model=payload.model, provider=payload.provider)
         text = llm.generate(
-            "Reply with exactly CAUSALRAG_MODEL_OK and nothing else.",
+            "Reply with exactly BRANCHPOINT_MODEL_OK and nothing else.",
             temperature=0.0,
             max_tokens=32,
         )
-        ok = str(text).strip() == "CAUSALRAG_MODEL_OK"
+        ok = str(text).strip() == "BRANCHPOINT_MODEL_OK"
         if str(text).startswith("Error generating response:"):
             ok = False
         return {
