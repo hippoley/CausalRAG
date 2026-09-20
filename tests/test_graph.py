@@ -3,8 +3,8 @@ import os
 import tempfile
 import json
 import networkx as nx
-from causalrag.causal_graph.builder import CausalGraphBuilder
-from causalrag.causal_graph.retriever import CausalPathRetriever
+from branchpoint.causal_graph.builder import CausalGraphBuilder
+from branchpoint.causal_graph.retriever import CausalPathRetriever
 
 class TestCausalGraph(unittest.TestCase):
     def setUp(self):
