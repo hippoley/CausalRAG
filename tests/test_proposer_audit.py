@@ -2,6 +2,7 @@ from causalrag.agent import CausalAgentLoop
 from causalrag.agent.actions import ActionKind, CandidateAction
 from causalrag.agent.loop import DecisionGateReplan
 from causalrag.reasoning.llm import LLMCausalReasoner
+from causalrag.observability import CausalTelemetry
 from causalrag.tools.base import ToolRegistry, ToolSpec
 from causalrag.world_model import CausalWorldModel
 
@@ -80,6 +81,7 @@ def test_llm_reasoner_exposes_only_formal_structured_submission_metadata():
 
 
 def test_agent_loop_records_provider_model_latency_tokens_and_submission_event():
+    telemetry = CausalTelemetry()
     registry = ToolRegistry(
         [
             ToolSpec(
@@ -88,7 +90,8 @@ def test_agent_loop_records_provider_model_latency_tokens_and_submission_event()
                 handler=lambda: {"outcome": "normal"},
                 metadata={"kind": "observe"},
             )
-        ]
+        ],
+        telemetry=telemetry,
     )
     reasoner = LLMCausalReasoner(llm=FakeLLM(), tools=registry)
     loop = CausalAgentLoop(
