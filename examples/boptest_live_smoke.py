@@ -6,7 +6,7 @@ import json
 import time
 from pathlib import Path
 
-from causalrag.environments import BOPTESTClient, BOPTESTProtocolError
+from branchpoint.environments import BOPTESTClient, BOPTESTProtocolError
 
 
 result = {
