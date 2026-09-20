@@ -6,7 +6,7 @@ Run:
 
 import json
 
-from causalrag.benchmarks import compare_risk_sensitivity
+from branchpoint.benchmarks import compare_risk_sensitivity
 
 
 def main():
