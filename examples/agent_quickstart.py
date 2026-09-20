@@ -4,7 +4,7 @@ Set OPENAI_API_KEY, then run:
     python examples/agent_quickstart.py
 """
 
-from causalrag import create_agent
+from branchpoint import create_agent
 
 
 documents = [
