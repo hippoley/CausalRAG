@@ -1,7 +1,7 @@
 """Standalone FastAPI surface for the v0.3 causal decision runtime.
 
 Run with:
-    uvicorn causalrag.interface.agent_api:app --reload
+    uvicorn branchpoint.interface.agent_api:app --reload
 """
 
 from typing import List, Literal, Optional
@@ -9,11 +9,11 @@ from typing import List, Literal, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from causalrag import __version__, create_agent
+from branchpoint import __version__, create_agent
 
 
 app = FastAPI(
-    title="CausalRAG Agent API",
+    title="Branchpoint Agent API",
     description="Goal-directed causal agent runtime with explicit beliefs and decision traces.",
     version=__version__,
 )
