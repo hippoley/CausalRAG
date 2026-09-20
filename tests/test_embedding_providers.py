@@ -2,11 +2,11 @@ from types import SimpleNamespace
 
 import numpy as np
 
-import causalrag
-from causalrag.causal_graph.builder import CausalGraphBuilder
-from causalrag.causal_graph.retriever import CausalPathRetriever
-from causalrag.embeddings import OpenAIEmbeddingProvider
-from causalrag.retriever.vector_store import VectorStoreRetriever
+import branchpoint
+from branchpoint.causal_graph.builder import CausalGraphBuilder
+from branchpoint.causal_graph.retriever import CausalPathRetriever
+from branchpoint.embeddings import OpenAIEmbeddingProvider
+from branchpoint.retriever.vector_store import VectorStoreRetriever
 
 
 class FakeEmbeddingProvider:
@@ -107,12 +107,12 @@ def test_top_level_create_pipeline_forwards_embedding_configuration(monkeypatch)
         def __init__(self, **kwargs):
             captured.update(kwargs)
 
-    import causalrag.pipeline as pipeline_module
+    import branchpoint.pipeline as pipeline_module
 
-    monkeypatch.setattr(pipeline_module, "CausalRAGPipeline", FakePipeline)
+    monkeypatch.setattr(pipeline_module, "BranchpointPipeline", FakePipeline)
     provider = FakeEmbeddingProvider()
 
-    causalrag.create_pipeline(
+    branchpoint.create_pipeline(
         embedding_provider_name="local",
         embedding_provider=provider,
         embedding_model="custom-model",
