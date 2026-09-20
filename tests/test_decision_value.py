@@ -1,21 +1,21 @@
 import pytest
 
-from causalrag.agent import ActionKind, CandidateAction
-from causalrag.benchmarks import (
+from branchpoint.agent import ActionKind, CandidateAction
+from branchpoint.benchmarks import (
     DecisionValuePolicy,
     build_hvac_hidden_world,
     run_policy_episode,
 )
-from causalrag.experiments import (
+from branchpoint.experiments import (
     ExperimentContract,
     InterventionContract,
     OutcomeLikelihood,
     best_intervention_value,
     experiment_decision_value,
 )
-from causalrag.reasoning.policy import rank_actions
-from causalrag.tools import ToolRegistry, ToolSpec
-from causalrag.world_model import CausalWorldModel
+from branchpoint.reasoning.policy import rank_actions
+from branchpoint.tools import ToolRegistry, ToolSpec
+from branchpoint.world_model import CausalWorldModel
 
 
 def _tools():
