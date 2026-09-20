@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CausalRAG · Live Workbench</title>
+<title>Branchpoint · Live Workbench</title>
 <style>
 :root{--bg:#071012;--panel:#0c1719;--panel2:#0f1e20;--ink:#eef8f4;--muted:#8ea49f;--line:#1d3436;--mint:#79f2c0;--amber:#ffc76b;--blue:#8db6ff;--red:#ff8585}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 Inter,system-ui,sans-serif}button,input,textarea,select{font:inherit}
@@ -20,9 +20,9 @@ main{max-width:1480px;margin:auto;padding:26px}.intro{display:flex;justify-conte
 </style>
 </head>
 <body>
-<header class="top"><div class="brand">CausalRAG <span>LIVE WORKBENCH</span></div><nav><a href="/demo">Examples</a><a href="/research">Research console</a></nav></header>
+<header class="top"><div class="brand">Branchpoint <span>LIVE WORKBENCH</span></div><nav><a href="/demo">Examples</a><a href="/research">Research console</a></nav></header>
 <main>
-<section class="intro"><div><div class="eyebrow">REAL AGENT SESSION</div><h1>给它一个问题。<br>看它自己修正自己。</h1><p>这里不是固定案例播放器。每个 session 都由真实 CausalRAG runtime 驱动：Agent 建立竞争假设、提出下一步、等待 Human Gate、执行工具、吸收 observation、更新 posterior，然后继续规划。</p></div></section>
+<section class="intro"><div><div class="eyebrow">REAL AGENT SESSION</div><h1>给它一个问题。<br>看它自己修正自己。</h1><p>这里不是固定案例播放器。每个 session 都由真实 Branchpoint runtime 驱动：Agent 建立竞争假设、提出下一步、等待 Human Gate、执行工具、吸收 observation、更新 posterior，然后继续规划。</p></div></section>
 
 <section class="start" id="startPanel">
   <div class="notice" id="launchContext" hidden><b>FROM EXAMPLES</b><div id="launchContextText">这个问题已经从案例带进真实 Workbench。</div></div>
@@ -37,7 +37,7 @@ main{max-width:1480px;margin:auto;padding:26px}.intro{display:flex;justify-conte
     <div class="field"><label>Model</label><input id="model" placeholder="server default"></div>
     <div class="field"><label>Max steps</label><input id="maxSteps" type="number" value="6" min="1" max="32"></div>
     <div class="field"><label>Probe budget</label><input id="maxProbes" type="number" value="3" min="0" max="16"></div>
-  </div><div class="notice" style="margin-top:10px"><b id="modelStatusTitle">Checking proposer connection…</b><div id="modelStatusDetail">External model credentials stay on the server.</div><button class="btn" id="testModelBtn" style="margin-top:8px">Test live model</button></div><div class="notice" id="accessBox" style="margin-top:10px" hidden><b>OWNER ACCESS · external models are locked</b><div class="advanced-grid" style="margin-top:8px"><input id="accessToken" type="password" placeholder="CAUSALRAG_PROBE_ACCESS_TOKEN"><button class="btn" id="unlockBtn">Unlock external models</button></div><div id="accessStatus" class="hint">Deterministic mode stays public. The token is exchanged for an HttpOnly cookie and is not stored in the page.</div></div></details>
+  </div><div class="notice" style="margin-top:10px"><b id="modelStatusTitle">Checking proposer connection…</b><div id="modelStatusDetail">External model credentials stay on the server.</div><button class="btn" id="testModelBtn" style="margin-top:8px">Test live model</button></div><div class="notice" id="accessBox" style="margin-top:10px" hidden><b>OWNER ACCESS · external models are locked</b><div class="advanced-grid" style="margin-top:8px"><input id="accessToken" type="password" placeholder="BRANCHPOINT_PROBE_ACCESS_TOKEN"><button class="btn" id="unlockBtn">Unlock external models</button></div><div id="accessStatus" class="hint">Deterministic mode stays public. The token is exchanged for an HttpOnly cookie and is not stored in the page.</div></div></details>
   <div class="actions"><button class="btn primary" id="startBtn">Start live agent →</button></div>
 </section>
 
@@ -76,7 +76,7 @@ main{max-width:1480px;margin:auto;padding:26px}.intro{display:flex;justify-conte
       <details><summary>告诉 Agent：你忽略了什么</summary><textarea id="operatorMessage" placeholder="例如：先别执行，你还没有排除传感器漂移。"></textarea><button class="btn" id="messageBtn">Send & replan</button></details>
       <details><summary>加一个新的假设</summary><input id="hypId" placeholder="H4"><input id="hypText" placeholder="新的可能原因"><button class="btn" id="hypBtn">Add provisional hypothesis</button></details>
     </div>
-    <div class="section-title" style="margin-top:16px">WHY THIS IS CAUSALRAG</div>
+    <div class="section-title" style="margin-top:16px">WHY THIS IS BRANCHPOINT</div>
     <div class="notice">模型负责提出候选；runtime 负责验证、评分与 temporal / causal guard；Human Gate 可以改轨迹；observation 只有写回 world model 后，才改变下一轮。</div>
     <details class="technical"><summary>Raw live snapshot</summary><pre id="raw">—</pre></details>
   </aside>
