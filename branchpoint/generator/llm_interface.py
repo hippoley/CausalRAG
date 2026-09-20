@@ -9,7 +9,7 @@ import os
 from openai import OpenAI
 
 if TYPE_CHECKING:
-    from causalrag.observability import CausalTelemetry
+    from branchpoint.observability import CausalTelemetry
 
 
 class LLMInterface:
@@ -74,14 +74,14 @@ class LLMInterface:
                 "gen_ai.operation.name": "chat",
                 "gen_ai.request.model": self.model,
                 "gen_ai.provider.name": self.provider,
-                "causalrag.llm.json_mode": bool(json_mode),
-                "causalrag.llm.stream": bool(stream),
-                "causalrag.llm.input_characters": len(prompt),
-                "causalrag.llm.max_output_tokens": int(max_tokens),
+                "branchpoint.llm.json_mode": bool(json_mode),
+                "branchpoint.llm.stream": bool(stream),
+                "branchpoint.llm.input_characters": len(prompt),
+                "branchpoint.llm.max_output_tokens": int(max_tokens),
             }
             if telemetry.capture_content:
                 attributes["gen_ai.system_instructions"] = self.system_message
-                attributes["causalrag.llm.prompt"] = prompt
+                attributes["branchpoint.llm.prompt"] = prompt
 
             with telemetry.span(f"chat {self.model}", attributes) as span:
                 result = self._dispatch_generate(prompt, temperature, max_tokens, stream, json_mode)
@@ -92,7 +92,7 @@ class LLMInterface:
                 if output_tokens is not None:
                     span.set_attribute("gen_ai.usage.output_tokens", int(output_tokens))
                 if telemetry.capture_content:
-                    span.set_attribute("causalrag.llm.output", result)
+                    span.set_attribute("branchpoint.llm.output", result)
                 return result
         except Exception as exc:
             logging.error("Error generating completion: %s", exc)
