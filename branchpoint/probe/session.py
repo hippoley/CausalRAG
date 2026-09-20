@@ -9,11 +9,11 @@ import uuid
 from dataclasses import asdict, is_dataclass
 from typing import Any, Dict, Optional
 
-from causalrag.agent.actions import ActionKind, CandidateAction, DecisionRecord
-from causalrag.agent.loop import DecisionGateReplan
-from causalrag.observability import CausalTelemetry, CausalTraceRecord
-from causalrag.world_model import CausalWorldModel
-from causalrag.experiments import (
+from branchpoint.agent.actions import ActionKind, CandidateAction, DecisionRecord
+from branchpoint.agent.loop import DecisionGateReplan
+from branchpoint.observability import CausalTelemetry, CausalTraceRecord
+from branchpoint.world_model import CausalWorldModel
+from branchpoint.experiments import (
     expanded_experiment_contract,
     experiment_decision_value,
     intervention_value,
@@ -507,14 +507,14 @@ class InteractiveDecisionGate:
             self._condition.notify_all()
 
         self.telemetry.event(
-            "causalrag.human_gate.waiting",
+            "branchpoint.human_gate.waiting",
             {
-                "causalrag.step": int(state.step),
-                "causalrag.human_gate.gate_id": pending["gate_id"],
-                "causalrag.action.name": decision.selected.name,
-                "causalrag.action.kind": decision.selected.kind.value,
-                "causalrag.candidate.count": len(candidates),
-                "causalrag.candidate.names": [row["name"] for row in candidates],
+                "branchpoint.step": int(state.step),
+                "branchpoint.human_gate.gate_id": pending["gate_id"],
+                "branchpoint.action.name": decision.selected.name,
+                "branchpoint.action.kind": decision.selected.kind.value,
+                "branchpoint.candidate.count": len(candidates),
+                "branchpoint.candidate.names": [row["name"] for row in candidates],
             },
         )
 
@@ -533,10 +533,10 @@ class InteractiveDecisionGate:
 
         if response is None:
             self.telemetry.event(
-                "causalrag.human_gate.timeout",
+                "branchpoint.human_gate.timeout",
                 {
-                    "causalrag.step": int(state.step),
-                    "causalrag.action.name": decision.selected.name,
+                    "branchpoint.step": int(state.step),
+                    "branchpoint.action.name": decision.selected.name,
                 },
             )
             return None
@@ -551,10 +551,10 @@ class InteractiveDecisionGate:
                 }
             )
             self.telemetry.event(
-                "causalrag.human_gate.approved",
+                "branchpoint.human_gate.approved",
                 {
-                    "causalrag.step": int(state.step),
-                    "causalrag.action.name": decision.selected.name,
+                    "branchpoint.step": int(state.step),
+                    "branchpoint.action.name": decision.selected.name,
                 },
             )
             return None
@@ -569,10 +569,10 @@ class InteractiveDecisionGate:
                 }
             )
             self.telemetry.event(
-                "causalrag.human_gate.replan",
+                "branchpoint.human_gate.replan",
                 {
-                    "causalrag.step": int(state.step),
-                    "causalrag.action.previous": decision.selected.name,
+                    "branchpoint.step": int(state.step),
+                    "branchpoint.action.previous": decision.selected.name,
                 },
             )
             raise DecisionGateReplan()
@@ -590,13 +590,13 @@ class InteractiveDecisionGate:
             }
         )
         self.telemetry.event(
-            "causalrag.human_gate.override",
+            "branchpoint.human_gate.override",
             {
-                "causalrag.step": int(state.step),
-                "causalrag.action.original": decision.selected.name,
-                "causalrag.action.name": candidate.name,
-                "causalrag.action.kind": candidate.kind.value,
-                "causalrag.human_gate.candidate_index": index,
+                "branchpoint.step": int(state.step),
+                "branchpoint.action.original": decision.selected.name,
+                "branchpoint.action.name": candidate.name,
+                "branchpoint.action.kind": candidate.kind.value,
+                "branchpoint.human_gate.candidate_index": index,
             },
         )
         return candidate
@@ -658,11 +658,11 @@ class InteractiveDecisionGate:
                 self._condition.notify_all()
 
         self.telemetry.event(
-            "causalrag.human.operator_message",
+            "branchpoint.human.operator_message",
             {
-                "causalrag.step": row["step"],
-                "causalrag.human.message_characters": len(message),
-                "causalrag.human.replan": bool(replan),
+                "branchpoint.step": row["step"],
+                "branchpoint.human.message_characters": len(message),
+                "branchpoint.human.replan": bool(replan),
             },
         )
         return row
@@ -704,18 +704,18 @@ class ProbeSession:
             self._started = True
             self._thread = threading.Thread(
                 target=self._run,
-                name=f"causalrag-probe-{self.session_id[:8]}",
+                name=f"branchpoint-probe-{self.session_id[:8]}",
                 daemon=True,
             )
             self._thread.start()
 
     def _run(self) -> None:
         self.telemetry.event(
-            "causalrag.probe.session_started",
+            "branchpoint.probe.session_started",
             {
-                "causalrag.probe.session_id": self.session_id,
-                "causalrag.probe.proposer_family": self.config.proposer_family,
-                "causalrag.probe.model": self.config.model or "",
+                "branchpoint.probe.session_id": self.session_id,
+                "branchpoint.probe.proposer_family": self.config.proposer_family,
+                "branchpoint.probe.model": self.config.model or "",
             },
         )
         try:
@@ -744,9 +744,9 @@ class ProbeSession:
             with self._lock:
                 self._error = f"{type(exc).__name__}: {exc}"
             self.telemetry.event(
-                "causalrag.probe.session_failed",
+                "branchpoint.probe.session_failed",
                 {
-                    "causalrag.probe.session_id": self.session_id,
+                    "branchpoint.probe.session_id": self.session_id,
                     "error.type": type(exc).__name__,
                 },
             )
@@ -754,10 +754,10 @@ class ProbeSession:
             with self._lock:
                 self._completed = True
             self.telemetry.event(
-                "causalrag.probe.session_finished",
+                "branchpoint.probe.session_finished",
                 {
-                    "causalrag.probe.session_id": self.session_id,
-                    "causalrag.probe.failed": bool(self._error),
+                    "branchpoint.probe.session_id": self.session_id,
+                    "branchpoint.probe.failed": bool(self._error),
                 },
             )
 
@@ -801,7 +801,7 @@ class ProbeSession:
             else ((result or {}).get("episode_ledger") or [])
         )
         return {
-            "schema_version": "causalrag.playable_probe.session.v1",
+            "schema_version": "branchpoint.playable_probe.session.v1",
             "session_id": self.session_id,
             "status": self.status(),
             "config": self.config.to_dict(),
@@ -864,7 +864,7 @@ class ProbeSession:
         for record in self.telemetry.records():
             row = record.to_dict() if hasattr(record, "to_dict") else _jsonable(record)
             attrs = row.get("attributes") or {}
-            if int(attrs.get("causalrag.step", -1)) == target:
+            if int(attrs.get("branchpoint.step", -1)) == target:
                 trace_rows.append(row)
 
         scratch = {} if state is None else state.scratch
@@ -1024,10 +1024,10 @@ class ProbeSession:
                 }
             )
         self.telemetry.event(
-            "causalrag.human.hypothesis_added",
+            "branchpoint.human.hypothesis_added",
             {
-                "causalrag.hypothesis.id": hypothesis.hypothesis_id,
-                "causalrag.hypothesis.probability": hypothesis.probability,
+                "branchpoint.hypothesis.id": hypothesis.hypothesis_id,
+                "branchpoint.hypothesis.probability": hypothesis.probability,
             },
         )
         return _jsonable(hypothesis)
