@@ -341,11 +341,19 @@ class CausalAgentLoop:
                 state.scratch["last_hypothesis_proposals"] = []
 
             metadata_method = getattr(self.reasoner, "proposal_metadata", None)
-            proposer_metadata = (
-                dict(metadata_method() or {})
-                if callable(metadata_method)
-                else {}
-            )
+            proposer_metadata: dict[str, Any] = {}
+            if callable(metadata_method):
+                try:
+                    raw_metadata = metadata_method() or {}
+                    proposer_metadata = (
+                        dict(raw_metadata)
+                        if isinstance(raw_metadata, dict)
+                        else {"audit_error": "proposal_metadata returned a non-dict value"}
+                    )
+                except Exception as exc:
+                    proposer_metadata = {
+                        "audit_error": f"{type(exc).__name__}: {exc}",
+                    }
             proposer_traces = state.scratch.setdefault("proposer_traces", [])
             attempt = 1 + sum(
                 1
