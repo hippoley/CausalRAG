@@ -1,4 +1,4 @@
-"""Utility helpers for CausalRAG.
+"""Utility helpers for Branchpoint.
 
 Logging belongs to the lightweight core runtime. File/YAML helpers are loaded
 only when explicitly requested so core CLI/imports do not require PyYAML.
@@ -40,11 +40,11 @@ def __getattr__(name):
             from . import io as io_module
         except (ImportError, ModuleNotFoundError) as exc:
             raise RuntimeError(
-                "This IO helper requires optional RAG/file dependencies. "
-                "Install them with: pip install 'causalrag[rag]'"
+                "This IO helper requires optional retrieval/file dependencies. "
+                "Install them with: pip install 'branchpoint[retrieval]'"
             ) from exc
         return getattr(io_module, name)
-    raise AttributeError("module 'causalrag.utils' has no attribute %r" % name)
+    raise AttributeError("module 'branchpoint.utils' has no attribute %r" % name)
 
 
 __all__ = [
