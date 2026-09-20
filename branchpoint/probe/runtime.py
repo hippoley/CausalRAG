@@ -4,8 +4,8 @@ import os
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Mapping, Optional
 
-from causalrag.agent import RuntimeCapabilities, create_ablation_agent
-from causalrag.observability import CausalTelemetry
+from branchpoint.agent import RuntimeCapabilities, create_ablation_agent
+from branchpoint.observability import CausalTelemetry
 
 from .scenarios import (
     build_scenario_runtime,
@@ -82,12 +82,12 @@ def available_probe_config() -> Dict[str, Any]:
             "small": {
                 "requires_model": True,
                 "default_provider": "local",
-                "default_model": os.getenv("CAUSALRAG_SMALL_MODEL", "local-model"),
+                "default_model": os.getenv("BRANCHPOINT_SMALL_MODEL", "local-model"),
             },
             "frontier": {
                 "requires_model": True,
                 "default_provider": "openai",
-                "default_model": os.getenv("CAUSALRAG_FRONTIER_MODEL", "gpt-5.6-terra"),
+                "default_model": os.getenv("BRANCHPOINT_FRONTIER_MODEL", "gpt-5.6-terra"),
             },
         },
         "capabilities": list(_CAPABILITY_NAMES),
@@ -115,11 +115,11 @@ def _resolve_model(config: ProbeRunConfig) -> tuple[Optional[str], Optional[str]
     if config.proposer_family == "small":
         return (
             config.provider or "local",
-            config.model or os.getenv("CAUSALRAG_SMALL_MODEL", "local-model"),
+            config.model or os.getenv("BRANCHPOINT_SMALL_MODEL", "local-model"),
         )
     return (
         config.provider or "openai",
-        config.model or os.getenv("CAUSALRAG_FRONTIER_MODEL", "gpt-5.6-terra"),
+        config.model or os.getenv("BRANCHPOINT_FRONTIER_MODEL", "gpt-5.6-terra"),
     )
 
 
