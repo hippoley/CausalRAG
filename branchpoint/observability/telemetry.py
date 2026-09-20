@@ -15,10 +15,10 @@ from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
 
 CAUSAL_TRACE_SCHEMA_VERSION = "0.2"
-_EVENT_LOGGER = logging.getLogger("causalrag.causal_event")
-_SUBSCRIBER_LOGGER = logging.getLogger("causalrag.telemetry_subscriber")
+_EVENT_LOGGER = logging.getLogger("branchpoint.causal_event")
+_SUBSCRIBER_LOGGER = logging.getLogger("branchpoint.telemetry_subscriber")
 _LOCAL_STACK: contextvars.ContextVar[tuple[tuple[str, str], ...]] = contextvars.ContextVar(
-    "causalrag_trace_stack", default=()
+    "branchpoint_trace_stack", default=()
 )
 
 
@@ -128,17 +128,17 @@ class TelemetrySpan(AbstractContextManager):
     def __exit__(self, exc_type, exc, tb) -> bool:
         duration_ms = max(0.0, (time.perf_counter() - self._started) * 1000.0)
         end_attributes = dict(self.attributes)
-        end_attributes["causalrag.duration_ms"] = duration_ms
+        end_attributes["branchpoint.duration_ms"] = duration_ms
         if exc is not None:
             end_attributes["error.type"] = type(exc).__name__
-            end_attributes["causalrag.outcome"] = "error"
+            end_attributes["branchpoint.outcome"] = "error"
             if self._otel_span is not None:
                 try:
                     self._otel_span.record_exception(exc)
                 except Exception:
                     pass
         else:
-            end_attributes["causalrag.outcome"] = "ok"
+            end_attributes["branchpoint.outcome"] = "ok"
 
         self.telemetry._record(
             "span.end",
@@ -170,7 +170,7 @@ class CausalTelemetry:
         enable_otel: bool = False,
         capture_content: bool = False,
         max_records: int = 10000,
-        instrumentation_name: str = "causalrag",
+        instrumentation_name: str = "branchpoint",
     ) -> None:
         self.capture_content = bool(capture_content)
         self.max_records = max(100, int(max_records))
@@ -186,14 +186,14 @@ class CausalTelemetry:
             except ImportError as exc:
                 raise RuntimeError(
                     "OpenTelemetry support requires the observability extra: "
-                    "pip install 'causalrag[observability]'"
+                    "pip install 'branchpoint[observability]'"
                 ) from exc
 
     @classmethod
     def from_environment(cls, *, capture_content: Optional[bool] = None) -> "CausalTelemetry":
-        enable = os.getenv("CAUSALRAG_OTEL", "").strip().lower() in {"1", "true", "yes", "on"}
+        enable = os.getenv("BRANCHPOINT_OTEL", "").strip().lower() in {"1", "true", "yes", "on"}
         if capture_content is None:
-            capture_content = os.getenv("CAUSALRAG_CAPTURE_CONTENT", "").strip().lower() in {
+            capture_content = os.getenv("BRANCHPOINT_CAPTURE_CONTENT", "").strip().lower() in {
                 "1", "true", "yes", "on"
             }
         return cls(enable_otel=enable, capture_content=bool(capture_content))
@@ -237,8 +237,8 @@ class CausalTelemetry:
             str(name),
             extra={
                 "event_name": str(name),
-                "causalrag_attributes": json.dumps(record.attributes, ensure_ascii=False, sort_keys=True),
-                "causalrag_trace_id": record.trace_id,
+                "branchpoint_attributes": json.dumps(record.attributes, ensure_ascii=False, sort_keys=True),
+                "branchpoint_trace_id": record.trace_id,
             },
         )
         return record
@@ -267,7 +267,7 @@ class CausalTelemetry:
     ) -> CausalTraceRecord:
         with self._lock:
             self._sequence += 1
-            attrs = {"causalrag.schema.version": CAUSAL_TRACE_SCHEMA_VERSION}
+            attrs = {"branchpoint.schema.version": CAUSAL_TRACE_SCHEMA_VERSION}
             attrs.update({str(k): _jsonable(v) for k, v in attributes.items()})
             record = CausalTraceRecord(
                 sequence=self._sequence,
@@ -306,7 +306,7 @@ class CausalTelemetry:
 
 def configure_otlp_telemetry(
     *,
-    service_name: str = "causalrag",
+    service_name: str = "branchpoint",
     endpoint: Optional[str] = None,
     capture_content: bool = False,
 ) -> CausalTelemetry:
@@ -320,7 +320,7 @@ def configure_otlp_telemetry(
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
     except ImportError as exc:
-        raise RuntimeError("OTLP export requires: pip install 'causalrag[observability]'") from exc
+        raise RuntimeError("OTLP export requires: pip install 'branchpoint[observability]'") from exc
 
     resource = Resource.create({"service.name": str(service_name)})
     tracer_provider = TracerProvider(resource=resource)
