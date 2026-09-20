@@ -41,6 +41,9 @@ def test_probe_surfaces_are_separated():
     assert "CausalRAG · Live Workbench" in workbench.text
     assert "AGENT HISTORY" in workbench.text
     assert "Start live agent" in workbench.text
+    assert "Safe Auto evidence" in workbench.text
+    assert "WORLD MODEL CHANGED" in workbench.text
+    assert "applyLaunchParams" in workbench.text
     assert "Test live model" in workbench.text
     assert "OWNER ACCESS · external models are locked" in workbench.text
     assert "Unlock external models" in workbench.text
@@ -504,6 +507,12 @@ def test_probe_api_runs_open_world_scenario_and_validates_h4():
     assert body["metrics"]["success"] is True
     assert body["metrics"]["discovered_hypothesis"] is True
     assert body["metrics"]["discovered_validated"] is True
+    changes = [row.get("hypothesis_changes") or {} for row in body["episode_ledger"]]
+    assert any(row.get("structural_change") for row in changes)
+    assert any(
+        any((h.get("id") or h.get("hypothesis_id")) == "H4" for h in row.get("added", []))
+        for row in changes
+    )
 
 
 def test_probe_api_rejects_invalid_scenario_mode_combination():
