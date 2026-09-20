@@ -3,20 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Sequence
 
-from causalrag.agent import ActionKind, CandidateAction
-from causalrag.benchmarks.hidden_world import (
+from branchpoint.agent import ActionKind, CandidateAction
+from branchpoint.benchmarks.hidden_world import (
     HiddenWorldEnvironment,
     HiddenWorldReasoner,
     build_hvac_hidden_world,
 )
-from causalrag.benchmarks.temporal_hidden_world import (
+from branchpoint.benchmarks.temporal_hidden_world import (
     DelayedEffectEnvironment,
     ImmediateReadReasoner,
 )
-from causalrag.experiments import ExperimentContract, ModelMismatchPolicy, OutcomeLikelihood
-from causalrag.reasoning.hypothesis import HypothesisProposal
-from causalrag.tools import ToolSpec
-from causalrag.world_model import CausalWorldModel
+from branchpoint.experiments import ExperimentContract, ModelMismatchPolicy, OutcomeLikelihood
+from branchpoint.reasoning.hypothesis import HypothesisProposal
+from branchpoint.tools import ToolSpec
+from branchpoint.world_model import CausalWorldModel
 
 
 @dataclass
