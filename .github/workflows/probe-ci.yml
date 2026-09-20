@@ -5,7 +5,7 @@ on:
     paths:
       - 'causalrag/probe/**'
       - 'causalrag/interface/probe_api.py'
-      - 'causalrag/templates/playable_probe.html'
+      - 'causalrag/templates/**'
       - 'causalrag/benchmarks/hidden_world.py'
       - 'causalrag/agent/loop.py'
       - 'causalrag/agent/runtime.py'
@@ -27,7 +27,7 @@ on:
     paths:
       - 'causalrag/probe/**'
       - 'causalrag/interface/probe_api.py'
-      - 'causalrag/templates/playable_probe.html'
+      - 'causalrag/templates/**'
       - 'causalrag/benchmarks/hidden_world.py'
       - 'causalrag/agent/loop.py'
       - 'causalrag/agent/runtime.py'
@@ -100,8 +100,9 @@ jobs:
           assert health["status"] == "healthy"
           assert health["surface"] == "playable_probe"
           PY
-          curl --fail --silent http://127.0.0.1:8765/ | grep -q "Choose a surface"
-          curl --fail --silent http://127.0.0.1:8765/demo | grep -q "ONE REAL RUN"
-          curl --fail --silent http://127.0.0.1:8765/workbench | grep -q "LIVE WORKBENCH"
+          curl --fail --silent http://127.0.0.1:8765/ | grep -q "TWO WAYS IN"
+          curl --fail --silent http://127.0.0.1:8765/demo | grep -q "THREE THINGS ORDINARY AGENTS GET WRONG"
+          curl --fail --silent http://127.0.0.1:8765/workbench | grep -q "AGENT HISTORY"
+          curl --fail --silent http://127.0.0.1:8765/research | grep -q "LIVE WORKBENCH · REAL AGENT CONTROL PLANE"
           docker stop causalrag-probe-test
           trap - EXIT
