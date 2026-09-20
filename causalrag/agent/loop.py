@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+from time import perf_counter
+from typing import Any, Callable, Optional
 
 from causalrag.experiments import (
     ModelMismatchPolicy,
@@ -26,6 +27,37 @@ class DecisionGateReplan(RuntimeError):
 
 
 DecisionGate = Callable[[AgentState, CausalWorldModel, DecisionRecord], Optional[CandidateAction]]
+
+
+def _candidate_trace_payload(candidate: CandidateAction) -> dict[str, Any]:
+    return {
+        "kind": candidate.kind.value,
+        "name": candidate.name,
+        "arguments": dict(candidate.arguments),
+        "expected_goal_gain": float(candidate.expected_goal_gain),
+        "expected_information_gain": float(candidate.expected_information_gain),
+        "cost": float(candidate.cost),
+        "risk": float(candidate.risk),
+        "irreversibility": float(candidate.irreversibility),
+        "rationale": candidate.rationale,
+        "tests_hypotheses": list(candidate.tests_hypotheses),
+        "falsification_target": candidate.falsification_target,
+    }
+
+
+def _hypothesis_trace_payload(proposal: Any) -> dict[str, Any]:
+    if isinstance(proposal, dict):
+        return dict(proposal)
+    return {
+        "id": getattr(proposal, "hypothesis_id", None),
+        "statement": getattr(proposal, "statement", ""),
+        "probability": getattr(proposal, "probability", None),
+        "rationale": getattr(proposal, "rationale", ""),
+        "falsifiers": list(getattr(proposal, "falsifiers", []) or []),
+        "experiment_predictions": dict(
+            getattr(proposal, "experiment_predictions", {}) or {}
+        ),
+    }
 
 
 class CausalAgentLoop:
@@ -294,14 +326,71 @@ class CausalAgentLoop:
                 state.stop_reason = "goal_reached"
                 break
 
+            proposal_started = perf_counter()
             candidates = list(self.reasoner.propose(state, self.world_model))
+            proposal_duration_ms = max(
+                0.0, (perf_counter() - proposal_started) * 1000.0
+            )
             proposal_method = getattr(self.reasoner, "hypothesis_proposals", None)
             if self.capabilities.causal_updates and callable(proposal_method):
                 hypothesis_proposals = list(proposal_method(state, self.world_model))
                 state.scratch["last_hypothesis_proposals"] = hypothesis_proposals
                 self.world_model.sync_hypotheses(hypothesis_proposals)
             else:
+                hypothesis_proposals = []
                 state.scratch["last_hypothesis_proposals"] = []
+
+            metadata_method = getattr(self.reasoner, "proposal_metadata", None)
+            proposer_metadata = (
+                dict(metadata_method() or {})
+                if callable(metadata_method)
+                else {}
+            )
+            proposer_traces = state.scratch.setdefault("proposer_traces", [])
+            attempt = 1 + sum(
+                1
+                for row in proposer_traces
+                if int(row.get("step", -1)) == int(state.step)
+            )
+            proposer_trace = {
+                "step": int(state.step),
+                "attempt": int(attempt),
+                "reasoner_class": type(self.reasoner).__name__,
+                "duration_ms": proposal_duration_ms,
+                "kind": proposer_metadata.get("kind", "deterministic"),
+                "provider": proposer_metadata.get("provider"),
+                "model": proposer_metadata.get("model"),
+                "usage": dict(proposer_metadata.get("usage") or {}),
+                "structured_payload": proposer_metadata.get("structured_payload"),
+                "hypothesis_proposals": [
+                    _hypothesis_trace_payload(item)
+                    for item in hypothesis_proposals
+                ],
+                "candidates": [
+                    _candidate_trace_payload(candidate)
+                    for candidate in candidates
+                ],
+            }
+            proposer_traces.append(proposer_trace)
+            state.scratch["last_proposer_trace"] = proposer_trace
+
+            telemetry = getattr(self.tools, "telemetry", None)
+            if telemetry is not None:
+                telemetry.event(
+                    "causalrag.proposer.submitted",
+                    {
+                        "causalrag.step": int(state.step),
+                        "causalrag.proposer.attempt": int(attempt),
+                        "causalrag.proposer.kind": proposer_trace["kind"],
+                        "causalrag.proposer.provider": proposer_trace["provider"] or "",
+                        "causalrag.proposer.model": proposer_trace["model"] or "",
+                        "causalrag.proposer.duration_ms": proposal_duration_ms,
+                        "causalrag.proposer.candidate_count": len(candidates),
+                        "causalrag.proposer.hypothesis_count": len(hypothesis_proposals),
+                        "gen_ai.usage.input_tokens": proposer_trace["usage"].get("input_tokens", 0),
+                        "gen_ai.usage.output_tokens": proposer_trace["usage"].get("output_tokens", 0),
+                    },
+                )
 
             if self.capabilities.causal_selection:
                 ranked = rank_actions(
