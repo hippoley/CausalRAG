@@ -28,7 +28,7 @@ var presets = {
     ]
   },
   retrieval:{
-    title:"RAG contradiction",
+    title:"retrieval contradiction",
     goal:"一次模型与语料刷新后，检索质量下降。判断是语料版本漂移、embedding 分布变化，还是 reranker 行为变化，并找出最值得先验证的原因。",
     hypotheses:[
       {id:"H1",name:"语料版本/切分发生漂移",p:.38},
@@ -54,7 +54,7 @@ function cloneHypotheses(list){
 function scenarioForCurrentGoal(){
   if(preset !== "custom") return cloneHypotheses(presets[preset].hypotheses);
   var g = $("goal").value.trim();
-  if(/检索|rag|embedding|召回|排序/i.test(g)) return cloneHypotheses(presets.retrieval.hypotheses);
+  if(/检索|retrieval|embedding|召回|排序/i.test(g)) return cloneHypotheses(presets.retrieval.hypotheses);
   if(/延迟|阀门|等待|时序|sensor lag|stale/i.test(g)) return cloneHypotheses(presets.temporal.hypotheses);
   if(/co2|通风|窗|风量|空气/i.test(g)) return cloneHypotheses(presets.hvac.hypotheses);
   return cloneHypotheses(presets.custom.hypotheses);
@@ -619,7 +619,7 @@ function exportSession(){
   if(!state) return;
   var blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
   var a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);a.download="causalrag-"+state.id+".json";document.body.appendChild(a);a.click();
+  a.href=URL.createObjectURL(blob);a.download="branchpoint-"+state.id+".json";document.body.appendChild(a);a.click();
   setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);
 }
 
