@@ -1,5 +1,5 @@
 """
-Script to evaluate CausalRAG pipeline using the evaluation dataset
+Script to evaluate Branchpoint pipeline using the evaluation dataset
 """
 
 import os
@@ -12,9 +12,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
-from causalrag import CausalRAGPipeline
-from causalrag.evaluation.evaluator import CausalEvaluator
-from causalrag.generator.llm_interface import LLMInterface
+from branchpoint import BranchpointPipeline
+from branchpoint.evaluation.evaluator import CausalEvaluator
+from branchpoint.generator.llm_interface import LLMInterface
 
 # Setup logging
 logging.basicConfig(
@@ -32,8 +32,8 @@ def main():
         eval_data = json.load(f)
     
     # Initialize pipeline
-    logger.info("Initializing CausalRAG pipeline...")
-    pipeline = CausalRAGPipeline(
+    logger.info("Initializing Branchpoint pipeline...")
+    pipeline = BranchpointPipeline(
         model_name="gpt-4",  # Change to your preferred model
         embedding_model="all-MiniLM-L6-v2"
     )
