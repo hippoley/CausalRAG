@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from typing import Optional, Sequence
 
-from causalrag.agent.actions import ActionKind, CandidateAction
+from branchpoint.agent.actions import ActionKind, CandidateAction
 
 
 class _BaseHiddenWorldPolicy:
