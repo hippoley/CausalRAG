@@ -1,7 +1,7 @@
 import pytest
 
-from causalrag.agent import ActionKind, CandidateAction, CausalAgentLoop
-from causalrag.experiments import (
+from branchpoint.agent import ActionKind, CandidateAction, CausalAgentLoop
+from branchpoint.experiments import (
     ExperimentContract,
     OutcomeLikelihood,
     apply_experiment_observation,
@@ -9,9 +9,9 @@ from causalrag.experiments import (
     expected_information_gain,
     posterior_for_outcome,
 )
-from causalrag.reasoning.policy import score_action
-from causalrag.tools import ToolRegistry, ToolSpec
-from causalrag.world_model import CausalWorldModel
+from branchpoint.reasoning.policy import score_action
+from branchpoint.tools import ToolRegistry, ToolSpec
+from branchpoint.world_model import CausalWorldModel
 
 
 def _world():
