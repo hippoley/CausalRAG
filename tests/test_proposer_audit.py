@@ -165,3 +165,30 @@ def test_replan_preserves_multiple_proposer_attempts_for_same_step():
     assert [(row["step"], row["attempt"]) for row in traces] == [(0, 1), (0, 2)]
     assert all(row["kind"] == "deterministic" for row in traces)
     assert state.observations[0].action_name == "ping"
+
+
+class FailingLLM:
+    provider = "openai"
+    model = "broken-model"
+    last_usage = {}
+
+    def generate(self, prompt, temperature=0.1, max_tokens=1800, json_mode=True):
+        return "Error generating response: provider unavailable"
+
+
+def test_failed_model_call_is_explicit_in_proposer_metadata():
+    registry = ToolRegistry()
+    reasoner = LLMCausalReasoner(llm=FailingLLM(), tools=registry)
+
+    from causalrag.agent.state import AgentState
+
+    state = AgentState(goal="diagnose", max_steps=1)
+    candidates = list(reasoner.propose(state, CausalWorldModel()))
+    metadata = reasoner.proposal_metadata()
+
+    assert metadata["ok"] is False
+    assert "provider unavailable" in metadata["error"]
+    assert metadata["provider"] == "openai"
+    assert metadata["model"] == "broken-model"
+    assert metadata["structured_payload"] == {}
+    assert candidates[0].kind == ActionKind.STOP
