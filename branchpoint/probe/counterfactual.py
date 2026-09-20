@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Dict, Iterable, Mapping
 
-from causalrag.agent import ActionKind, CandidateAction, create_ablation_agent
-from causalrag.observability import CausalTelemetry
+from branchpoint.agent import ActionKind, CandidateAction, create_ablation_agent
+from branchpoint.observability import CausalTelemetry
 
 from .runtime import ProbeRunConfig
 from .scenarios import build_scenario_runtime, scenario_metrics
