@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from causalrag.interface import agent_api
+from branchpoint.interface import agent_api
 
 
 class FakeRunResult:
