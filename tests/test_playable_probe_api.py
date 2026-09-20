@@ -31,6 +31,8 @@ def test_probe_surfaces_are_separated():
     demo = client.get("/demo")
     assert demo.status_code == 200
     assert "THREE THINGS ORDINARY AGENTS GET WRONG" in demo.text
+    assert "Open in Workbench" in demo.text
+    assert "from=examples" in demo.text
     assert "Bayesian learning / EIG / EVSI" in demo.text
     assert "temporal_delayed_effect" in demo.text
     assert "open_world_mismatch" in demo.text
@@ -42,6 +44,8 @@ def test_probe_surfaces_are_separated():
     assert "AGENT HISTORY" in workbench.text
     assert "Start live agent" in workbench.text
     assert "Safe Auto evidence" in workbench.text
+    assert "Capability pack" in workbench.text
+    assert "scenarioSpec" in workbench.text
     assert "WORLD MODEL CHANGED" in workbench.text
     assert "applyLaunchParams" in workbench.text
     assert "Test live model" in workbench.text
@@ -242,6 +246,8 @@ def test_probe_deterministic_no_key_run():
     assert body["trace_id"]
     assert body["decisions"]
     assert body["causal_trace"]
+    assert body["episode_ledger"]
+    assert len(body["episode_ledger"]) == len(body["observations"])
 
 
 def test_probe_interactive_session_api_pauses_and_accepts_human_decisions():
