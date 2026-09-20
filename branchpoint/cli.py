@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Command-line interface for CausalRAG."""
+"""Command-line interface for Branchpoint."""
 
 import argparse
 import json
@@ -13,8 +13,8 @@ import webbrowser
 from pathlib import Path
 from typing import List
 
-from causalrag import __version__, create_agent, create_pipeline
-from causalrag.utils.logging import setup_logging
+from branchpoint import __version__, create_agent, create_pipeline
+from branchpoint.utils.logging import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def _require_api():
     except (ImportError, ModuleNotFoundError) as exc:
         raise RuntimeError(
             "The HTTP server requires optional API dependencies. "
-            "Install them with: pip install 'causalrag[api]'"
+            "Install them with: pip install 'branchpoint[api]'"
         ) from exc
     return uvicorn
 
@@ -47,7 +47,7 @@ def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
         "--embedding-provider",
         default="openai",
         choices=["openai", "local"],
-        help="Embedding provider. 'local' requires causalrag[local-embeddings].",
+        help="Embedding provider. 'local' requires branchpoint[local-embeddings].",
     )
     parser.add_argument(
         "--embedding-model",
@@ -58,13 +58,13 @@ def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
         "--vector-backend",
         default="memory",
         choices=["memory", "faiss"],
-        help="Vector backend. 'faiss' requires causalrag[faiss].",
+        help="Vector backend. 'faiss' requires branchpoint[faiss].",
     )
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="CausalRAG: a causal decision runtime with explicit world models"
+        description="Branchpoint: a causal decision runtime with explicit world models"
     )
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -84,7 +84,7 @@ def parse_args():
     index_parser.add_argument("--output", "-o", required=True)
     _add_embedding_args(index_parser)
 
-    query_parser = subparsers.add_parser("query", help="Use the legacy one-shot causal RAG path")
+    query_parser = subparsers.add_parser("query", help="Use the legacy one-shot causal retrieval path")
     query_parser.add_argument("--index", "-i", required=True)
     query_parser.add_argument("--query", "-q", required=True)
     query_parser.add_argument("--model", default="gpt-5.6-terra")
@@ -116,7 +116,7 @@ def main():
     setup_logging()
 
     if args.version:
-        print(f"CausalRAG version {__version__}")
+        print(f"Branchpoint version {__version__}")
         return 0
 
     if args.command == "agent":
@@ -181,7 +181,7 @@ def main():
     if args.command == "serve":
         uvicorn = _require_api()
         uvicorn.run(
-            "causalrag.interface.agent_api:app",
+            "branchpoint.interface.agent_api:app",
             host=args.host,
             port=args.port,
             log_level="info",
@@ -195,7 +195,7 @@ def main():
             url = f"http://{browser_host}:{args.port}/"
             threading.Timer(0.8, lambda: webbrowser.open(url)).start()
         uvicorn.run(
-            "causalrag.interface.probe_api:app",
+            "branchpoint.interface.probe_api:app",
             host=args.host,
             port=args.port,
             log_level="info",
