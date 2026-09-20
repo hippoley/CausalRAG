@@ -41,6 +41,8 @@ def test_probe_surfaces_are_separated():
     assert "CausalRAG · Live Workbench" in workbench.text
     assert "AGENT HISTORY" in workbench.text
     assert "Start live agent" in workbench.text
+    assert "Test live model" in workbench.text
+    assert "proposerLabel" in workbench.text
     assert "HUMAN GATE · BEFORE EXECUTION" in workbench.text
     assert "Add provisional hypothesis" in workbench.text
     assert "fetch('/api/sessions'" in workbench.text
@@ -72,6 +74,10 @@ def test_probe_surfaces_are_separated():
     assert "Challenge scenario" in research.text
     assert 'id="scenario"' in research.text
     assert "scenario:$('scenario').value" in research.text
+    assert "Test live model" in research.text
+    assert "PROPOSER AUDIT · FORMAL MODEL SUBMISSIONS" in research.text
+    assert "formal structured submission" in research.text
+    assert "MODEL PROPOSER FAILED" in research.text
 
 def test_probe_step_context_api_exposes_full_frozen_debug_state():
     created = client.post(
@@ -99,6 +105,8 @@ def test_probe_step_context_api_exposes_full_frozen_debug_state():
             assert "candidates" in body
             assert "action_scores" in body
             assert "score_provenance" in body
+            assert body["proposer"]["kind"] == "deterministic"
+            assert body["proposer_attempts"]
             assert "operator_context" in body
             assert "telemetry" in body
             assert body["counterfactual"]["available"] is False
@@ -546,3 +554,6 @@ def test_probe_session_export_api_returns_replay_schema_and_ledger():
     assert all("candidates" in row and "action_scores" in row for row in body["episode_ledger"])
     assert all("world_before" in row and "world_after" in row for row in body["episode_ledger"])
     assert all("score_provenance" in row for row in body["episode_ledger"])
+    assert all("proposer" in row and "proposer_attempts" in row for row in body["episode_ledger"])
+    assert body["proposer_traces"]
+    assert all(row["kind"] == "deterministic" for row in body["proposer_traces"])
