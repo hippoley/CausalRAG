@@ -15,7 +15,7 @@ import threading
 import atexit
 
 # Configure default logger
-logger = logging.getLogger("CausalRAG")
+logger = logging.getLogger("Branchpoint")
 
 class LoggingConfig:
     """Configuration singleton for logging settings"""
@@ -206,7 +206,7 @@ class PipelineLogger:
     """Logger for recording step-by-step pipeline execution"""
     
     def __init__(self, 
-                name: str = "CausalRAG_Pipeline", 
+                name: str = "Branchpoint_Pipeline", 
                 log_file: Optional[str] = None,
                 log_to_console: bool = True):
         """
