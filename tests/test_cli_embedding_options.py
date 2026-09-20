@@ -1,10 +1,10 @@
 import sys
 
-from causalrag import cli
+from branchpoint import cli
 
 
 def _parse(monkeypatch, *args):
-    monkeypatch.setattr(sys, "argv", ["causalrag", *args])
+    monkeypatch.setattr(sys, "argv", ["branchpoint", *args])
     return cli.parse_args()
 
 
