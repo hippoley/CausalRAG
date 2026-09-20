@@ -1,4 +1,4 @@
-> **[Open the verified Pages replay →](https://hippoley.github.io/CausalRAG/)** · static A/B evidence rebuilt from the current runtime by GitHub Actions. For the actual live tester, use `causalrag probe --open`.\n\n# CausalRAG v0.3 — from retrieval to causal decision
+> **[Open the public playable examples →](https://hippoley.github.io/CausalRAG/)** · zero-setup browser experience. For the real session-backed product surface, run `causalrag probe --open` and open **Live Workbench**.\n\n# CausalRAG v0.3 — from retrieval to causal decision
 
 CausalRAG is a **causal decision runtime for agents operating under uncertainty**.
 
@@ -30,31 +30,41 @@ The central distinction is simple:
 
 > **The model proposes. The runtime decides. The world corrects both.**
 
-## Playable Causal Probe
+## Product surfaces
 
-The repository now has two deliberately different web surfaces:
+CausalRAG now has three deliberately different front-end surfaces because they serve three different jobs:
 
-| surface | what it is | what it can do |
+| surface | who it is for | what you experience |
 | --- | --- | --- |
-| GitHub Pages | static, deployment-generated verified replay | show same-world vanilla-vs-causal A/B traces and benchmark evidence from the deployed commit |
-| Playable Causal Probe | live FastAPI control plane | external LLM proposer, session state, SSE trace, pre-execution human gate, candidate override, provisional hypotheses, natural-language operator messages, replanning, real tool execution, and same-world A/B |
+| **Examples** (`/demo`) | first-time visitors | three focused real-runtime cases: information value, temporal attribution, and open-world hypothesis discovery |
+| **Live Workbench** (`/workbench`) | people solving a task | start a real session from your own goal and watch the self-refining **Agent History**: prior belief → action → world observation → posterior → next action |
+| **Research Console** (`/research`) | researchers / debuggers | full score provenance, candidate ledger, telemetry, same-world A/B, frozen-step inspection, and truthful counterfactual forks |
 
-GitHub Pages cannot host the live FastAPI/session backend, so the public Pages site no longer pretends to be the live tester.
+The public GitHub Pages surface stays zero-setup and browser-native. The live Workbench is backed by FastAPI session state and real tool execution, so it must run on a Python backend.
 
-Start the real probe locally:
+Start all three live surfaces locally:
 
 ```bash
 pip install -e ".[api]"
 causalrag probe --open
 ```
 
-By default it serves on `127.0.0.1:8765`. For a remote/container host:
+Then use:
+
+```text
+/           product landing
+/demo       focused runnable examples
+/workbench  real Agent History workbench
+/research   full research / debugging console
+```
+
+By default the server runs on `127.0.0.1:8765`. For a remote/container host:
 
 ```bash
 causalrag probe --host 0.0.0.0 --port 8765
 ```
 
-The repository `Dockerfile` launches that same surface on port `8765`.
+The repository `Dockerfile` launches the same FastAPI app on port `8765`, and `render.yaml` is ready for container hosting.
 
 External proposer modes use server-side credentials:
 
@@ -66,7 +76,7 @@ export CAUSALRAG_SMALL_MODEL=local-model
 export CAUSALRAG_FRONTIER_MODEL=gpt-5.6-terra
 ```
 
-The UI reports whether a provider is configured and exposes an explicit **Test** button for a real model call. Credentials are never sent to the browser.
+The browser never receives those credentials.
 
 ### What happens in one live step
 
