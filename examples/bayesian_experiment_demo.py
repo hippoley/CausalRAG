@@ -4,7 +4,7 @@ Run:
     python examples/bayesian_experiment_demo.py
 """
 
-from causalrag import (
+from branchpoint import (
     ActionKind,
     CandidateAction,
     ExperimentContract,
@@ -12,7 +12,7 @@ from causalrag import (
     ToolSpec,
     create_agent,
 )
-from causalrag.world_model import CausalWorldModel
+from branchpoint.world_model import CausalWorldModel
 
 
 class DemoReasoner:
