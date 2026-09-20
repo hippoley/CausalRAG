@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
-from causalrag.world_model.models import CausalWorldModel, Evidence
+from branchpoint.world_model.models import CausalWorldModel, Evidence
 
 
 @dataclass(frozen=True)
