@@ -133,3 +133,27 @@ def test_required_auth_without_configured_token_fails_closed(monkeypatch):
         json={"provider": "local", "model": "test-model"},
     )
     assert response.status_code == 503
+
+
+def test_external_session_state_is_not_readable_without_owner_access(monkeypatch):
+    client = _client(monkeypatch)
+
+    fake = types.SimpleNamespace(
+        config=types.SimpleNamespace(proposer_family="frontier"),
+        snapshot=lambda: {"session_id": "protected-test", "status": "waiting_for_human"},
+    )
+    with probe_api.SESSION_MANAGER._lock:
+        probe_api.SESSION_MANAGER._sessions["protected-test"] = fake
+    try:
+        blocked = client.get("/api/sessions/protected-test")
+        assert blocked.status_code == 401
+
+        unlocked = client.post("/api/access", json={"token": "owner-secret"})
+        assert unlocked.status_code == 200
+
+        allowed = client.get("/api/sessions/protected-test")
+        assert allowed.status_code == 200
+        assert allowed.json()["session_id"] == "protected-test"
+    finally:
+        with probe_api.SESSION_MANAGER._lock:
+            probe_api.SESSION_MANAGER._sessions.pop("protected-test", None)
