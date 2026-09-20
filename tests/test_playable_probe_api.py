@@ -23,45 +23,55 @@ def test_probe_health_and_config():
 def test_probe_surfaces_are_separated():
     landing = client.get("/")
     assert landing.status_code == 200
-    assert "CausalRAG · Choose a surface" in landing.text
+    assert "CAUSALRAG · TWO WAYS IN" in landing.text
     assert 'href="/demo"' in landing.text
     assert 'href="/workbench"' in landing.text
+    assert 'href="/research"' in landing.text
 
     demo = client.get("/demo")
     assert demo.status_code == 200
-    assert "ONE REAL RUN · NO SETUP" in demo.text
-    assert "运行真实 Demo" in demo.text
+    assert "THREE THINGS ORDINARY AGENTS GET WRONG" in demo.text
+    assert "Bayesian learning / EIG / EVSI" in demo.text
     assert "temporal_delayed_effect" in demo.text
+    assert "open_world_mismatch" in demo.text
     assert "fetch('/api/run'" in demo.text
 
     workbench = client.get("/workbench")
     assert workbench.status_code == 200
-    assert "CausalRAG · Playable Causal Probe" in workbench.text
-    assert "Runtime capabilities" in workbench.text
-    assert "Start interactive episode" in workbench.text
-    assert "CAUSAL AGENT · COMPLETE LIVE FLOW" in workbench.text
-    assert "LIVE WORKBENCH · REAL AGENT CONTROL PLANE" in workbench.text
-    assert "TASK COMPOSER" in workbench.text
-    assert "EVIDENCE & DEBUG" in workbench.text
-    assert "STEP INSPECTOR" in workbench.text
-    assert "candidateHTML" in workbench.text
-    assert "POSTERIOR UPDATE BASIS" in workbench.text
-    assert "SCORE PROVENANCE" in workbench.text
-    assert "WORLD SNAPSHOT · BEFORE" in workbench.text
-    assert "HUMAN / OPERATOR CONTEXT" in workbench.text
-    assert "RELATED TELEMETRY" in workbench.text
-    assert "COUNTERFACTUAL" in workbench.text
-    assert "Truthful full-trajectory fork available" in workbench.text
-    assert "runCounterfactual" in workbench.text
-    assert "EIG = (H(prior)" in workbench.text
-    assert "EVSI = expected best value after" in workbench.text
-    assert "inspectStep" in workbench.text
-    assert "Run task" in workbench.text
-    assert "InteractiveDecisionGate" in workbench.text
-    assert "Challenge scenario" in workbench.text
-    assert 'id="scenario"' in workbench.text
-    assert "scenario:$('scenario').value" in workbench.text
+    assert "CausalRAG · Live Workbench" in workbench.text
+    assert "AGENT HISTORY" in workbench.text
+    assert "Start live agent" in workbench.text
+    assert "HUMAN GATE · BEFORE EXECUTION" in workbench.text
+    assert "Add provisional hypothesis" in workbench.text
+    assert "fetch('/api/sessions'" in workbench.text
+    assert 'href="/research"' in workbench.text
 
+    research = client.get("/research")
+    assert research.status_code == 200
+    assert "CausalRAG · Playable Causal Probe" in research.text
+    assert "Runtime capabilities" in research.text
+    assert "Start interactive episode" in research.text
+    assert "CAUSAL AGENT · COMPLETE LIVE FLOW" in research.text
+    assert "LIVE WORKBENCH · REAL AGENT CONTROL PLANE" in research.text
+    assert "TASK COMPOSER" in research.text
+    assert "EVIDENCE & DEBUG" in research.text
+    assert "STEP INSPECTOR" in research.text
+    assert "candidateHTML" in research.text
+    assert "POSTERIOR UPDATE BASIS" in research.text
+    assert "SCORE PROVENANCE" in research.text
+    assert "WORLD SNAPSHOT · BEFORE" in research.text
+    assert "HUMAN / OPERATOR CONTEXT" in research.text
+    assert "RELATED TELEMETRY" in research.text
+    assert "COUNTERFACTUAL" in research.text
+    assert "Truthful full-trajectory fork available" in research.text
+    assert "runCounterfactual" in research.text
+    assert "EIG = (H(prior)" in research.text
+    assert "EVSI = expected best value after" in research.text
+    assert "inspectStep" in research.text
+    assert "InteractiveDecisionGate" in research.text
+    assert "Challenge scenario" in research.text
+    assert 'id="scenario"' in research.text
+    assert "scenario:$('scenario').value" in research.text
 
 def test_probe_step_context_api_exposes_full_frozen_debug_state():
     created = client.post(
