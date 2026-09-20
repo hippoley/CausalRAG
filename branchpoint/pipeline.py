@@ -15,8 +15,8 @@ from .retriever.hybrid import HybridRetriever
 from .retriever.vector_store import VectorStoreRetriever
 
 
-class CausalRAGPipeline:
-    """Backward-compatible one-shot causal RAG pipeline."""
+class BranchpointPipeline:
+    """Backward-compatible one-shot causal retrieval pipeline."""
 
     def __init__(
         self,
