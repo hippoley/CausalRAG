@@ -6,7 +6,7 @@ Run:
 
 import json
 
-from causalrag.benchmarks import compare_hidden_world_policies
+from branchpoint.benchmarks import compare_hidden_world_policies
 
 
 def main():
