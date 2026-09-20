@@ -1,6 +1,6 @@
 # Runtime hypothesis discrimination
 
-CausalRAG's model can propose candidate actions, but it should not be able to decide which action wins merely by assigning itself a large `expected_information_gain`.
+Branchpoint's model can propose candidate actions, but it should not be able to decide which action wins merely by assigning itself a large `expected_information_gain`.
 
 This layer introduces a runtime-owned discrimination baseline whenever an action explicitly declares which hypotheses it tests.
 
