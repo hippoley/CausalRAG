@@ -3,9 +3,9 @@ name: ablation-ci
 on:
   pull_request:
     paths:
-      - "causalrag/agent/**"
-      - "causalrag/reasoning/policy.py"
-      - "causalrag/benchmarks/ablation.py"
+      - "branchpoint/agent/**"
+      - "branchpoint/reasoning/policy.py"
+      - "branchpoint/benchmarks/ablation.py"
       - "tests/test_runtime_ablation.py"
       - ".github/workflows/ablation-ci.yml"
 
@@ -26,7 +26,7 @@ jobs:
           pip install -e ".[dev]"
       - name: Compile ablation runtime
         run: |
-          python -m py_compile causalrag/agent/ablation.py causalrag/agent/capabilities.py causalrag/agent/loop.py causalrag/reasoning/policy.py causalrag/benchmarks/ablation.py
+          python -m py_compile branchpoint/agent/ablation.py branchpoint/agent/capabilities.py branchpoint/agent/loop.py branchpoint/reasoning/policy.py branchpoint/benchmarks/ablation.py
       - name: Verify execution-level ablations and paired experiment schema
         run: pytest -q tests/test_runtime_ablation.py
       - name: Verify observability remains compatible
