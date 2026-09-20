@@ -45,7 +45,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 class OpenAIEmbeddingProvider:
     """Lightweight hosted embedding provider.
 
-    This is the default for the optional RAG layer so installing retrieval no
+    This is the default for the optional retrieval layer so installing retrieval no
     longer implies installing PyTorch. The client can be injected for tests or
     OpenAI-compatible gateways.
     """
@@ -96,7 +96,7 @@ class SentenceTransformerEmbeddingProvider:
         except (ImportError, ModuleNotFoundError) as exc:
             raise RuntimeError(
                 "Local embeddings require sentence-transformers/PyTorch. Install "
-                "them with: pip install 'causalrag[local-embeddings]'"
+                "them with: pip install 'branchpoint[local-embeddings]'"
             ) from exc
         self._model_name = model
         self.encoder = SentenceTransformer(model)
