@@ -1,6 +1,6 @@
 import pytest
 
-from causalrag.environments import BOPTESTClient, BOPTESTProtocolError
+from branchpoint.environments import BOPTESTClient, BOPTESTProtocolError
 
 
 class FakeTransport:
