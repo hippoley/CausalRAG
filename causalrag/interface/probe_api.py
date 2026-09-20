@@ -276,4 +276,9 @@ def demo():
 
 @app.get("/workbench", response_class=HTMLResponse)
 def workbench():
+    return _template_response("agent_workbench.html")
+
+
+@app.get("/research", response_class=HTMLResponse)
+def research():
     return _template_response("playable_probe.html")
