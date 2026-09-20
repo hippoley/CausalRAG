@@ -9,7 +9,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from causalrag.probe import ProbeRunConfig, run_probe_comparison, run_probe_episode
+from branchpoint.probe import ProbeRunConfig, run_probe_comparison, run_probe_episode
 
 
 ROOT = Path(__file__).resolve().parents[1]
