@@ -4,19 +4,19 @@ Run:
     python examples/decision_preferences_demo.py
 """
 
-from causalrag import (
+from branchpoint import (
     ActionKind,
     CandidateAction,
     DecisionPreferences,
     ToolSpec,
     create_agent,
 )
-from causalrag.experiments import (
+from branchpoint.experiments import (
     ExperimentContract,
     InterventionContract,
     OutcomeLikelihood,
 )
-from causalrag.world_model import CausalWorldModel
+from branchpoint.world_model import CausalWorldModel
 
 
 class DemoReasoner:
