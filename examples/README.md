@@ -1,6 +1,6 @@
-# CausalRAG Examples
+# Branchpoint Examples
 
-This directory contains examples demonstrating how to use the CausalRAG system.
+This directory contains examples demonstrating how to use the Branchpoint system.
 
 ## Basic Usage
 
