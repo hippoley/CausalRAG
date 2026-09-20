@@ -3,14 +3,14 @@ name: playable-probe-ci
 on:
   pull_request:
     paths:
-      - 'causalrag/probe/**'
-      - 'causalrag/interface/probe_api.py'
-      - 'causalrag/templates/**'
-      - 'causalrag/benchmarks/hidden_world.py'
-      - 'causalrag/agent/loop.py'
-      - 'causalrag/agent/runtime.py'
-      - 'causalrag/reasoning/llm.py'
-      - 'causalrag/cli.py'
+      - 'branchpoint/probe/**'
+      - 'branchpoint/interface/probe_api.py'
+      - 'branchpoint/templates/**'
+      - 'branchpoint/benchmarks/hidden_world.py'
+      - 'branchpoint/agent/loop.py'
+      - 'branchpoint/agent/runtime.py'
+      - 'branchpoint/reasoning/llm.py'
+      - 'branchpoint/cli.py'
       - 'site/**'
       - 'scripts/build_pages.py'
       - 'Dockerfile'
@@ -28,14 +28,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'causalrag/probe/**'
-      - 'causalrag/interface/probe_api.py'
-      - 'causalrag/templates/**'
-      - 'causalrag/benchmarks/hidden_world.py'
-      - 'causalrag/agent/loop.py'
-      - 'causalrag/agent/runtime.py'
-      - 'causalrag/reasoning/llm.py'
-      - 'causalrag/cli.py'
+      - 'branchpoint/probe/**'
+      - 'branchpoint/interface/probe_api.py'
+      - 'branchpoint/templates/**'
+      - 'branchpoint/benchmarks/hidden_world.py'
+      - 'branchpoint/agent/loop.py'
+      - 'branchpoint/agent/runtime.py'
+      - 'branchpoint/reasoning/llm.py'
+      - 'branchpoint/cli.py'
       - 'site/**'
       - 'scripts/build_pages.py'
       - 'Dockerfile'
@@ -68,7 +68,7 @@ jobs:
           pip install -e '.[api,dev]'
       - name: Compile probe
         run: |
-          python -m py_compile causalrag/probe/runtime.py causalrag/probe/session.py causalrag/probe/compare.py causalrag/interface/probe_api.py causalrag/reasoning/llm.py causalrag/agent/loop.py
+          python -m py_compile branchpoint/probe/runtime.py branchpoint/probe/session.py branchpoint/probe/compare.py branchpoint/interface/probe_api.py branchpoint/reasoning/llm.py branchpoint/agent/loop.py
       - name: Run real no-key probe tests
         run: |
           pytest -q tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py tests/test_playable_probe_compare.py tests/test_proposer_audit.py tests/test_probe_access.py tests/test_cli_embedding_options.py
@@ -78,7 +78,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           for name in ("agent_workbench.html", "playable_probe.html"):
-              html = Path("causalrag/templates", name).read_text(encoding="utf-8")
+              html = Path("branchpoint/templates", name).read_text(encoding="utf-8")
               script = html.split("<script>", 1)[1].rsplit("</script>", 1)[0]
               Path("/tmp/" + name + ".js").write_text(script, encoding="utf-8")
           PY
@@ -102,13 +102,13 @@ jobs:
       - name: Build and smoke-test Playable Probe container
         if: matrix.python-version == '3.12'
         run: |
-          docker build -t causalrag-probe:test .
-          docker run -d --rm --name causalrag-probe-test -p 8765:8765 \
-            -e CAUSALRAG_REQUIRE_PROBE_AUTH=true \
-            -e CAUSALRAG_PROBE_ACCESS_TOKEN=ci-owner-secret \
-            -e CAUSALRAG_PROBE_COOKIE_SECURE=false \
-            causalrag-probe:test
-          trap 'docker logs causalrag-probe-test || true; docker stop causalrag-probe-test || true' EXIT
+          docker build -t branchpoint-probe:test .
+          docker run -d --rm --name branchpoint-probe-test -p 8765:8765 \
+            -e BRANCHPOINT_REQUIRE_PROBE_AUTH=true \
+            -e BRANCHPOINT_PROBE_ACCESS_TOKEN=ci-owner-secret \
+            -e BRANCHPOINT_PROBE_COOKIE_SECURE=false \
+            branchpoint-probe:test
+          trap 'docker logs branchpoint-probe-test || true; docker stop branchpoint-probe-test || true' EXIT
           for i in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8765/health >/tmp/probe-health.json; then
               break
@@ -140,5 +140,5 @@ jobs:
             http://127.0.0.1:8765/api/access >/tmp/unlock.json
           curl --fail --silent -b /tmp/probe-cookies.txt \
             http://127.0.0.1:8765/api/access/status | grep -q '"authenticated":true'
-          docker stop causalrag-probe-test
+          docker stop branchpoint-probe-test
           trap - EXIT
