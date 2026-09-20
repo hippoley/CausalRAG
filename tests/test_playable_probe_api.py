@@ -42,6 +42,9 @@ def test_probe_surfaces_are_separated():
     assert "AGENT HISTORY" in workbench.text
     assert "Start live agent" in workbench.text
     assert "Test live model" in workbench.text
+    assert "OWNER ACCESS · external models are locked" in workbench.text
+    assert "Unlock external models" in workbench.text
+    assert "fetch('/api/access'" in workbench.text
     assert "proposerLabel" in workbench.text
     assert "HUMAN GATE · BEFORE EXECUTION" in workbench.text
     assert "Add provisional hypothesis" in workbench.text
@@ -75,6 +78,9 @@ def test_probe_surfaces_are_separated():
     assert 'id="scenario"' in research.text
     assert "scenario:$('scenario').value" in research.text
     assert "Test live model" in research.text
+    assert "OWNER ACCESS · external models locked" in research.text
+    assert "wbUnlock" in research.text
+    assert "fetch('/api/access'" in research.text
     assert "PROPOSER AUDIT · FORMAL MODEL SUBMISSIONS" in research.text
     assert "formal structured submission" in research.text
     assert "MODEL PROPOSER FAILED" in research.text
@@ -306,6 +312,8 @@ def test_probe_config_reports_model_connection_state_without_secrets():
     assert set(body["model_connections"]) == {"openai", "anthropic", "local"}
     assert "configured" in body["model_connections"]["openai"]
     assert "credential_source" in body["model_connections"]["openai"]
+    assert body["access"]["required_for_external_models"] is False
+    assert body["access"]["authenticated"] is True
     assert "api_key" not in str(body).lower()
 
 

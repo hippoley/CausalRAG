@@ -14,6 +14,7 @@ on:
       - 'site/**'
       - 'scripts/build_pages.py'
       - 'Dockerfile'
+      - 'render.yaml'
       - 'README.MD'
       - '.env.example'
       - 'tests/test_playable_probe.py'
@@ -21,6 +22,7 @@ on:
       - 'tests/test_playable_probe_hitl.py'
       - 'tests/test_playable_probe_compare.py'
       - 'tests/test_proposer_audit.py'
+      - 'tests/test_probe_access.py'
       - 'tests/test_cli_embedding_options.py'
       - '.github/workflows/probe-ci.yml'
   push:
@@ -37,12 +39,15 @@ on:
       - 'site/**'
       - 'scripts/build_pages.py'
       - 'Dockerfile'
+      - 'render.yaml'
       - 'README.MD'
       - '.env.example'
       - 'tests/test_playable_probe.py'
       - 'tests/test_playable_probe_api.py'
       - 'tests/test_playable_probe_hitl.py'
       - 'tests/test_playable_probe_compare.py'
+      - 'tests/test_proposer_audit.py'
+      - 'tests/test_probe_access.py'
       - 'tests/test_cli_embedding_options.py'
       - '.github/workflows/probe-ci.yml'
 
@@ -66,7 +71,7 @@ jobs:
           python -m py_compile causalrag/probe/runtime.py causalrag/probe/session.py causalrag/probe/compare.py causalrag/interface/probe_api.py causalrag/reasoning/llm.py causalrag/agent/loop.py
       - name: Run real no-key probe tests
         run: |
-          pytest -q tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py tests/test_playable_probe_compare.py tests/test_proposer_audit.py tests/test_cli_embedding_options.py
+          pytest -q tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py tests/test_playable_probe_compare.py tests/test_proposer_audit.py tests/test_probe_access.py tests/test_cli_embedding_options.py
       - name: Syntax-check live UI JavaScript
         if: matrix.python-version == '3.12'
         run: |
@@ -98,7 +103,11 @@ jobs:
         if: matrix.python-version == '3.12'
         run: |
           docker build -t causalrag-probe:test .
-          docker run -d --rm --name causalrag-probe-test -p 8765:8765 causalrag-probe:test
+          docker run -d --rm --name causalrag-probe-test -p 8765:8765 \
+            -e CAUSALRAG_REQUIRE_PROBE_AUTH=true \
+            -e CAUSALRAG_PROBE_ACCESS_TOKEN=ci-owner-secret \
+            -e CAUSALRAG_PROBE_COOKIE_SECURE=false \
+            causalrag-probe:test
           trap 'docker logs causalrag-probe-test || true; docker stop causalrag-probe-test || true' EXIT
           for i in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8765/health >/tmp/probe-health.json; then
@@ -117,5 +126,19 @@ jobs:
           curl --fail --silent http://127.0.0.1:8765/demo | grep -q "THREE THINGS ORDINARY AGENTS GET WRONG"
           curl --fail --silent http://127.0.0.1:8765/workbench | grep -q "AGENT HISTORY"
           curl --fail --silent http://127.0.0.1:8765/research | grep -q "LIVE WORKBENCH · REAL AGENT CONTROL PLANE"
+          test "$(curl --silent --output /tmp/model-test.json --write-out '%{http_code}' \
+            -H 'content-type: application/json' \
+            -d '{"provider":"local","model":"test-model"}' \
+            http://127.0.0.1:8765/api/model/test)" = "401"
+          curl --fail --silent \
+            -H 'content-type: application/json' \
+            -d '{"hidden_hypothesis":"H2","outcome_mode":"deterministic","proposer_family":"deterministic"}' \
+            http://127.0.0.1:8765/api/run >/tmp/public-deterministic.json
+          curl --fail --silent -c /tmp/probe-cookies.txt \
+            -H 'content-type: application/json' \
+            -d '{"token":"ci-owner-secret"}' \
+            http://127.0.0.1:8765/api/access >/tmp/unlock.json
+          curl --fail --silent -b /tmp/probe-cookies.txt \
+            http://127.0.0.1:8765/api/access/status | grep -q '"authenticated":true'
           docker stop causalrag-probe-test
           trap - EXIT

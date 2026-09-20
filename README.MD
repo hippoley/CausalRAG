@@ -78,6 +78,46 @@ export CAUSALRAG_FRONTIER_MODEL=gpt-5.6-terra
 
 The browser never receives those credentials.
 
+### Safe public deployment
+
+The checked-in `render.yaml` enables owner access for external proposer modes by default. The public deterministic runtime remains usable without authentication, but `small` / `frontier` model calls require an owner unlock.
+
+For a public Render deployment:
+
+```bash
+# required by render.yaml (enter this as a Render secret)
+CAUSALRAG_PROBE_ACCESS_TOKEN=<long-random-owner-token>
+
+# add at least one provider credential in the Render dashboard if you want live LLMs
+OPENAI_API_KEY=...
+# or
+ANTHROPIC_API_KEY=...
+```
+
+The Blueprint sets:
+
+```bash
+CAUSALRAG_REQUIRE_PROBE_AUTH=true
+CAUSALRAG_PROBE_COOKIE_SECURE=true
+```
+
+Open `/workbench` or `/research`. Deterministic sessions are immediately playable. To use a paid external proposer, enter the owner access token once; the server exchanges it for an HttpOnly, SameSite cookie. The provider API key and the owner access token are not stored in page JavaScript or returned to the browser.
+
+Scripted owner requests can instead send:
+
+```http
+Authorization: Bearer <CAUSALRAG_PROBE_ACCESS_TOKEN>
+```
+
+Do **not** disable probe auth on a public server that contains paid model credentials. For local-only development, auth can remain disabled:
+
+```bash
+CAUSALRAG_REQUIRE_PROBE_AUTH=false
+CAUSALRAG_PROBE_COOKIE_SECURE=false
+```
+
+Render secrets declared with `sync: false` are prompted on the first Blueprint creation; for an existing Blueprint, add newly introduced secret values manually in the Render dashboard.
+
 ### What happens in one live step
 
 ```text
