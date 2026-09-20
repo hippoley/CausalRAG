@@ -14,8 +14,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
-from causalrag.causal_graph.builder import CausalGraphBuilder, CausalTripleExtractor
-from causalrag.generator.llm_interface import LLMInterface
+from branchpoint.causal_graph.builder import CausalGraphBuilder, CausalTripleExtractor
+from branchpoint.generator.llm_interface import LLMInterface
 
 # Configure logging
 logging.basicConfig(
