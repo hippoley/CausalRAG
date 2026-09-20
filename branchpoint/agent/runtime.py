@@ -5,14 +5,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
-from causalrag.experiments import DecisionPreferences, ModelMismatchPolicy
-from causalrag.generator.llm_interface import LLMInterface
-from causalrag.observability import CausalTelemetry
-from causalrag.reasoning.belief import LLMBeliefUpdater
-from causalrag.reasoning.hypothesis import LLMHypothesisUpdater
-from causalrag.reasoning.llm import LLMCausalReasoner
-from causalrag.tools.base import ToolRegistry, ToolSpec
-from causalrag.world_model.models import CausalWorldModel
+from branchpoint.experiments import DecisionPreferences, ModelMismatchPolicy
+from branchpoint.generator.llm_interface import LLMInterface
+from branchpoint.observability import CausalTelemetry
+from branchpoint.reasoning.belief import LLMBeliefUpdater
+from branchpoint.reasoning.hypothesis import LLMHypothesisUpdater
+from branchpoint.reasoning.llm import LLMCausalReasoner
+from branchpoint.tools.base import ToolRegistry, ToolSpec
+from branchpoint.world_model.models import CausalWorldModel
 
 from .loop import CausalAgentLoop
 from .state import AgentState
@@ -62,50 +62,50 @@ def _emit_causal_run_events(
     for decision in state.decisions:
         score = _selected_score(decision)
         attributes: Dict[str, Any] = {
-            "causalrag.step": int(decision.step),
-            "causalrag.action.name": decision.selected.name,
-            "causalrag.action.kind": decision.selected.kind.value,
-            "causalrag.candidate.count": len(decision.candidates),
-            "causalrag.hypothesis.count": len(decision.beliefs_before.get("hypotheses", [])),
-            "causalrag.open_world.model_mismatch": bool(
+            "branchpoint.step": int(decision.step),
+            "branchpoint.action.name": decision.selected.name,
+            "branchpoint.action.kind": decision.selected.kind.value,
+            "branchpoint.candidate.count": len(decision.candidates),
+            "branchpoint.hypothesis.count": len(decision.beliefs_before.get("hypotheses", [])),
+            "branchpoint.open_world.model_mismatch": bool(
                 decision.beliefs_before.get("open_world", {}).get("model_mismatch", False)
             ),
-            "causalrag.action.tests_hypotheses": list(decision.selected.tests_hypotheses),
+            "branchpoint.action.tests_hypotheses": list(decision.selected.tests_hypotheses),
         }
         if decision.uncertainty:
-            attributes["causalrag.uncertainty_present"] = True
+            attributes["branchpoint.uncertainty_present"] = True
             if telemetry.capture_content:
-                attributes["causalrag.uncertainty"] = decision.uncertainty
+                attributes["branchpoint.uncertainty"] = decision.uncertainty
         if score is not None:
             attributes.update(
                 {
-                    "causalrag.decision.total_utility": score.total_utility,
-                    "causalrag.decision.goal_gain": score.goal_gain,
-                    "causalrag.decision.information_gain": score.information_gain,
-                    "causalrag.decision.information_source": score.information_source,
-                    "causalrag.decision.cost": score.cost,
-                    "causalrag.decision.risk": score.risk,
-                    "causalrag.decision.irreversibility": score.irreversibility,
+                    "branchpoint.decision.total_utility": score.total_utility,
+                    "branchpoint.decision.goal_gain": score.goal_gain,
+                    "branchpoint.decision.information_gain": score.information_gain,
+                    "branchpoint.decision.information_source": score.information_source,
+                    "branchpoint.decision.cost": score.cost,
+                    "branchpoint.decision.risk": score.risk,
+                    "branchpoint.decision.irreversibility": score.irreversibility,
                 }
             )
             if score.decision_value is not None:
-                attributes["causalrag.decision.value"] = score.decision_value
+                attributes["branchpoint.decision.value"] = score.decision_value
             if score.expected_value_of_sample_information is not None:
-                attributes["causalrag.decision.evsi"] = score.expected_value_of_sample_information
+                attributes["branchpoint.decision.evsi"] = score.expected_value_of_sample_information
             if score.net_value_of_sampling is not None:
-                attributes["causalrag.decision.net_value_of_sampling"] = score.net_value_of_sampling
-        telemetry.event("causalrag.decision", attributes)
+                attributes["branchpoint.decision.net_value_of_sampling"] = score.net_value_of_sampling
+        telemetry.event("branchpoint.decision", attributes)
 
     for offset, observation in enumerate(state.observations):
         attributes = {
-            "causalrag.observation.index": offset,
-            "causalrag.action.name": observation.action_name,
-            "causalrag.observation.has_temporal_effects": bool(observation.metadata.get("temporal_effects")),
-            "causalrag.observation.has_model_mismatch": bool(observation.metadata.get("model_mismatch")),
+            "branchpoint.observation.index": offset,
+            "branchpoint.action.name": observation.action_name,
+            "branchpoint.observation.has_temporal_effects": bool(observation.metadata.get("temporal_effects")),
+            "branchpoint.observation.has_model_mismatch": bool(observation.metadata.get("model_mismatch")),
         }
         if telemetry.capture_content:
-            attributes["causalrag.observation.result"] = observation.result
-        telemetry.event("causalrag.observation", attributes)
+            attributes["branchpoint.observation.result"] = observation.result
+        telemetry.event("branchpoint.observation", attributes)
 
     transitions = world_model.transitions[transition_start:]
     for offset, transition in enumerate(transitions):
@@ -114,50 +114,50 @@ def _emit_causal_run_events(
         posterior = effects.get("posterior")
         if posterior:
             telemetry.event(
-                "causalrag.posterior.updated",
+                "branchpoint.posterior.updated",
                 {
-                    "causalrag.transition.index": offset,
-                    "causalrag.step": step,
-                    "causalrag.experiment.id": effects.get("experiment_id"),
-                    "causalrag.experiment.outcome": effects.get("observed_outcome"),
-                    "causalrag.predictive_probability": effects.get("predictive_probability"),
-                    "causalrag.surprisal": effects.get("surprisal"),
-                    "causalrag.posterior": posterior,
+                    "branchpoint.transition.index": offset,
+                    "branchpoint.step": step,
+                    "branchpoint.experiment.id": effects.get("experiment_id"),
+                    "branchpoint.experiment.outcome": effects.get("observed_outcome"),
+                    "branchpoint.predictive_probability": effects.get("predictive_probability"),
+                    "branchpoint.surprisal": effects.get("surprisal"),
+                    "branchpoint.posterior": posterior,
                 },
             )
 
         mismatch = effects.get("model_mismatch")
         if mismatch:
             telemetry.event(
-                "causalrag.model_mismatch",
+                "branchpoint.model_mismatch",
                 {
-                    "causalrag.transition.index": offset,
-                    "causalrag.step": step,
-                    "causalrag.predictive_probability": mismatch.get("predictive_probability"),
-                    "causalrag.surprisal": mismatch.get("surprisal"),
-                    "causalrag.model_mismatch.suspicious": bool(mismatch.get("suspicious")),
-                    "causalrag.model_mismatch.hard": bool(mismatch.get("hard_mismatch")),
-                    "causalrag.model_mismatch.escalated": bool(mismatch.get("escalate")),
-                    "causalrag.model_mismatch.posterior_suppressed": bool(mismatch.get("posterior_suppressed")),
-                    "causalrag.discovery.hypothesis_ids": mismatch.get("discovered_hypotheses") or [],
+                    "branchpoint.transition.index": offset,
+                    "branchpoint.step": step,
+                    "branchpoint.predictive_probability": mismatch.get("predictive_probability"),
+                    "branchpoint.surprisal": mismatch.get("surprisal"),
+                    "branchpoint.model_mismatch.suspicious": bool(mismatch.get("suspicious")),
+                    "branchpoint.model_mismatch.hard": bool(mismatch.get("hard_mismatch")),
+                    "branchpoint.model_mismatch.escalated": bool(mismatch.get("escalate")),
+                    "branchpoint.model_mismatch.posterior_suppressed": bool(mismatch.get("posterior_suppressed")),
+                    "branchpoint.discovery.hypothesis_ids": mismatch.get("discovered_hypotheses") or [],
                 },
             )
 
         for evaluation in effects.get("temporal_effects") or []:
             telemetry.event(
-                "causalrag.temporal_attribution",
+                "branchpoint.temporal_attribution",
                 {
-                    "causalrag.transition.index": offset,
-                    "causalrag.temporal.effect_id": evaluation.get("effect_id"),
-                    "causalrag.action.name": evaluation.get("intervention"),
-                    "causalrag.temporal.prediction_hypothesis": evaluation.get("prediction_hypothesis"),
-                    "causalrag.temporal.matched_prediction": evaluation.get("matched_prediction"),
-                    "causalrag.temporal.lag_seconds": evaluation.get("lag_seconds"),
-                    "causalrag.temporal.within_window": evaluation.get("within_window"),
+                    "branchpoint.transition.index": offset,
+                    "branchpoint.temporal.effect_id": evaluation.get("effect_id"),
+                    "branchpoint.action.name": evaluation.get("intervention"),
+                    "branchpoint.temporal.prediction_hypothesis": evaluation.get("prediction_hypothesis"),
+                    "branchpoint.temporal.matched_prediction": evaluation.get("matched_prediction"),
+                    "branchpoint.temporal.lag_seconds": evaluation.get("lag_seconds"),
+                    "branchpoint.temporal.within_window": evaluation.get("within_window"),
                     **(
                         {
-                            "causalrag.temporal.expected": evaluation.get("expected"),
-                            "causalrag.temporal.observed": evaluation.get("observed"),
+                            "branchpoint.temporal.expected": evaluation.get("expected"),
+                            "branchpoint.temporal.observed": evaluation.get("observed"),
                         }
                         if telemetry.capture_content
                         else {}
@@ -167,12 +167,12 @@ def _emit_causal_run_events(
 
     for discovery in state.scratch.get("hypothesis_discovery_events", []):
         telemetry.event(
-            "causalrag.hypothesis_discovery",
+            "branchpoint.hypothesis_discovery",
             {
-                "causalrag.step": discovery.get("step"),
-                "causalrag.discovery.hypothesis_ids": discovery.get("hypotheses") or [],
-                "causalrag.discovery.trigger_experiment": discovery.get("trigger", {}).get("experiment_id"),
-                "causalrag.discovery.trigger_surprisal": discovery.get("trigger", {}).get("surprisal"),
+                "branchpoint.step": discovery.get("step"),
+                "branchpoint.discovery.hypothesis_ids": discovery.get("hypotheses") or [],
+                "branchpoint.discovery.trigger_experiment": discovery.get("trigger", {}).get("experiment_id"),
+                "branchpoint.discovery.trigger_surprisal": discovery.get("trigger", {}).get("surprisal"),
             },
         )
 
@@ -220,8 +220,8 @@ class CausalAgent:
     def index(self, documents: Iterable[str]) -> "CausalAgent":
         if self.pipeline is None:
             raise RuntimeError(
-                "Indexing is not enabled for this agent. Install the RAG extra "
-                "(`pip install 'causalrag[rag]'`) and create the agent with "
+                "Indexing is not enabled for this agent. Install the retrieval extra "
+                "(`pip install 'branchpoint[retrieval]'`) and create the agent with "
                 "enable_retrieval=True or documents/index_path."
             )
         self.pipeline.index(list(documents))
@@ -234,16 +234,16 @@ class CausalAgent:
         self._last_trace_start = trace_start
         attributes: Dict[str, Any] = {
             "gen_ai.operation.name": "invoke_agent",
-            "gen_ai.agent.name": "causalrag",
+            "gen_ai.agent.name": "branchpoint",
             "gen_ai.agent.description": "Explicit causal decision runtime with experiments, interventions, temporal attribution, and open-world mismatch detection.",
-            "causalrag.max_steps": int(max_steps),
-            "causalrag.goal_characters": len(goal),
+            "branchpoint.max_steps": int(max_steps),
+            "branchpoint.goal_characters": len(goal),
         }
         if self.telemetry.capture_content:
-            attributes["causalrag.goal"] = goal
+            attributes["branchpoint.goal"] = goal
 
         trace_id = ""
-        with self.telemetry.span("invoke_agent causalrag", attributes) as run_span:
+        with self.telemetry.span("invoke_agent branchpoint", attributes) as run_span:
             trace_id = run_span.trace_id
             state = self.loop.run(goal=goal, max_steps=max_steps)
             _emit_causal_run_events(
@@ -252,19 +252,19 @@ class CausalAgent:
                 self.loop.world_model,
                 transition_start=transition_start,
             )
-            run_span.set_attribute("causalrag.stop_reason", state.stop_reason or "")
-            run_span.set_attribute("causalrag.steps", len(state.decisions))
-            run_span.set_attribute("causalrag.executed_actions", state.step)
+            run_span.set_attribute("branchpoint.stop_reason", state.stop_reason or "")
+            run_span.set_attribute("branchpoint.steps", len(state.decisions))
+            run_span.set_attribute("branchpoint.executed_actions", state.step)
             run_span.set_attribute(
-                "causalrag.open_world.model_mismatch",
+                "branchpoint.open_world.model_mismatch",
                 bool(self.loop.world_model.snapshot().get("open_world", {}).get("model_mismatch", False)),
             )
             self.telemetry.event(
-                "causalrag.run.completed",
+                "branchpoint.run.completed",
                 {
-                    "causalrag.stop_reason": state.stop_reason,
-                    "causalrag.steps": len(state.decisions),
-                    "causalrag.executed_actions": state.step,
+                    "branchpoint.stop_reason": state.stop_reason,
+                    "branchpoint.steps": len(state.decisions),
+                    "branchpoint.executed_actions": state.step,
                 },
             )
 
@@ -289,13 +289,13 @@ class CausalAgent:
 
 def _load_rag_pipeline():
     try:
-        from causalrag.pipeline import CausalRAGPipeline
+        from branchpoint.pipeline import BranchpointPipeline
     except (ImportError, ModuleNotFoundError) as exc:
         raise RuntimeError(
-            "CausalRAG retrieval requires the optional RAG dependencies. "
-            "Install them with: pip install 'causalrag[rag]'"
+            "Branchpoint retrieval requires the optional retrieval dependencies. "
+            "Install them with: pip install 'branchpoint[retrieval]'"
         ) from exc
-    return CausalRAGPipeline
+    return BranchpointPipeline
 
 
 def create_agent(
@@ -346,8 +346,8 @@ def create_agent(
     )
 
     if wants_retrieval:
-        CausalRAGPipeline = _load_rag_pipeline()
-        pipeline = CausalRAGPipeline(
+        BranchpointPipeline = _load_rag_pipeline()
+        pipeline = BranchpointPipeline(
             model_name=model_name,
             embedding_model=embedding_model,
             graph_path=graph_path,
