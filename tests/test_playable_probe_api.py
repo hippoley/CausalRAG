@@ -23,7 +23,9 @@ def test_probe_health_and_config():
 def test_probe_surfaces_are_separated():
     landing = client.get("/")
     assert landing.status_code == 200
-    assert "CausalRAG · Choose a surface" in landing.text
+    assert "CAUSALRAG · TWO WAYS IN" in landing.text
+    assert "PLAYABLE EXAMPLES" in landing.text
+    assert "LIVE WORKBENCH" in landing.text
     assert 'href="/demo"' in landing.text
     assert 'href="/workbench"' in landing.text
 
