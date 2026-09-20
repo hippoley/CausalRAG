@@ -1,4 +1,4 @@
-from causalrag.benchmarks import (
+from branchpoint.benchmarks import (
     CheapestProbePolicy,
     ConservativeEIGPolicy,
     DecisionValuePolicy,
