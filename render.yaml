@@ -10,3 +10,9 @@ services:
         value: 0.0.0.0
       - key: CAUSALRAG_API_PORT
         value: 8765
+      - key: CAUSALRAG_REQUIRE_PROBE_AUTH
+        value: "true"
+      - key: CAUSALRAG_PROBE_COOKIE_SECURE
+        value: "true"
+      - key: CAUSALRAG_PROBE_ACCESS_TOKEN
+        sync: false
