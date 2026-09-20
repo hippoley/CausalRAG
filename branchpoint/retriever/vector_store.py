@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from causalrag.embeddings import EmbeddingProvider, create_embedding_provider
+from branchpoint.embeddings import EmbeddingProvider, create_embedding_provider
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class VectorStoreRetriever:
         except (ImportError, ModuleNotFoundError) as exc:
             raise RuntimeError(
                 "FAISS backend requested but faiss is not installed. Install "
-                "with: pip install 'causalrag[faiss]'"
+                "with: pip install 'branchpoint[faiss]'"
             ) from exc
         if self.index is None:
             self.index = faiss.IndexFlatIP(int(dimension))
