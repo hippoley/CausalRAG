@@ -19,11 +19,13 @@ class LLMCausalReasoner:
         self.max_candidates = max_candidates
         self._last_uncertainty: Optional[str] = None
         self._last_hypotheses: List[HypothesisProposal] = []
+        self._last_structured_payload: Dict[str, Any] = {}
 
     def propose(self, state: AgentState, world_model: CausalWorldModel) -> Sequence[CandidateAction]:
         prompt = self._build_prompt(state, world_model)
         raw = self.llm.generate(prompt, temperature=0.1, max_tokens=1800, json_mode=True)
         payload = self._parse_json(raw)
+        self._last_structured_payload = dict(payload)
         self._last_uncertainty = payload.get("uncertainty")
         self._last_hypotheses = self._parse_hypotheses(payload)
 
@@ -91,6 +93,21 @@ class LLMCausalReasoner:
                 )
             )
         return candidates
+
+    def proposal_metadata(self) -> Dict[str, Any]:
+        """Return auditable proposer metadata for the most recent formal submission.
+
+        This is the structured output submitted to the runtime, not hidden chain
+        of thought. Runtime code may persist it in a decision trace.
+        """
+        usage = dict(getattr(self.llm, "last_usage", {}) or {})
+        return {
+            "kind": "llm",
+            "provider": str(getattr(self.llm, "provider", "unknown")),
+            "model": str(getattr(self.llm, "model", "unknown")),
+            "usage": usage,
+            "structured_payload": dict(self._last_structured_payload),
+        }
 
     def uncertainty(self, state: AgentState, world_model: CausalWorldModel) -> Optional[str]:
         return self._last_uncertainty
