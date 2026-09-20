@@ -49,6 +49,13 @@ jobs:
           assert report["first_divergence"] is not None
           assert report["vanilla"]["metrics"]
           assert report["causal"]["metrics"]
+          examples = data["examples"]
+          assert set(examples) == {"hvac", "temporal", "open_world"}
+          assert all(run["episode_ledger"] for run in examples.values())
+          assert any(
+              (row.get("hypothesis_changes") or {}).get("structural_change")
+              for row in examples["open_world"]["episode_ledger"]
+          )
           PY
       - uses: actions/configure-pages@v5
         with:
