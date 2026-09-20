@@ -1,8 +1,8 @@
 """
-Basic usage example for CausalRAG.
+Basic usage example for Branchpoint.
 
 This example shows how to:
-1. Initialize the CausalRAG pipeline
+1. Initialize the Branchpoint pipeline
 2. Index a collection of documents
 3. Query the system
 4. Save and load the index
@@ -16,7 +16,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
-from causalrag import CausalRAGPipeline
+from branchpoint import BranchpointPipeline
 
 # Sample documents with causal relationships
 documents = [
@@ -29,7 +29,7 @@ documents = [
 
 def main():
     # Initialize pipeline
-    pipeline = CausalRAGPipeline()
+    pipeline = BranchpointPipeline()
     print("Pipeline initialized")
 
     # Index documents
@@ -38,7 +38,7 @@ def main():
     print(f"Indexed {len(documents)} documents with causal relationships")
 
     # Save the index (optional)
-    save_dir = "causalrag_index"
+    save_dir = "branchpoint_index"
     os.makedirs(save_dir, exist_ok=True)
     pipeline.save(save_dir)
     print(f"Saved index to {save_dir}")
