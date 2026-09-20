@@ -186,6 +186,12 @@ def run_probe_episode(
     result = agent.run(goal, max_steps=int(config.max_steps))
     metrics = scenario_metrics(environment, result)
     payload = result.to_dict()
+    # Keep one-shot Examples and interactive sessions on the same canonical
+    # ledger shape. Import lazily to avoid a module-import cycle: session.py
+    # depends on ProbeRunConfig/build_probe_agent from this module.
+    from .session import _episode_ledger
+
+    episode_ledger = _episode_ledger(result.state, result.world_model, agent.loop.tools)
     return {
         "config": config.to_dict(),
         "metrics": metrics,
@@ -198,4 +204,5 @@ def run_probe_episode(
         "transitions": payload["transitions"],
         "causal_trace": payload["causal_trace"],
         "runtime_capabilities": capabilities.to_dict(),
+        "episode_ledger": episode_ledger,
     }
