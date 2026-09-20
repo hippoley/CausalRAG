@@ -1,199 +1,42 @@
 <!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="CausalRAG playable causal decision lab.">
-  <title>CausalRAG · Play the decision</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<header class="topbar">
-  <a class="brand" href="https://github.com/hippoley/CausalRAG">CausalRAG <span>PLAYABLE DECISION LAB</span></a>
-  <div class="build" id="build">Loading verified runtime evidence…</div>
-</header>
-
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CausalRAG · Verified Examples</title>
+<style>
+:root{--bg:#f4f2eb;--paper:#fffef9;--ink:#15201d;--muted:#6d7773;--line:#d9d8cf;--green:#173f34;--mint:#d9f5e9;--amber:#ffe8bb;--blue:#e7f0ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}.top{height:60px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);position:sticky;top:0;background:#f4f2ebed;z-index:4}.top a{color:inherit;text-decoration:none}.brand{font-weight:850}.mono{font:10px ui-monospace,monospace;color:var(--muted)}main{max-width:1180px;margin:auto;padding:44px 24px 80px}.eyebrow{font:10px ui-monospace,monospace;letter-spacing:.12em;color:#567067}.hero{max-width:860px}.hero h1{font-size:54px;line-height:.98;letter-spacing:-.055em;margin:8px 0 13px}.hero p{font-size:17px;color:var(--muted);max-width:760px}.truth{margin-top:17px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--muted);font-size:11px}.truth b{color:var(--ink)}.cases{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:26px}.case{border:1px solid var(--line);background:var(--paper);border-radius:19px;padding:19px;text-align:left;cursor:pointer;transition:.15s}.case:hover,.case.active{transform:translateY(-1px);border-color:#66877d}.case.active{box-shadow:0 0 0 2px #dcece5 inset}.case span{font:9px ui-monospace,monospace;color:var(--muted)}.case h2{font-size:21px;line-height:1.12;letter-spacing:-.03em;margin:14px 0 6px}.case p{margin:0;color:var(--muted);font-size:12px}.story{margin-top:15px;border:1px solid var(--line);background:var(--paper);border-radius:22px;overflow:hidden}.story-head{padding:20px 23px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:18px;align-items:end}.story-head h2{font-size:27px;margin:3px 0 0;letter-spacing:-.03em}.story-head p{max-width:520px;margin:0;color:var(--muted);font-size:12px}.summary{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}.metric{padding:13px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric span,.metric b{display:block}.metric span{font:9px ui-monospace,monospace;color:var(--muted)}.metric b{font-size:18px;margin-top:4px}.timeline{padding:24px}.step{display:grid;grid-template-columns:86px 1fr;gap:17px;padding-bottom:22px;position:relative}.step:before{content:"";position:absolute;left:74px;top:10px;bottom:-3px;width:1px;background:#d7d9d4}.step:last-child:before{display:none}.dot{position:absolute;left:69px;top:6px;width:11px;height:11px;border-radius:99px;background:var(--green);box-shadow:0 0 0 4px var(--paper)}.label{text-align:right;color:var(--muted);font:9px ui-monospace,monospace;padding-top:1px}.content h3{margin:0 0 4px;font-size:17px}.content p{margin:0;color:var(--muted)}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{padding:4px 7px;border-radius:8px;background:#eff2ee;font:10px ui-monospace,monospace}.chip.up{background:var(--mint)}.chip.guard{background:var(--amber)}.chip.model{background:var(--blue)}.takeaway{margin:0 24px 24px;padding:15px 17px;border-radius:14px;background:var(--mint)}.takeaway b{display:block;margin-bottom:3px}.footer-cta{display:flex;justify-content:space-between;gap:14px;align-items:center;margin:0 24px 24px;padding:14px 16px;border:1px solid var(--line);border-radius:14px}.footer-cta p{margin:0;color:var(--muted);font-size:12px}.btn{display:inline-block;text-decoration:none;background:var(--green);color:#fff;border-radius:10px;padding:10px 13px;font-weight:800;white-space:nowrap}.loading{padding:28px;color:var(--muted)}
+@media(max-width:850px){.cases{grid-template-columns:1fr}.summary{grid-template-columns:1fr 1fr}.hero h1{font-size:42px}}@media(max-width:560px){.story-head,.footer-cta{align-items:flex-start;flex-direction:column}.step{grid-template-columns:60px 1fr}.step:before{left:50px}.dot{left:45px}}
+</style></head><body>
+<header class="top"><a class="brand" href="./">CausalRAG <span class="mono">VERIFIED EXAMPLES</span></a><a href="https://github.com/hippoley/CausalRAG">Source →</a></header>
 <main>
-  <section class="hero">
-    <div class="hero-copy">
-      <p class="kicker">PLAY THE DECISION</p>
-      <h1>选一步。<br><em>看现实怎么改掉下一步。</em></h1>
-      <p class="lede">不用先理解 EIG、EVSI 或 posterior。先做一个选择，看它带来什么证据，再看 Agent 因此改变了什么判断。</p>
-      <div class="hero-actions">
-        <button class="primary hero-cta" id="jumpStart" type="button">直接开始 →</button>
-        <a class="text-link" href="#verified">技术细节放在后面</a>
-      </div>
-    </div>
-  </section>
-
-  <section class="start-card" id="start">
-    <div class="start-heading">
-      <div>
-        <p class="kicker">PICK A CASE</p>
-        <h2>先玩一个具体问题</h2>
-      </div>
-      <button class="ghost subtle" id="resetAll" type="button">Reset</button>
-    </div>
-
-    <div class="scenario-grid" aria-label="Scenario presets">
-      <button class="scenario active" data-preset="hvac" type="button"><span class="scenario-no">01</span><b>窗开了，CO₂ 还在涨</b><small>为什么？下一步先查什么？</small></button>
-      <button class="scenario" data-preset="temporal" type="button"><span class="scenario-no">02</span><b>阀门开了，流量没变</b><small>是真的坏了，还是你看得太早？</small></button>
-      <button class="scenario" data-preset="retrieval" type="button"><span class="scenario-no">03</span><b>RAG 刷新后质量掉了</b><small>先查 corpus、embedding 还是 reranker？</small></button>
-      <button class="scenario" data-preset="custom" type="button"><span class="scenario-no">04</span><b>我自己的问题</b><small>用通用因果模板跑一次</small></button>
-    </div>
-
-    <div class="goal-box">
-      <label for="goal">问题</label>
-      <textarea id="goal" rows="3">卧室 CO₂ 一直升高，但窗户已经开了。判断真正原因，并决定下一步应该验证什么。</textarea>
-      <span id="goalHint" class="goal-hint">你只需要描述问题，不需要写推理过程。</span>
-      <div class="start-bottom">
-        <button class="primary large" id="startSession" type="button">开始 →</button>
-      </div>
-    </div>
-  </section>
-
-  <section class="workbench hidden" id="workbench">
-    <div class="session-top">
-      <div class="session-id"><span class="live-dot"></span><div><strong id="sessionTitle">SESSION</strong><small id="sessionMeta">step 0</small></div></div>
-      <div class="view-switch" role="group" aria-label="Information depth">
-        <button class="view-btn active" data-view="play" type="button">体验</button>
-        <button class="view-btn" data-view="deep" type="button">技术</button>
-      </div>
-      <div class="session-actions">
-        <button class="ghost" id="exportSession" type="button">Export</button>
-        <button class="ghost deep-only" id="toggleRaw" type="button">Raw</button>
-      </div>
-    </div>
-
-    <div class="journey" id="journey">
-      <div class="journey-step active" data-j="2"><span>1</span><b>选一步</b></div>
-      <div class="journey-line"></div>
-      <div class="journey-step" data-j="4"><span>2</span><b>看变化</b></div>
-      <div class="journey-line"></div>
-      <div class="journey-step" data-j="5"><span>3</span><b>回看未来</b></div>
-    </div>
-
-    <section class="now-card">
-      <div class="now-number" id="nowNumber">01</div>
-      <div class="now-copy">
-        <p class="kicker" id="stageKicker">STEP 1</p>
-        <h2 id="stageTitle">下一步先做什么？</h2>
-        <p id="stageSubtitle">选一个你认为最值得先验证的动作。</p>
-      </div>
-      <div class="now-stats">
-        <div><span>当前最可能</span><strong id="topBelief">—</strong></div>
-        <div><span>剩余验证次数</span><strong id="budget">3 / 3</strong></div>
-        <div class="deep-only"><span>cost</span><strong id="cost">0.00</strong></div>
-      </div>
-    </section>
-
-    <div class="play-grid">
-      <aside class="belief-pane">
-        <div class="pane-title"><div><span>当前判断</span><b>现在它更相信什么？</b></div><button class="tiny-link deep-only" id="addHypothesis" type="button">+ 假设</button></div>
-        <div id="beliefs" class="belief-list"></div>
-        <div class="belief-explainer">不是结论，只是此刻的倾向。</div>
-      </aside>
-
-      <section class="decision-pane">
-        <div class="decision-question">
-          <span id="decisionEyebrow">CHOOSE ONE</span>
-          <h3 id="decisionQuestion">你想让它下一步先做什么？</h3>
-        </div>
-
-        <div id="candidates" class="candidate-list"></div>
-
-        <div class="selection-summary" id="selectionSummary">
-          <span>已选</span>
-          <b id="selectionText">—</b>
-          <small id="selectionMeaning">点一个选项，看它主要想验证什么。</small>
-        </div>
-
-        <div class="human-gate hidden" id="humanGate">
-          <div class="gate-actions">
-            <button class="primary" id="executeSelected" type="button">执行这个选择 →</button>
-            <button class="secondary deep-only" id="approve" type="button">执行 Runtime 推荐</button>
-          </div>
-          <details class="challenge-box">
-            <summary>我不同意这些选项</summary>
-            <div class="operator-row">
-              <input id="operatorMessage" type="text" placeholder="例如：先排除传感器问题">
-              <button class="ghost" id="replan" type="button">重新排</button>
-            </div>
-            <p id="gateNarrative" class="muted"></p>
-          </details>
-        </div>
-
-        <div class="observation-card hidden" id="observationCard">
-          <div class="result-chain">
-            <div><span>你刚才做了</span><b id="observationTitle">—</b></div>
-            <i>→</i>
-            <div><span>世界返回</span><b id="observationBody">—</b></div>
-          </div>
-          <div class="impact-card">
-            <span>所以它改了哪里？</span>
-            <b id="impactSummary">—</b>
-            <div id="beliefChange" class="belief-change deep-only"></div>
-          </div>
-          <div class="observation-bottom">
-            <p id="observationLesson">下一步会从新的判断出发。</p>
-            <button class="primary" id="continueBtn" type="button">看下一步 →</button>
-          </div>
-        </div>
-
-        <div class="final-card hidden" id="finalCard">
-          <span>DONE</span>
-          <h2 id="finalTitle">Decision reached</h2>
-          <p id="finalText"></p>
-          <div class="final-metrics deep-only" id="finalMetrics"></div>
-          <div class="final-actions">
-            <button class="primary" id="openFork" type="button">换一个过去的选择看看 →</button>
-            <button class="secondary" id="restartSame" type="button">再跑一次</button>
-          </div>
-        </div>
-      </section>
-
-      <aside class="inspector deep-only">
-        <div class="inspector-head"><div><span>WHY THIS MOVE?</span><b id="ctxSelected">—</b></div><button class="tiny-link" id="expandDeep" type="button">技术细节</button></div>
-        <p class="plain-why" id="ctxWhy">—</p>
-        <div class="plain-score" id="plainScore"></div>
-        <div class="deep-zone">
-          <div class="inspector-tabs">
-            <button class="tab active" data-tab="context" type="button">Score</button>
-            <button class="tab" data-tab="trace" type="button">Trace</button>
-            <button class="tab" data-tab="counterfactual" type="button">Fork</button>
-          </div>
-          <section class="tab-panel" id="tab-context"><div class="panel-label">SCORE PROVENANCE</div><div class="score-table" id="scoreTable"></div><details class="math"><summary>Bayesian / EVSI math</summary><pre id="mathBody">No candidate selected yet.</pre></details></section>
-          <section class="tab-panel hidden" id="tab-trace"><div class="panel-label">EXECUTION TRACE</div><div class="trace-list" id="traceList"></div></section>
-          <section class="tab-panel hidden" id="tab-counterfactual"><div class="panel-label">FORK FROM A FROZEN STEP</div><div id="forkControls"></div><div id="forkResult"></div></section>
-        </div>
-      </aside>
-    </div>
-
-    <section class="memory-strip deep-only">
-      <div class="memory-heading"><div><span>DECISION MEMORY</span><b>历史选择</b></div><small id="memoryHint">完成第一步后出现</small></div>
-      <div class="history-track" id="historyTrack"></div>
-    </section>
-
-    <section class="raw-state hidden" id="rawState"><div class="panel-label">RAW SESSION STATE</div><pre id="rawJson"></pre></section>
-  </section>
-
-  <section class="verified" id="verified">
-    <div class="verified-copy">
-      <p class="kicker">TECHNICAL PROOF</p>
-      <h2>体验层保持简单，证据放在这里。</h2>
-      <p>GitHub Actions 仍会运行 Python tests、HiddenWorld 与 same-world A/B。体验模式不要求用户先读这些东西。</p>
-    </div>
-    <div class="metrics">
-      <div class="metric"><span>Identification</span><strong id="accuracy">—</strong><small>fixed seeded suite</small></div>
-      <div class="metric"><span>Mean posterior</span><strong id="posterior">—</strong><small>true hypothesis</small></div>
-      <div class="metric"><span>Causal regret</span><strong id="regret">—</strong><small>lower is better</small></div>
-      <div class="metric"><span>Mean probes</span><strong id="probes">—</strong><small>before intervention</small></div>
-    </div>
-    <details><summary>Open CI-generated Python runtime evidence</summary><pre id="verifiedRaw">Loading…</pre></details>
-  </section>
+<section class="hero"><div class="eyebrow">CI-GENERATED · REAL PYTHON RUNTIME</div><h1>一次只看懂一个精髓。</h1><p>这些不是浏览器里手写出来的剧情。每次 GitHub Pages 发布时，CI 会真的运行三次 CausalRAG Python runtime，然后把 canonical episode ledger 写进本页读取的数据里。</p><div class="truth"><b id="build">Loading verified build…</b><br>静态 Pages 只播放真实发布产物；它不会冒充 live backend。</div></section>
+<section class="cases">
+<button class="case active" data-key="hvac"><span>01 · INFORMATION VALUE</span><h2>哪个实验最值得先做？</h2><p>有限 probe budget 下，Agent 必须选择最可能改变后续决策的证据。</p></button>
+<button class="case" data-key="temporal"><span>02 · TEMPORAL CAUSALITY</span><h2>什么时候读数才算证据？</h2><p>真实读数如果落在错误 causal window，也不能拿来归因。</p></button>
+<button class="case" data-key="open_world"><span>03 · OPEN WORLD</span><h2>正确答案不在模型里怎么办？</h2><p>现实连续反驳 H1/H2 时，Agent 必须允许 hypothesis class 自己变化。</p></button>
+</section>
+<section class="story">
+<div id="loading" class="loading">Loading CI-generated runtime trajectory…</div>
+<div id="content" hidden>
+  <div class="story-head"><div><div class="eyebrow">CANONICAL EPISODE LEDGER</div><h2 id="title">—</h2></div><p id="sub">—</p></div>
+  <div class="summary"><div class="metric"><span>RESULT</span><b id="result">—</b></div><div class="metric"><span>DECISIONS</span><b id="decisions">—</b></div><div class="metric"><span>TRUE POSTERIOR</span><b id="posterior">—</b></div><div class="metric"><span>TRACE</span><b id="trace">—</b></div></div>
+  <div class="timeline" id="timeline"></div>
+  <div class="takeaway"><b id="takeTitle">—</b><span id="takeText">—</span></div>
+  <div class="footer-cta"><p><b>想真正控制它？</b><br>Live Workbench 支持自己的 Goal、Human Gate、replan、新 hypothesis 与 Safe Auto；它需要 Python/FastAPI backend。</p><a class="btn" href="https://github.com/hippoley/CausalRAG">Run Live Workbench →</a></div>
+</div>
+</section>
 </main>
-
-<footer><span>CausalRAG</span><span>choose → observe → belief changes → choose again</span><a href="https://github.com/hippoley/CausalRAG">Source</a></footer>
-<script src="app.js"></script>
-</body>
-</html>
+<script>
+const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));let data=null,active='hvac';
+const meta={
+ hvac:{title:'有限预算下，先买哪条证据？',sub:'看 runtime 如何在多个 diagnostic actions 中选择，而不是照 proposer 顺序执行。',take:'精髓：实验的价值不是“能得到信息”就够了，而是这条信息是否值得它的成本，并且会不会改变最终 action。'},
+ temporal:{title:'真实数值，也可能不是合法证据。',sub:'看 temporal guard 如何避免把 intervention 之前的 stale effect 当成刚才动作的结果。',take:'精髓：CausalRAG 不只问 observation 是什么，还问它在时间上有没有资格被归因给刚才的 action。'},
+ open_world:{title:'Agent 发现：原来的模型里没有正确答案。',sub:'看 model mismatch 如何从“调 H1/H2 概率”升级成“新增并验证 H4”。',take:'精髓：真正的自精化不是永远在固定候选里重新加权，而是现实足够反常时，允许 world model 的 hypothesis class 发生结构变化。'}
+};
+function topHyp(rows){return [...(rows||[])].sort((a,b)=>Number(b.probability||0)-Number(a.probability||0))[0]||null}
+function deltaChips(row){const d=Object.entries(row.posterior_delta||{}).filter(([,v])=>Math.abs(Number(v))>.001).sort((a,b)=>Math.abs(Number(b[1]))-Math.abs(Number(a[1]))).slice(0,3);return d.map(([id,v])=>'<span class="chip '+(Number(v)>0?'up':'')+'">'+esc(id)+' '+(Number(v)>=0?'+':'')+(100*Number(v)).toFixed(1)+'pp</span>').join('')}
+function modelChips(row){const hc=row.hypothesis_changes||{},added=hc.added||[],validated=hc.validation_changed||[];let out=[];added.forEach(h=>out.push('<span class="chip model">NEW '+esc(h.id||h.hypothesis_id)+'</span>'));validated.forEach(v=>out.push('<span class="chip model">'+esc(v.hypothesis_id)+' validated</span>'));return out.join('')}
+function stepHTML(row,i){const sel=row.selected||{},obs=row.observation||{},ins=row.decision_inspector||{},chips=deltaChips(row)+(ins.diverged?'<span class="chip guard">runtime changed proposer choice</span>':'')+modelChips(row);return '<div class="step"><div class="label">STEP '+(i+1)+'</div><i class="dot"></i><div class="content"><h3>'+esc((sel.kind||'action')+' · '+(sel.name||'—'))+'</h3><p>'+esc(JSON.stringify(obs.result??obs).slice(0,260))+'</p>'+(chips?'<div class="chips">'+chips+'</div>':'')+'</div></div>'}
+function render(){if(!data)return;const run=data.examples?.[active],m=meta[active];if(!run)return;$('title').textContent=m.title;$('sub').textContent=m.sub;const metrics=run.metrics||{};$('result').textContent=metrics.success===true?'SUCCESS':metrics.success===false?'NOT YET':'DONE';$('decisions').textContent=(run.decisions||[]).length;$('posterior').textContent=Math.round(100*Number(metrics.true_hypothesis_posterior||0))+'%';$('trace').textContent=String(run.trace_id||'—').slice(0,8);const rows=run.episode_ledger||[];$('timeline').innerHTML=rows.map(stepHTML).join('')||'<div class="loading">No ledger rows in this build.</div>';$('takeTitle').textContent='你刚才看到的是发布产物，不是前端模拟';$('takeText').textContent=m.take}
+document.querySelectorAll('.case').forEach(b=>b.onclick=()=>{active=b.dataset.key;document.querySelectorAll('.case').forEach(x=>x.classList.toggle('active',x===b));render()});
+fetch('data/runtime.json').then(r=>r.json()).then(d=>{data=d;$('build').textContent='VERIFIED · '+String(d.commit||'current')+' · Python '+String(d.python||'');$('loading').hidden=true;$('content').hidden=false;render()}).catch(e=>{$('loading').textContent='Could not load verified runtime data: '+e});
+</script></body></html>
