@@ -1,13 +1,13 @@
-from causalrag.agent.actions import ActionKind, CandidateAction
-from causalrag.agent.loop import CausalAgentLoop
-from causalrag.reasoning.policy import (
+from branchpoint.agent.actions import ActionKind, CandidateAction
+from branchpoint.agent.loop import CausalAgentLoop
+from branchpoint.reasoning.policy import (
     hypothesis_discrimination_score,
     rank_actions,
     score_action,
     select_action,
 )
-from causalrag.tools.base import ToolRegistry, ToolSpec
-from causalrag.world_model.models import CausalWorldModel
+from branchpoint.tools.base import ToolRegistry, ToolSpec
+from branchpoint.world_model.models import CausalWorldModel
 
 
 def _world():
