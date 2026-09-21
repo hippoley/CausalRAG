@@ -414,6 +414,13 @@ def one_shot_decision(payload: OneShotDecisionRequest):
         )
 
     return {
+        "truthfulness": {
+            "executes_tools": False,
+            "simulates_outcomes": False,
+            "uses_runtime_scoring": True,
+            "canonical_tool_policy_applied": bool(payload.tools),
+            "next_step_for_real_outcomes": "Run a capability pack or Live Workbench session.",
+        },
         "proposer_first": _candidate_payload(result.proposer_first, 0),
         "selected": _candidate_payload(result.selected, selected_index),
         "changed_proposer_order": result.changed_proposer_order,
