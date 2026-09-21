@@ -137,3 +137,118 @@ def test_decide_cli_supports_stdin_and_json_output(monkeypatch, capsys):
     output = json.loads(capsys.readouterr().out)
     assert output["selected"]["name"] == "inspect_submission_state"
     assert output["truthfulness"]["executes_tools"] is False
+
+
+def test_portable_contracts_drive_runtime_evsi_instead_of_model_info_guess():
+    result = arbitrate_payload(
+        {
+            "candidates": [
+                {
+                    "kind": "observe",
+                    "name": "diagnose",
+                    "expected_information_gain": 0.0,
+                    "tests_hypotheses": ["H1", "H2"],
+                },
+                {
+                    "kind": "intervene",
+                    "name": "fix_h1",
+                    "expected_goal_gain": 1.0,
+                },
+                {
+                    "kind": "intervene",
+                    "name": "fix_h2",
+                    "expected_goal_gain": 1.0,
+                },
+            ],
+            "tools": [
+                {
+                    "name": "diagnose",
+                    "cost": 0.08,
+                    "risk": 0.0,
+                    "reversible": True,
+                    "experiment_contract": {
+                        "experiment_id": "diagnostic",
+                        "outcomes": [
+                            {
+                                "outcome": "leans_h1",
+                                "likelihoods": {"H1": 0.75, "H2": 0.25},
+                            },
+                            {
+                                "outcome": "leans_h2",
+                                "likelihoods": {"H1": 0.25, "H2": 0.75},
+                            },
+                        ],
+                    },
+                },
+                {
+                    "name": "fix_h1",
+                    "cost": 0.20,
+                    "intervention_contract": {
+                        "intervention_id": "fix_h1",
+                        "utilities": {"H1": 1.0, "H2": -1.0},
+                    },
+                },
+                {
+                    "name": "fix_h2",
+                    "cost": 0.20,
+                    "intervention_contract": {
+                        "intervention_id": "fix_h2",
+                        "utilities": {"H1": -1.0, "H2": 1.0},
+                    },
+                },
+            ],
+            "hypotheses": [
+                {
+                    "hypothesis_id": "H1",
+                    "statement": "mechanism one",
+                    "probability": 0.70,
+                },
+                {
+                    "hypothesis_id": "H2",
+                    "statement": "mechanism two",
+                    "probability": 0.30,
+                },
+            ],
+        }
+    )
+
+    assert result["selected"]["name"] == "diagnose"
+    row = result["ranking"][0]
+    assert row["score"]["information_source"] == "runtime_bayesian_eig"
+    assert row["score"]["decision_value_source"] == (
+        "runtime_expected_decision_value_after_sampling"
+    )
+    assert abs(row["score"]["expected_value_of_sample_information"] - 0.1) < 1e-9
+    assert abs(row["score"]["net_value_of_sampling"] - 0.02) < 1e-9
+    assert row["registered_tool"]["experiment_contract"]["experiment_id"] == "diagnostic"
+
+
+def test_portable_contract_validation_rejects_non_normalized_likelihoods():
+    try:
+        arbitrate_payload(
+            {
+                "candidates": [{"kind": "observe", "name": "bad_probe"}],
+                "tools": [
+                    {
+                        "name": "bad_probe",
+                        "experiment_contract": {
+                            "experiment_id": "bad",
+                            "outcomes": [
+                                {
+                                    "outcome": "yes",
+                                    "likelihoods": {"H1": 0.9, "H2": 0.9},
+                                },
+                                {
+                                    "outcome": "no",
+                                    "likelihoods": {"H1": 0.9, "H2": 0.1},
+                                },
+                            ],
+                        },
+                    }
+                ],
+            }
+        )
+    except DecisionPayloadError as exc:
+        assert "sum to 1" in str(exc)
+    else:
+        raise AssertionError("invalid likelihood contract should be rejected")
