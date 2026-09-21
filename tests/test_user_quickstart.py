@@ -26,7 +26,7 @@ class LocalReasoner:
         return "sensor state unknown" if state.step == 0 else None
 
 
-def test_create_agent_runs_without_api_key_or_rag_dependencies():
+def test_create_agent_runs_without_api_key_or_optional_retrieval_dependencies():
     agent = create_agent(
         reasoner=LocalReasoner(),
         tools=[
