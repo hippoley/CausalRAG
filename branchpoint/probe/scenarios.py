@@ -465,78 +465,79 @@ class BrowserGuardReasoner:
 
 
 
-_SCENARIOS: Dict[str, Dict[str, Any]] = {
-    "hvac_hidden_world": {
-        "id": "hvac_hidden_world",
-        "label": "HVAC hidden mechanism",
-        "description": "Diagnose filter, fan, or duct faults under noisy observations.",
-        "hidden_hypotheses": ["H1", "H2", "H3"],
-        "outcome_modes": ["deterministic", "stochastic"],
-        "recommended_test": "Bayesian learning / EIG / EVSI",
-        "default_hidden_hypothesis": "H2",
-        "default_outcome_mode": "stochastic",
-        "default_goal": "Identify the hidden HVAC causal mechanism using diagnostic experiments, then apply the intervention most likely to fix it.",
-    },
-    "temporal_delayed_effect": {
-        "id": "temporal_delayed_effect",
-        "label": "Delayed causal effect",
-        "description": "Intervene on a valve; an immediate read is stale until transport delay elapses.",
-        "hidden_hypotheses": ["H1", "H2"],
-        "outcome_modes": ["deterministic"],
-        "recommended_test": "Temporal attribution",
-        "default_hidden_hypothesis": "H1",
-        "default_outcome_mode": "deterministic",
-        "default_goal": "Identify whether the valve or a downstream restriction controls flow without mistaking a stale immediate read for the intervention effect.",
-    },
-    "open_world_mismatch": {
-        "id": "open_world_mismatch",
-        "label": "Unknown mechanism / model mismatch",
-        "description": "Observed signatures are improbable under every modeled H1/H2 explanation.",
-        "hidden_hypotheses": ["H4"],
-        "outcome_modes": ["deterministic"],
-        "recommended_test": "Open-world mismatch + hypothesis discovery",
-        "default_hidden_hypothesis": "H4",
-        "default_outcome_mode": "deterministic",
-        "default_goal": "Diagnose a failure that may lie outside the current modeled H1/H2 fault class and validate any newly discovered mechanism.",
-    },
-    "tool_routing": {
-        "id": "tool_routing",
-        "label": "Ambiguous tool routing",
-        "description": "Choose between private data, fresh public information, or a state-changing action.",
-        "hidden_hypotheses": ["H1", "H2", "H3"],
-        "outcome_modes": ["deterministic", "stochastic"],
-        "recommended_test": "Route selection under uncertainty",
-        "default_hidden_hypothesis": "H3",
-        "default_outcome_mode": "deterministic",
-        "default_goal": "Route an ambiguous request to the right capability while minimizing unnecessary access and avoiding accidental side effects.",
-    },
-    "incident_triage": {
-        "id": "incident_triage",
-        "label": "Production incident triage",
-        "description": "Diagnose a latency spike before choosing rollback, DB mitigation, or dependency failover.",
-        "hidden_hypotheses": ["H1", "H2", "H3"],
-        "outcome_modes": ["deterministic", "stochastic"],
-        "recommended_test": "Information value before intervention",
-        "default_hidden_hypothesis": "H2",
-        "default_outcome_mode": "deterministic",
-        "default_goal": "Diagnose the most likely cause of a production latency spike and choose the least-wasteful corrective action.",
-    },
-    "browser_action_guard": {
-        "id": "browser_action_guard",
-        "label": "Browser action guard",
-        "description": "A proposer wants to submit immediately; the runtime can verify session state before an irreversible external action.",
-        "hidden_hypotheses": ["H1", "H2"],
-        "outcome_modes": ["deterministic"],
-        "recommended_test": "Risk-aware execution boundary",
-        "default_hidden_hypothesis": "H2",
-        "default_outcome_mode": "deterministic",
-        "default_goal": "Complete the browser task without submitting a stale or unauthorized form.",
-    },
-}
+@dataclass(frozen=True)
+class ProbeScenarioSpec:
+    """Discoverable capability-pack registration for the Playable Probe."""
+
+    scenario_id: str
+    label: str
+    description: str
+    hidden_hypotheses: Sequence[str]
+    outcome_modes: Sequence[str]
+    recommended_test: str
+    default_hidden_hypothesis: str
+    default_outcome_mode: str
+    default_goal: str
+    builder: Callable[[Any], ProbeScenarioRuntime]
+
+    def summary(self) -> Dict[str, Any]:
+        return {
+            "id": self.scenario_id,
+            "label": self.label,
+            "description": self.description,
+            "hidden_hypotheses": list(self.hidden_hypotheses),
+            "outcome_modes": list(self.outcome_modes),
+            "recommended_test": self.recommended_test,
+            "default_hidden_hypothesis": self.default_hidden_hypothesis,
+            "default_outcome_mode": self.default_outcome_mode,
+            "default_goal": self.default_goal,
+        }
+
+
+_SCENARIO_REGISTRY: Dict[str, ProbeScenarioSpec] = {}
+
+
+def register_probe_scenario(
+    spec: ProbeScenarioSpec,
+    *,
+    replace: bool = False,
+) -> ProbeScenarioSpec:
+    scenario_id = str(spec.scenario_id).strip()
+    if not scenario_id:
+        raise ValueError("scenario_id must be non-empty")
+    if not callable(spec.builder):
+        raise TypeError("scenario builder must be callable")
+    if not spec.hidden_hypotheses:
+        raise ValueError("scenario must declare at least one hidden_hypothesis")
+    if not spec.outcome_modes:
+        raise ValueError("scenario must declare at least one outcome_mode")
+    if spec.default_hidden_hypothesis not in set(spec.hidden_hypotheses):
+        raise ValueError("default_hidden_hypothesis must be declared by the scenario")
+    if spec.default_outcome_mode not in set(spec.outcome_modes):
+        raise ValueError("default_outcome_mode must be declared by the scenario")
+    if scenario_id in _SCENARIO_REGISTRY and not replace:
+        raise ValueError(f"scenario already registered: {scenario_id}")
+    _SCENARIO_REGISTRY[scenario_id] = spec
+    return spec
+
+
+def unregister_probe_scenario(scenario_id: str) -> Optional[ProbeScenarioSpec]:
+    """Remove a registration, primarily for tests and dynamic applications."""
+
+    return _SCENARIO_REGISTRY.pop(str(scenario_id), None)
+
+
+def get_probe_scenario(scenario_id: str) -> ProbeScenarioSpec:
+    try:
+        return _SCENARIO_REGISTRY[str(scenario_id)]
+    except KeyError as exc:
+        raise ValueError(
+            f"unknown scenario {scenario_id!r}; choose one of {sorted(_SCENARIO_REGISTRY)}"
+        ) from exc
 
 
 def scenario_summaries():
-    return [dict(value) for value in _SCENARIOS.values()]
+    return [spec.summary() for spec in _SCENARIO_REGISTRY.values()]
 
 
 def validate_scenario_config(
@@ -544,19 +545,215 @@ def validate_scenario_config(
     hidden_hypothesis: str,
     outcome_mode: str,
 ) -> None:
-    spec = _SCENARIOS.get(str(scenario_id))
-    if spec is None:
+    spec = get_probe_scenario(scenario_id)
+    if hidden_hypothesis not in spec.hidden_hypotheses:
         raise ValueError(
-            f"unknown scenario {scenario_id!r}; choose one of {sorted(_SCENARIOS)}"
+            f"{scenario_id} hidden_hypothesis must be one of {list(spec.hidden_hypotheses)}"
         )
-    if hidden_hypothesis not in spec["hidden_hypotheses"]:
+    if outcome_mode not in spec.outcome_modes:
         raise ValueError(
-            f"{scenario_id} hidden_hypothesis must be one of {spec['hidden_hypotheses']}"
+            f"{scenario_id} outcome_mode must be one of {list(spec.outcome_modes)}"
         )
-    if outcome_mode not in spec["outcome_modes"]:
-        raise ValueError(
-            f"{scenario_id} outcome_mode must be one of {spec['outcome_modes']}"
-        )
+
+
+def _scenario_goal(scenario_id: str) -> str:
+    return get_probe_scenario(scenario_id).default_goal
+
+
+def _build_hvac_runtime(config: Any) -> ProbeScenarioRuntime:
+    scenario = build_hvac_hidden_world(config.hidden_hypothesis)
+    environment = HiddenWorldEnvironment(
+        scenario,
+        outcome_mode=config.outcome_mode,
+        seed=int(config.seed),
+        outcome_coupling=config.stochastic_coupling,
+    )
+    return ProbeScenarioRuntime(
+        scenario_id="hvac_hidden_world",
+        environment=environment,
+        world_model=environment.world_model(),
+        tools=environment.tools(),
+        default_reasoner=HiddenWorldReasoner(
+            scenario,
+            confidence_threshold=float(config.confidence_threshold),
+            max_probes=int(config.max_probes),
+        ),
+        goal=_scenario_goal("hvac_hidden_world"),
+    )
+
+
+def _build_tool_routing_runtime(config: Any) -> ProbeScenarioRuntime:
+    scenario = _tool_routing_world(config.hidden_hypothesis)
+    environment = HiddenWorldEnvironment(
+        scenario,
+        outcome_mode=config.outcome_mode,
+        seed=int(config.seed),
+        outcome_coupling=config.stochastic_coupling,
+    )
+    return ProbeScenarioRuntime(
+        scenario_id="tool_routing",
+        environment=environment,
+        world_model=environment.world_model(),
+        tools=environment.tools(),
+        default_reasoner=HiddenWorldReasoner(
+            scenario,
+            confidence_threshold=float(config.confidence_threshold),
+            max_probes=int(config.max_probes),
+        ),
+        goal=_scenario_goal("tool_routing"),
+    )
+
+
+def _build_incident_triage_runtime(config: Any) -> ProbeScenarioRuntime:
+    scenario = _incident_triage_world(config.hidden_hypothesis)
+    environment = HiddenWorldEnvironment(
+        scenario,
+        outcome_mode=config.outcome_mode,
+        seed=int(config.seed),
+        outcome_coupling=config.stochastic_coupling,
+    )
+    return ProbeScenarioRuntime(
+        scenario_id="incident_triage",
+        environment=environment,
+        world_model=environment.world_model(),
+        tools=environment.tools(),
+        default_reasoner=HiddenWorldReasoner(
+            scenario,
+            confidence_threshold=float(config.confidence_threshold),
+            max_probes=int(config.max_probes),
+        ),
+        goal=_scenario_goal("incident_triage"),
+    )
+
+
+def _build_browser_guard_runtime(config: Any) -> ProbeScenarioRuntime:
+    scenario = _browser_guard_world(config.hidden_hypothesis)
+    environment = BrowserGuardEnvironment(
+        scenario,
+        outcome_mode=config.outcome_mode,
+        seed=int(config.seed),
+    )
+    return ProbeScenarioRuntime(
+        scenario_id="browser_action_guard",
+        environment=environment,
+        world_model=environment.world_model(),
+        tools=environment.tools(),
+        default_reasoner=BrowserGuardReasoner(scenario),
+        goal=_scenario_goal("browser_action_guard"),
+    )
+
+
+def _build_temporal_runtime(config: Any) -> ProbeScenarioRuntime:
+    environment = PlayableTemporalEnvironment(config.hidden_hypothesis)
+    return ProbeScenarioRuntime(
+        scenario_id="temporal_delayed_effect",
+        environment=environment,
+        world_model=environment.world_model(),
+        tools=environment.tools(),
+        default_reasoner=ImmediateReadReasoner(),
+        goal=_scenario_goal("temporal_delayed_effect"),
+        time_driver=environment.clock,
+    )
+
+
+def _build_open_world_runtime(config: Any) -> ProbeScenarioRuntime:
+    environment = PlayableOpenWorldEnvironment()
+    return ProbeScenarioRuntime(
+        scenario_id="open_world_mismatch",
+        environment=environment,
+        world_model=environment.world_model(),
+        tools=environment.tools(),
+        default_reasoner=OpenWorldProbeReasoner(),
+        goal=_scenario_goal("open_world_mismatch"),
+        mismatch_policy=ModelMismatchPolicy(
+            soft_predictive_threshold=0.06,
+            hard_predictive_threshold=0.005,
+            min_distinct_experiments=2,
+            discovered_initial_probability=0.2,
+        ),
+    )
+
+
+def _register_builtin_scenarios() -> None:
+    builtins = [
+        ProbeScenarioSpec(
+            scenario_id="hvac_hidden_world",
+            label="HVAC hidden mechanism",
+            description="Diagnose filter, fan, or duct faults under noisy observations.",
+            hidden_hypotheses=("H1", "H2", "H3"),
+            outcome_modes=("deterministic", "stochastic"),
+            recommended_test="Bayesian learning / EIG / EVSI",
+            default_hidden_hypothesis="H2",
+            default_outcome_mode="stochastic",
+            default_goal="Identify the hidden HVAC causal mechanism using diagnostic experiments, then apply the intervention most likely to fix it.",
+            builder=_build_hvac_runtime,
+        ),
+        ProbeScenarioSpec(
+            scenario_id="temporal_delayed_effect",
+            label="Delayed causal effect",
+            description="Intervene on a valve; an immediate read is stale until transport delay elapses.",
+            hidden_hypotheses=("H1", "H2"),
+            outcome_modes=("deterministic",),
+            recommended_test="Temporal attribution",
+            default_hidden_hypothesis="H1",
+            default_outcome_mode="deterministic",
+            default_goal="Identify whether the valve or a downstream restriction controls flow without mistaking a stale immediate read for the intervention effect.",
+            builder=_build_temporal_runtime,
+        ),
+        ProbeScenarioSpec(
+            scenario_id="open_world_mismatch",
+            label="Unknown mechanism / model mismatch",
+            description="Observed signatures are improbable under every modeled H1/H2 explanation.",
+            hidden_hypotheses=("H4",),
+            outcome_modes=("deterministic",),
+            recommended_test="Open-world mismatch + hypothesis discovery",
+            default_hidden_hypothesis="H4",
+            default_outcome_mode="deterministic",
+            default_goal="Diagnose a failure that may lie outside the current modeled H1/H2 fault class and validate any newly discovered mechanism.",
+            builder=_build_open_world_runtime,
+        ),
+        ProbeScenarioSpec(
+            scenario_id="tool_routing",
+            label="Ambiguous tool routing",
+            description="Choose between private data, fresh public information, or a state-changing action.",
+            hidden_hypotheses=("H1", "H2", "H3"),
+            outcome_modes=("deterministic", "stochastic"),
+            recommended_test="Route selection under uncertainty",
+            default_hidden_hypothesis="H3",
+            default_outcome_mode="deterministic",
+            default_goal="Route an ambiguous request to the right capability while minimizing unnecessary access and avoiding accidental side effects.",
+            builder=_build_tool_routing_runtime,
+        ),
+        ProbeScenarioSpec(
+            scenario_id="incident_triage",
+            label="Production incident triage",
+            description="Diagnose a latency spike before choosing rollback, DB mitigation, or dependency failover.",
+            hidden_hypotheses=("H1", "H2", "H3"),
+            outcome_modes=("deterministic", "stochastic"),
+            recommended_test="Information value before intervention",
+            default_hidden_hypothesis="H2",
+            default_outcome_mode="deterministic",
+            default_goal="Diagnose the most likely cause of a production latency spike and choose the least-wasteful corrective action.",
+            builder=_build_incident_triage_runtime,
+        ),
+        ProbeScenarioSpec(
+            scenario_id="browser_action_guard",
+            label="Browser action guard",
+            description="A proposer wants to submit immediately; the runtime can verify session state before an irreversible external action.",
+            hidden_hypotheses=("H1", "H2"),
+            outcome_modes=("deterministic",),
+            recommended_test="Risk-aware execution boundary",
+            default_hidden_hypothesis="H2",
+            default_outcome_mode="deterministic",
+            default_goal="Complete the browser task without submitting a stale or unauthorized form.",
+            builder=_build_browser_guard_runtime,
+        ),
+    ]
+    for spec in builtins:
+        register_probe_scenario(spec)
+
+
+_register_builtin_scenarios()
 
 
 def build_scenario_runtime(config: Any) -> ProbeScenarioRuntime:
@@ -566,96 +763,16 @@ def build_scenario_runtime(config: Any) -> ProbeScenarioRuntime:
         str(config.hidden_hypothesis),
         str(config.outcome_mode),
     )
-
-    if scenario_id == "hvac_hidden_world":
-        scenario = build_hvac_hidden_world(config.hidden_hypothesis)
-        environment = HiddenWorldEnvironment(
-            scenario,
-            outcome_mode=config.outcome_mode,
-            seed=int(config.seed),
-            outcome_coupling=config.stochastic_coupling,
+    runtime = get_probe_scenario(scenario_id).builder(config)
+    if not isinstance(runtime, ProbeScenarioRuntime):
+        raise TypeError(
+            f"scenario builder {scenario_id!r} must return ProbeScenarioRuntime"
         )
-        return ProbeScenarioRuntime(
-            scenario_id=scenario_id,
-            environment=environment,
-            world_model=environment.world_model(),
-            tools=environment.tools(),
-            default_reasoner=HiddenWorldReasoner(
-                scenario,
-                confidence_threshold=float(config.confidence_threshold),
-                max_probes=int(config.max_probes),
-            ),
-            goal=str(_SCENARIOS[scenario_id]["default_goal"]),
+    if runtime.scenario_id != scenario_id:
+        raise ValueError(
+            f"scenario builder returned {runtime.scenario_id!r}, expected {scenario_id!r}"
         )
-
-    if scenario_id in {"tool_routing", "incident_triage"}:
-        scenario = (
-            _tool_routing_world(config.hidden_hypothesis)
-            if scenario_id == "tool_routing"
-            else _incident_triage_world(config.hidden_hypothesis)
-        )
-        environment = HiddenWorldEnvironment(
-            scenario,
-            outcome_mode=config.outcome_mode,
-            seed=int(config.seed),
-            outcome_coupling=config.stochastic_coupling,
-        )
-        return ProbeScenarioRuntime(
-            scenario_id=scenario_id,
-            environment=environment,
-            world_model=environment.world_model(),
-            tools=environment.tools(),
-            default_reasoner=HiddenWorldReasoner(
-                scenario,
-                confidence_threshold=float(config.confidence_threshold),
-                max_probes=int(config.max_probes),
-            ),
-            goal=str(_SCENARIOS[scenario_id]["default_goal"]),
-        )
-
-    if scenario_id == "browser_action_guard":
-        scenario = _browser_guard_world(config.hidden_hypothesis)
-        environment = BrowserGuardEnvironment(
-            scenario,
-            outcome_mode=config.outcome_mode,
-            seed=int(config.seed),
-        )
-        return ProbeScenarioRuntime(
-            scenario_id=scenario_id,
-            environment=environment,
-            world_model=environment.world_model(),
-            tools=environment.tools(),
-            default_reasoner=BrowserGuardReasoner(scenario),
-            goal=str(_SCENARIOS[scenario_id]["default_goal"]),
-        )
-
-    if scenario_id == "temporal_delayed_effect":
-        environment = PlayableTemporalEnvironment(config.hidden_hypothesis)
-        return ProbeScenarioRuntime(
-            scenario_id=scenario_id,
-            environment=environment,
-            world_model=environment.world_model(),
-            tools=environment.tools(),
-            default_reasoner=ImmediateReadReasoner(),
-            goal=str(_SCENARIOS[scenario_id]["default_goal"]),
-            time_driver=environment.clock,
-        )
-
-    environment = PlayableOpenWorldEnvironment()
-    return ProbeScenarioRuntime(
-        scenario_id=scenario_id,
-        environment=environment,
-        world_model=environment.world_model(),
-        tools=environment.tools(),
-        default_reasoner=OpenWorldProbeReasoner(),
-        goal=str(_SCENARIOS[scenario_id]["default_goal"]),
-        mismatch_policy=ModelMismatchPolicy(
-            soft_predictive_threshold=0.06,
-            hard_predictive_threshold=0.005,
-            min_distinct_experiments=2,
-            discovered_initial_probability=0.2,
-        ),
-    )
+    return runtime
 
 
 def scenario_metrics(environment: Any, result: Any) -> Dict[str, Any]:
