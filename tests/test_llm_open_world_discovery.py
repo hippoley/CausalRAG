@@ -1,8 +1,8 @@
-from causalrag.experiments import ExperimentContract, OutcomeLikelihood
-from causalrag.reasoning.llm import LLMCausalReasoner
-from causalrag.tools import ToolRegistry, ToolSpec
-from causalrag.world_model import CausalWorldModel
-from causalrag.agent.state import AgentState
+from branchpoint.experiments import ExperimentContract, OutcomeLikelihood
+from branchpoint.reasoning.llm import LLMCausalReasoner
+from branchpoint.tools import ToolRegistry, ToolSpec
+from branchpoint.world_model import CausalWorldModel
+from branchpoint.agent.state import AgentState
 
 
 class FakeLLM:
