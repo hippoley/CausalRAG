@@ -1,211 +1,83 @@
-> **[Open the public playable examples →](https://hippoley.github.io/CausalRAG/)** · zero-setup browser experience. For the real session-backed product surface, run `causalrag probe --open` and open **Live Workbench**.\n\n# CausalRAG v0.3 — from retrieval to causal decision
+<div align="center">
 
-CausalRAG is a **causal decision runtime for agents operating under uncertainty**.
+# Branchpoint
 
-It started as causal-graph-enhanced RAG. In v0.3, retrieval is only one way to acquire evidence. The runtime now maintains explicit competing hypotheses, chooses what to observe or intervene on, updates beliefs from outcomes, and can value another experiment by whether it is expected to improve the eventual decision.
+### State in. Decisions out. The world gets a vote.
+
+**A decision runtime for agents that must choose what to do next under uncertainty.**
+
+Models propose. Branchpoint scores, guards, executes, learns from the result, and decides whether the next branch is safe to take automatically or worth handing to a human.
+
+`typed actions` · `probabilities` · `tool routing` · `verification` · `human approval` · `state updates` · `counterfactuals`
+
+</div>
+
+---
+
+## The 20-second version
+
+Most agent loops look like this:
 
 ```text
-Goal
-  ↓
-Belief state + competing hypotheses
-  ↓
-Candidate observations / interventions
-  ↓
-Runtime decision layer
-  ├─ Bayesian information gain
-  ├─ expected value of sample information (EVSI)
-  ├─ intervention consequence utility
-  └─ capability cost / risk / reversibility
-  ↓
-Observe / Retrieve / Ask / Intervene / Wait
-  ↓
-Outcome
-  ↓
-Posterior + world-model update
-  ↓
-Repeat or Stop
+model → tool → model → tool → answer
 ```
 
-The central distinction is simple:
+Branchpoint inserts a control layer between **what a model proposes** and **what the system actually does**:
 
-> **The model proposes. The runtime decides. The world corrects both.**
+```text
+state
+  ↓
+competing hypotheses
+  ↓
+candidate actions
+  ↓
+┌────────────────────────────────────────────┐
+│  score · probability · cost · risk · time │
+└────────────────────────────────────────────┘
+  ↓
+choose / wait / verify / ask / intervene / stop
+  ↓
+world observation
+  ↓
+belief update
+  ↓
+next branch
+```
 
-## Product surfaces
+If the world disagrees, the state changes.
 
-CausalRAG now has three deliberately different front-end surfaces because they serve three different jobs:
+If the current hypothesis set cannot explain the evidence, the hypothesis set can change too.
 
-| surface | who it is for | what you experience |
-| --- | --- | --- |
-| **Examples** (`/demo`) | first-time visitors | three focused real-runtime cases: information value, temporal attribution, and open-world hypothesis discovery |
-| **Live Workbench** (`/workbench`) | people solving a task | start a real session from your own goal and watch the self-refining **Agent History**: prior belief → action → world observation → posterior → next action |
-| **Research Console** (`/research`) | researchers / debuggers | full score provenance, candidate ledger, telemetry, same-world A/B, frozen-step inspection, and truthful counterfactual forks |
+That is the point.
 
-The public GitHub Pages surface stays zero-setup and browser-native. The live Workbench is backed by FastAPI session state and real tool execution, so it must run on a Python backend.
+---
 
-Start all three live surfaces locally:
+## Try it
+
+### 1. Open the live workbench
 
 ```bash
+git clone <this-repository>
+cd Branchpoint
 pip install -e ".[api]"
-causalrag probe --open
+branchpoint probe --open
 ```
 
-Then use:
+Then open:
 
 ```text
-/           product landing
-/demo       focused runnable examples
-/workbench  real Agent History workbench
-/research   full research / debugging console
+/            product entrance
+/demo        three focused failure-mode examples
+/workbench   live agent history + human steering
+/research    full score / trace / counterfactual console
 ```
 
-By default the server runs on `127.0.0.1:8765`. For a remote/container host:
+No model key is required for deterministic examples.
 
-```bash
-causalrag probe --host 0.0.0.0 --port 8765
-```
-
-The repository `Dockerfile` launches the same FastAPI app on port `8765`, and `render.yaml` is ready for container hosting.
-
-External proposer modes use server-side credentials:
-
-```bash
-export OPENAI_API_KEY=...       # frontier / OpenAI
-export ANTHROPIC_API_KEY=...    # frontier / Anthropic
-export LOCAL_LLM_URL=http://localhost:1234/v1
-export CAUSALRAG_SMALL_MODEL=local-model
-export CAUSALRAG_FRONTIER_MODEL=gpt-5.6-terra
-```
-
-The browser never receives those credentials.
-
-### Safe public deployment
-
-The checked-in `render.yaml` enables owner access for external proposer modes by default. The public deterministic runtime remains usable without authentication, but `small` / `frontier` model calls require an owner unlock.
-
-For a public Render deployment:
-
-```bash
-# required by render.yaml (enter this as a Render secret)
-CAUSALRAG_PROBE_ACCESS_TOKEN=<long-random-owner-token>
-
-# add at least one provider credential in the Render dashboard if you want live LLMs
-OPENAI_API_KEY=...
-# or
-ANTHROPIC_API_KEY=...
-```
-
-The Blueprint sets:
-
-```bash
-CAUSALRAG_REQUIRE_PROBE_AUTH=true
-CAUSALRAG_PROBE_COOKIE_SECURE=true
-```
-
-Open `/workbench` or `/research`. Deterministic sessions are immediately playable. To use a paid external proposer, enter the owner access token once; the server exchanges it for an HttpOnly, SameSite cookie. The provider API key and the owner access token are not stored in page JavaScript or returned to the browser.
-
-Scripted owner requests can instead send:
-
-```http
-Authorization: Bearer <CAUSALRAG_PROBE_ACCESS_TOKEN>
-```
-
-Do **not** disable probe auth on a public server that contains paid model credentials. For local-only development, auth can remain disabled:
-
-```bash
-CAUSALRAG_REQUIRE_PROBE_AUTH=false
-CAUSALRAG_PROBE_COOKIE_SECURE=false
-```
-
-Render secrets declared with `sync: false` are prompted on the first Blueprint creation; for an existing Blueprint, add newly introduced secret values manually in the Render dashboard.
-
-### What happens in one live step
-
-```text
-external model / deterministic proposer
-        ↓
-structured hypotheses + candidate actions
-        ↓
-causal runtime validates and scores
-        ↓
-HUMAN GATE — no tool has executed yet
-        ├─ approve runtime choice
-        ├─ choose another runtime-valid candidate
-        ├─ add a provisional hypothesis
-        └─ send an operator message → replan
-        ↓
-tool executes
-        ↓
-observation → posterior / world-model update
-        ↓
-next gate
-```
-
-Human overrides still pass through runtime temporal safety, and candidates rejected by runtime validation cannot be forced through the UI. Human messages are treated as operator context, not automatically true evidence.
-
-### Same-world A/B
-
-The probe can run a vanilla tool loop and the causal control plane on the same frozen task inputs. It holds the hidden mechanism, seed, goal, tools, budgets, and proposer configuration fixed. Only runtime capabilities change.
-
-For stochastic HiddenWorld comparisons, the A/B runner uses **action-indexed common random numbers**: the random variate is keyed by `seed + experiment_id + occurrence`, so the same experiment receives the same noise even if the two policies choose experiments in a different order.
-
-For external models, identical prompts are memoized across arms. If both arms present the same prompt, only one provider call is made and the exact structured output is replayed into the other arm. Model calls separate only after the runtime states—and therefore prompts—actually diverge.
-
-An LLM can suggest hypotheses and actions, but it does not own the belief state, capability economics, Bayesian update, or deployment consequence utility.
-
-## Why this is not another tool-use loop
-
-A normal agent loop can repeatedly do:
-
-```text
-LLM → tool → result → LLM
-```
-
-CausalRAG v0.3 adds explicit semantics around *why* another action is worth taking:
-
-1. **Beliefs are explicit and defeasible.** Competing hypotheses live in a `CausalWorldModel`, not only in prompt context.
-2. **Experiments have declared observation models.** `ExperimentContract` can represent `P(outcome | hypothesis, action)` and enables exact Bayesian posterior updates.
-3. **Information and decision value are separated.** EIG asks how much uncertainty an experiment removes. EVSI asks whether the information is expected to change the best downstream decision enough to justify its cost.
-4. **Interventions have consequence utilities.** `InterventionContract` evaluates actions under the current posterior rather than trusting model self-scores.
-5. **Deployment owns preferences.** `DecisionPreferences` can change consequence utility without changing the reasoner, the tool implementation, or the causal world model.
-6. **Behavior is benchmarked, not just prose.** HiddenWorld measures success, calibration, experiment cost, and causal regret over seeded stochastic episodes.
-
-The legacy `CausalRAGPipeline` remains available as an optional compatibility layer.
-
-## Install
-
-Python **3.10+** is required.
-
-The default install is the lightweight causal runtime. It does **not** install Torch, sentence-transformers, or FAISS.
-
-```bash
-git clone https://github.com/hippoley/CausalRAG.git
-cd CausalRAG
-pip install -e .
-```
-
-Add optional capability layers only when needed:
-
-```bash
-pip install -e ".[rag]"               # lightweight document + causal retrieval
-pip install -e ".[api]"               # FastAPI / HTTP server
-pip install -e ".[local-embeddings]"  # sentence-transformers + PyTorch
-pip install -e ".[faiss]"             # FAISS vector backend
-pip install -e ".[evaluation]"        # pandas + Ragas evaluation
-pip install -e ".[full]"              # hosted-runtime capability layers
-```
-
-For the default OpenAI-backed reasoner and hosted embedding provider:
-
-```bash
-export OPENAI_API_KEY=...
-```
-
-Core CI exercises Python 3.10 and 3.12 independently from the optional API and RAG gates.
-
-## 30-second agent quickstart
+### 2. Run one agent from Python
 
 ```python
-from causalrag import ToolSpec, create_agent
+from branchpoint import ToolSpec, create_agent
 
 
 def read_co2(room: str):
@@ -216,7 +88,7 @@ agent = create_agent(
     tools=[
         ToolSpec(
             name="read_co2",
-            description="Read current CO2 concentration in a room.",
+            description="Read the current CO₂ concentration in a room.",
             handler=read_co2,
             cost=0.01,
             risk=0.0,
@@ -227,7 +99,7 @@ agent = create_agent(
 )
 
 result = agent.run(
-    "Determine whether the bedroom needs more ventilation and what to verify first",
+    "Decide what to verify before changing the ventilation state.",
     max_steps=6,
 )
 
@@ -235,14 +107,215 @@ print(result.answer)
 print(result.to_dict()["decisions"])
 ```
 
-The runtime records candidate actions, scores, selected action, observations, beliefs, and transitions separately.
+The answer is only one artifact. The runtime also records the candidates, scores, selected action, observations, belief changes, transitions, and trace.
 
-## Causal experiments: likelihoods instead of model guesses
+---
 
-When an observation has a known or estimated likelihood model, declare an `ExperimentContract`:
+## Why Branchpoint exists
+
+A fluent model response is not the same thing as a good software decision.
+
+Production agents repeatedly face bounded decisions such as:
+
+- Which tool should run next?
+- Is the current evidence strong enough to act?
+- Should the workflow continue, retry, wait, ask a human, or stop?
+- Which hypothesis is worth testing first?
+- Is an observation actually attributable to the action that preceded it?
+- Did the world just invalidate the model we were using?
+- Is another probe worth its latency, cost, or risk?
+
+Branchpoint makes those decisions explicit.
+
+| Ordinary loop | Branchpoint |
+| --- | --- |
+| State lives mostly in prompt history | Beliefs and hypotheses are first-class runtime state |
+| Model output directly drives the next tool | Model proposes; runtime validates and arbitrates |
+| Tool results become more text | Observations can update explicit probabilities |
+| Every observation is treated as usable | Temporal attribution can reject stale evidence |
+| Hypothesis set is fixed implicitly | Model mismatch can trigger hypothesis discovery |
+| Human approval is bolted on | Human gates are part of the execution protocol |
+| Debugging ends at logs | Every step can be inspected and forked |
+| Evaluation asks “did it answer?” | Same-world runs measure trajectory differences |
+
+---
+
+## Three failure modes you can play
+
+Branchpoint ships with three small environments because each exposes a different failure that ordinary tool loops hide.
+
+### 01 · The most useful tool is not the cheapest tool
+
+Several explanations are plausible. Probe budget is limited.
+
+The runtime has to decide which observation is most likely to change the downstream action enough to justify its cost.
+
+**What you see:** candidate scores, information value, selected probe, posterior movement.
+
+### 02 · A real number can still be bad evidence
+
+An actuator changes state, but the physical effect arrives later.
+
+Reading too early returns a perfectly real measurement that should **not** be attributed to the intervention.
+
+**What you see:** wait actions, temporal guards, valid observation windows.
+
+### 03 · The correct explanation is missing
+
+All known hypotheses assign very low probability to what the world keeps returning.
+
+The correct move is not to keep redistributing probability among bad explanations.
+
+**What you see:** model mismatch, a newly discovered hypothesis, structural world-model change.
+
+---
+
+## The live workbench
+
+The workbench is built around **Agent History**, not a chat transcript.
+
+Each row is one correction loop:
+
+```text
+BEFORE
+H2 · 44%
+   ↓
+ACTION
+airflow_test
+   ↓
+WORLD
+window flow present, cross-room pressure ≈ 0
+   ↓
+AFTER
+H2 · 78%
+```
+
+When the structure changes, the UI says so explicitly:
+
+```text
+WORLD MODEL CHANGED
+new hypothesis: H4
+```
+
+### Manual mode
+
+Pause before every execution.
+
+Useful for debugging, teaching, and inspecting every branch.
+
+### Safe Auto
+
+Low-risk evidence actions can continue automatically.
+
+Branchpoint pauses when the next branch deserves attention, for example:
+
+- an intervention is about to execute;
+- risk or irreversibility rises;
+- runtime arbitration diverges from the proposer;
+- a new hypothesis appears;
+- model mismatch is detected;
+- a human starts steering the session.
+
+The goal is not “full autonomy.”
+
+The goal is **attention at the right branch**.
+
+---
+
+## A decision is inspectable
+
+A runtime decision keeps the pieces separate:
+
+```text
+prior state
+candidate actions
+runtime-valid candidates
+score provenance
+selected action
+human override, if any
+world observation
+posterior state
+structural hypothesis changes
+telemetry
+counterfactual branch
+```
+
+That separation matters because it lets you ask useful questions after the run:
+
+- Did the model propose a bad action?
+- Did the runtime score it incorrectly?
+- Was the observation noisy?
+- Did the belief update overreact?
+- Did a human override improve or harm the trajectory?
+- What would have happened if we chose candidate #2 instead?
+
+---
+
+## Capability packs
+
+The workbench does not hard-code one domain.
+
+A capability pack defines the pieces needed for one decision environment:
+
+```text
+world
++ tools
++ hypotheses
++ experiment contracts
++ intervention contracts
++ defaults
++ metrics
+```
+
+The frontend reads available packs from `/api/config`.
+
+Add a new pack to the registry and it appears in the workbench without rewriting the UI.
+
+Current packs include:
+
+- hidden-world ventilation diagnosis;
+- delayed-effect temporal attribution;
+- open-world model mismatch.
+
+This is the extension point for incident response, operations, device control, deployment diagnosis, support routing, evaluation workflows, and domain-specific agent systems.
+
+---
+
+## External models
+
+Branchpoint can use a deterministic proposer, a small local model, or a hosted model.
+
+```bash
+export OPENAI_API_KEY=...
+export ANTHROPIC_API_KEY=...
+export LOCAL_LLM_URL=http://localhost:1234/v1
+
+export BRANCHPOINT_SMALL_MODEL=local-model
+export BRANCHPOINT_FRONTIER_MODEL=<your-model>
+```
+
+The proposer can suggest hypotheses and candidate actions.
+
+It does **not** own:
+
+- the canonical belief state;
+- runtime validity;
+- temporal guards;
+- Bayesian updates backed by declared likelihoods;
+- capability costs;
+- intervention utility;
+- human approval.
+
+Those stay in application code.
+
+---
+
+## Declaring evidence
+
+When you know how an experiment behaves under competing hypotheses, declare it.
 
 ```python
-from causalrag.experiments import ExperimentContract, OutcomeLikelihood
+from branchpoint.experiments import ExperimentContract, OutcomeLikelihood
 
 pressure_test = ExperimentContract(
     experiment_id="filter_pressure_test",
@@ -253,404 +326,131 @@ pressure_test = ExperimentContract(
 )
 ```
 
-The runtime can then compute Bayesian expected information gain and update the posterior exactly when an outcome arrives. The LLM does not get a second chance to independently reinterpret the same evidence and double-count it.
+Now the runtime can compute the expected information gain before the probe and the exact posterior after the outcome.
 
-Without a valid likelihood contract, the runtime falls back to weaker hypothesis-discrimination or model-estimated information signals rather than pretending it has Bayesian semantics.
+No second model call is required to “reinterpret” the same evidence.
 
-## Observe or intervene? Use decision value
+---
 
-Information gain alone is not enough. An experiment can reduce uncertainty without changing the decision.
+## Human steering is state, not magic
 
-CausalRAG v0.3 can place experiments and interventions on the same expected-value axis when both contracts are available:
-
-```text
-best action now
-vs.
-expected best action after observing one more sample
-```
-
-For an experiment:
+At a live gate you can:
 
 ```text
-EVSI =
-  E_outcome [ best intervention value after posterior update ]
-  - best intervention value now
-
-net value of sampling = EVSI - experiment cost
+approve the runtime choice
+choose another runtime-valid candidate
+add a provisional hypothesis
+send operator context
+request a replan
 ```
 
-For an intervention, expected utility is evaluated under the current posterior and its capability cost is subtracted. The runtime can therefore decide whether another observation is worth buying or whether it should act now.
+A human message does not automatically become evidence.
 
-The current implementation is **one-step value of information**, not a general POMDP solver.
+A human-selected action does not bypass runtime validity.
 
-## Deployment-owned consequence utility
+That boundary is deliberate.
 
-Different deployments can value the same physical outcome differently. That preference should not live in the LLM prompt.
+---
 
-```python
-from causalrag import DecisionPreferences, create_agent
+## Counterfactuals
 
-preferences = DecisionPreferences(
-    intervention_utilities={
-        "repair_fan": {
-            "H1": -1.0,
-            "H2":  1.0,
-            "H3": -1.0,
-        },
-        "clear_duct": {
-            "H1": -1.0,
-            "H2": -1.0,
-            "H3":  1.0,
-        },
-    }
-)
+Completed steps can be replayed from a frozen state with another candidate.
 
-agent = create_agent(
-    tools=my_tools,
-    reasoner=my_reasoner,
-    decision_preferences=preferences,
-)
-```
+The fork rebuilds the same environment, reapplies runtime guards, follows the alternate branch, and reports the first future divergence.
 
-Ownership is intentionally separated:
+This makes “what if we had chosen the other tool?” a runtime operation instead of a storytelling exercise.
+
+---
+
+## Same-world evaluation
+
+Branchpoint includes paired runs where both policies receive the same:
 
 ```text
-ExperimentContract      = what observations are likely under each hypothesis
-InterventionContract    = default consequence semantics
-DecisionPreferences     = how this deployment values intervention outcomes
-ToolSpec                 = capability cost / risk / reversibility
-Reasoner                 = proposes candidates
-Runtime                  = performs arbitration
-World                    = returns outcomes and updates evidence
+hidden mechanism
+seed
+goal
+tools
+budget
+proposer configuration
 ```
 
-`DecisionPreferences` creates effective runtime contracts without mutating the original tool objects.
+Only the runtime capability profile changes.
 
-## HiddenWorld: evaluate agency as behavior
+That lets tests identify **where the trajectories first diverge**, not merely whether the final text is different.
 
-`HiddenWorld` hides the true mechanism and gives the agent a finite diagnostic/intervention budget. The environment alone knows the truth; the agent receives priors, experiment contracts, capabilities, costs, and observations.
+CI covers deterministic and seeded environments, temporal attribution, open-world discovery, human gates, counterfactual forks, proposer audit, API surfaces, Docker smoke tests, and verified example replays.
 
-The first HVAC scenario contains three competing hidden mechanisms and noisy diagnostic tests. It is intentionally small: the purpose is to establish a reproducible behavioral benchmark contract before moving to hidden graph/SCM discovery.
+---
 
-A fixed stochastic suite can be run without an API key:
-
-```bash
-python examples/hidden_world_suite_demo.py
-python examples/hidden_world_policy_comparison.py
-python examples/hidden_world_risk_sweep.py
-```
-
-### Current fixed-suite baseline
-
-The table below is **not a universal performance claim**. It is the measured result on the repository's fixed 30-episode suite: three hidden mechanisms × seeds `0..9`.
-
-| policy | success | Brier ↓ | probes | cost | causal regret ↓ |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| greedy EIG | 0.800 | 0.340 | 2.10 | 0.346 | 0.296 |
-| conservative EIG | 0.867 | 0.247 | 2.90 | 0.388 | 0.272 |
-| decision value | 0.833 | 0.292 | **2.00** | **0.334** | **0.251** |
-| random probe | 0.733 | 0.403 | 2.33 | 0.357 | 0.373 |
-| cheapest probe | 0.633 | 0.390 | 2.73 | 0.344 | 0.461 |
-
-The benchmark also exposed a useful non-monotonic utility frontier. On the same episodes, assigning increasing loss to a wrong intervention produced:
-
-| wrong-action loss | success | Brier ↓ | probes | cost | causal regret ↓ |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 0.0 | 0.833 | 0.292 | 2.00 | 0.334 | 0.251 |
-| 0.5 | 0.833 | 0.292 | 2.00 | 0.334 | 0.251 |
-| 1.0 | **0.900** | **0.176** | 2.63 | 0.366 | **0.216** |
-| 2.0 | 0.867 | 0.225 | 2.60 | 0.368 | 0.251 |
-
-The useful result is not that `1.0` is a globally correct constant. It is that policy behavior can exhibit a phase change as consequence utility changes, and making a system "more risk averse" is not monotonically better.
-
-## Run the no-key causal demos
-
-```bash
-python examples/hypothesis_falsification_demo.py
-python examples/bayesian_experiment_demo.py
-python examples/decision_preferences_demo.py
-python examples/hidden_world_demo.py
-python examples/hidden_world_suite_demo.py
-python examples/hidden_world_policy_comparison.py
-python examples/hidden_world_risk_sweep.py
-```
-
-These demos exercise the causal runtime without requiring a hosted reasoning model.
-
-## Add causal retrieval
-
-RAG remains useful as an evidence capability.
-
-```bash
-pip install -e ".[rag]"
-```
-
-```python
-from causalrag import create_agent
-
-agent = create_agent(
-    documents=[
-        "Opening a window increases air exchange and can lower indoor CO2.",
-        "More occupants increase indoor CO2 when ventilation is unchanged.",
-        "Outdoor particulate pollution can make opening windows undesirable.",
-    ]
-)
-
-result = agent.run(
-    "Find the safest leverage point for reducing indoor CO2 and what evidence should be checked first.",
-    max_steps=6,
-)
-```
-
-By default, vector retrieval and causal-graph normalization share one hosted embedding provider with NumPy in-memory cosine search. Local sentence-transformers and FAISS remain opt-in.
-
-### Local embeddings
-
-```bash
-pip install -e ".[rag,local-embeddings]"
-```
-
-```python
-agent = create_agent(
-    documents=my_documents,
-    embedding_provider_name="local",
-    embedding_model="all-MiniLM-L6-v2",
-)
-```
-
-### FAISS
-
-```bash
-pip install -e ".[rag,faiss]"
-```
-
-```python
-agent = create_agent(
-    documents=my_documents,
-    vector_backend="faiss",
-)
-```
-
-## Bring your own reasoner
-
-The runtime does not require a vendor-specific model contract:
-
-```python
-agent = create_agent(
-    tools=my_tools,
-    reasoner=my_reasoner,
-    belief_updater=my_belief_updater,
-    decision_preferences=my_preferences,
-)
-```
-
-This supports deterministic policies, local models, test doubles, domain-specific planners, or future RL/planning policies. The core path can run without an API key when a custom reasoner is supplied.
-
-## CLI
-
-```bash
-causalrag --version
-causalrag --help
-```
-
-Run an agent over documents:
-
-```bash
-causalrag agent \
-  --goal "Which variable is the highest-leverage intervention and what should I verify first?" \
-  --input ./docs \
-  --embedding-provider openai \
-  --embedding-model text-embedding-3-small \
-  --vector-backend memory \
-  --max-steps 8
-```
-
-Build a reusable index:
-
-```bash
-causalrag index --input ./docs --output ./index
-```
-
-Legacy one-shot retrieval remains available:
-
-```bash
-causalrag query --index ./index --query "How can A lead to B?"
-```
-
-## HTTP API
-
-```bash
-pip install -e ".[api]"
-causalrag serve --host 0.0.0.0 --port 8000
-```
-
-```http
-GET /health
-```
-
-```http
-POST /agent/run
-Content-Type: application/json
-
-{
-  "goal": "Find the safest leverage point for reducing indoor CO2",
-  "max_steps": 8,
-  "model": "gpt-5.6-terra",
-  "provider": "openai",
-  "embedding_provider": "openai",
-  "embedding_model": "text-embedding-3-small",
-  "vector_backend": "memory"
-}
-```
-
-If the request includes documents, install both optional layers:
-
-```bash
-pip install -e ".[api,rag]"
-```
-
-The response contains the final answer, decision trace, observations, beliefs/hypotheses, and recorded transitions.
-
-## Core primitives
-
-### `CausalWorldModel`
-
-Stores explicit causal beliefs, competing hypotheses, evidence, and action→observation transitions. The implementation is intentionally lightweight so future backends can include Bayesian SCMs, temporal models, simulators, neural world models, or hybrids.
-
-### `ExperimentContract`
-
-Declares discrete outcomes and their likelihood under competing hypotheses. Enables Bayesian EIG and exact posterior updates.
-
-### `InterventionContract`
-
-Declares consequence utility of an intervention under each causal hypothesis.
-
-### `DecisionPreferences`
-
-Deployment-owned overrides for consequence utility. The reasoner cannot rewrite them.
-
-### `CandidateAction`
-
-Supported action kinds:
+## Project layout
 
 ```text
-observe
-retrieve
-ask
-intervene
-wait
-stop
+branchpoint/
+├── agent/          decision loop, runtime arbitration, temporal effects
+├── experiments/    likelihoods, information value, model mismatch
+├── world_model/    hypotheses, beliefs, evidence, transitions
+├── tools/          typed tool registry
+├── reasoning/      proposer and hypothesis generation
+├── probe/          sessions, examples, A/B, counterfactuals
+├── observability/  trace + OpenTelemetry
+├── interface/      FastAPI surfaces
+└── templates/      examples, workbench, research console
 ```
 
-### `DecisionRecord`
+---
 
-Stores uncertainty, all candidates, runtime score breakdown, selected action, and belief snapshot before action.
+## Install
 
-### `Transition`
+Python 3.10+.
 
-Stores executed action → observation history, forming the base for future causal/experiment memory.
-
-## Architecture
-
-```text
-┌──────────────────────────────────────────────┐
-│                CausalAgent                   │
-│ Goal → Propose → Decide → Act → Observe     │
-└──────────────────────┬───────────────────────┘
-                       │
-┌──────────────────────▼───────────────────────┐
-│             Causal Decision Runtime          │
-│ hypotheses · Bayes · EIG · EVSI · utility   │
-│ capability cost/risk · DecisionPreferences  │
-└──────────────────────┬───────────────────────┘
-                       │
-┌──────────────────────▼───────────────────────┐
-│             Explicit World Model             │
-│ beliefs · evidence · transitions · outcomes │
-└──────────────────────┬───────────────────────┘
-                       │
-┌──────────────────────▼───────────────────────┐
-│                 Environment                  │
-│ retrieval · APIs · sensors · humans         │
-│ simulators · software · robots              │
-└──────────────────────────────────────────────┘
+```bash
+pip install -e .
 ```
 
-The LLM is a `Reasoner`: it can propose hypotheses/actions and explain them. It is not the world model or the final action authority.
+Optional surfaces:
 
-## Repository layout
-
-```text
-causalrag/
-├── agent/              # loop, state, actions, user-facing runtime
-├── world_model/        # beliefs, hypotheses, evidence, transitions
-├── reasoning/          # reasoner adapters, updates, runtime policy
-├── experiments/        # experiment/intervention contracts, Bayes, EVSI, preferences
-├── benchmarks/         # HiddenWorld, stochastic suites, policy comparisons
-├── tools/              # capability registry and runtime metadata
-├── embeddings/         # hosted/local/custom embedding abstraction
-├── causal_graph/       # optional causal extraction + graph layer
-├── retriever/          # optional vector/hybrid retrieval
-├── reranker/           # optional causal reranking
-├── interface/          # optional HTTP surfaces
-└── pipeline.py         # legacy one-shot RAG compatibility
+```bash
+pip install -e ".[api]"               # FastAPI workbench
+pip install -e ".[observability]"     # OTLP export
+pip install -e ".[retrieval]"         # document evidence adapters
+pip install -e ".[local-embeddings]"  # local embedding models
+pip install -e ".[faiss]"             # FAISS vector backend
+pip install -e ".[evaluation]"        # evaluation extras
+pip install -e ".[full]"              # hosted capability layers
 ```
 
-## Legacy one-shot RAG
+---
 
-Existing code can continue to use:
+## Design principle
 
-```python
-from causalrag import create_pipeline
+> **The model proposes. The runtime decides. The world corrects both.**
 
-pipeline = create_pipeline()
-pipeline.index([
-    "Climate change causes rising sea levels.",
-    "Rising sea levels increase coastal flooding."
-])
+Branchpoint is deliberately opinionated about one thing:
 
-result = pipeline.run("How can climate change lead to coastal flooding?")
-print(result["answer"])
-```
+**uncertainty should be represented in the system, not hidden inside prose.**
 
-For new projects, prefer `create_agent()`.
+If that idea is useful to you, try the examples, break a capability pack, add a strange environment, or open an issue with a failure mode you want the runtime to survive.
 
-## What v0.3 adds
+---
 
-- explicit competing hypotheses and falsification targets
-- runtime-owned hypothesis discrimination
-- `ExperimentContract` likelihood models
-- Bayesian expected information gain
-- exact posterior updates without LLM double-counting
-- `InterventionContract` consequence utility
-- one-step EVSI / observe-vs-intervene decision value
-- deployment-owned `DecisionPreferences`
-- runtime enforcement of capability cost/risk/reversibility
-- deterministic and seeded stochastic HiddenWorld episodes
-- Brier calibration, probe cost, and causal-regret metrics
-- fixed-world policy tournament and utility-sensitivity sweeps
-- no-key causal decision demos
-- optional RAG compatibility rather than RAG as the core ontology
+## Contributing
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the release summary.
+Small, falsifiable contributions are preferred over large speculative rewrites.
 
-## Next
+Good first contributions include:
 
-The next layers should extend the same contracts rather than replace them:
+- a new capability pack with a hidden-world test;
+- a tool contract with explicit cost / risk / reversibility;
+- a failure case where a normal loop takes the wrong branch;
+- a new same-world comparison;
+- a better visualization of one decision;
+- a counterexample that breaks an existing guard.
 
-1. **Temporal effects and observation windows** — action lag, persistence, and first-class `WAIT` semantics.
-2. **Causal/experiment memory** — learn from `(state, action, next_state)` and reuse intervention outcomes across similar contexts.
-3. **Hidden graph / SCM discovery** — move HiddenWorld from discrete mechanism identification to unknown structure and latent variables.
-4. **Finite-horizon value of information** — replace one-step EVSI with multi-step planning when the extra complexity is justified.
-5. **Drift and regime change** — detect when previously learned mechanisms stop predicting outcomes.
-6. **Protocol adapters** — MCP/A2A/API/sensor adapters remain replaceable capability transports rather than core ontology.
+See `CONTRIBUTING.md`.
 
-The intended invariant is:
-
-```text
-experience → causal belief → decision value → action → new experience
-```
+---
 
 ## License
 
-MIT. See `LICENSE`.
+MIT.
