@@ -62,9 +62,11 @@ def _load_pack_modules(specs):
             if spec is None or spec.loader is None:
                 raise RuntimeError(f"Could not load capability pack file: {target}")
             module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
             try:
                 spec.loader.exec_module(module)
             except Exception as exc:
+                sys.modules.pop(module_name, None)
                 raise RuntimeError(
                     f"Could not import capability pack file {target!r}: {exc}"
                 ) from exc
