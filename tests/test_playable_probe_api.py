@@ -24,9 +24,17 @@ def test_probe_surfaces_are_separated():
     landing = client.get("/")
     assert landing.status_code == 200
     assert "Your agent can propose" in landing.text
+    assert 'href="/decide"' in landing.text
     assert 'href="/demo"' in landing.text
     assert 'href="/workbench"' in landing.text
     assert 'href="/research"' in landing.text
+
+    decide_page = client.get("/decide")
+    assert decide_page.status_code == 200
+    assert "Bring one branch point." in decide_page.text
+    assert "REGISTERED TOOL POLICY" in decide_page.text
+    assert "Run decision" in decide_page.text
+    assert "fetch('/api/decide'" in decide_page.text
 
     demo = client.get("/demo")
     assert demo.status_code == 200
@@ -94,6 +102,101 @@ def test_probe_surfaces_are_separated():
     assert "PROPOSER AUDIT · FORMAL MODEL SUBMISSIONS" in research.text
     assert "formal structured submission" in research.text
     assert "MODEL PROPOSER FAILED" in research.text
+
+def test_one_shot_decide_api_applies_canonical_tool_policy():
+    response = client.post(
+        "/api/decide",
+        json={
+            "candidates": [
+                {
+                    "kind": "intervene",
+                    "name": "submit_form",
+                    "expected_goal_gain": 0.95,
+                    "risk": 0.0,
+                    "irreversibility": 0.0,
+                    "rationale": "Submit immediately.",
+                },
+                {
+                    "kind": "observe",
+                    "name": "inspect_submission_state",
+                    "expected_goal_gain": 0.15,
+                    "expected_information_gain": 0.70,
+                    "rationale": "Verify first.",
+                },
+            ],
+            "tools": [
+                {
+                    "name": "submit_form",
+                    "cost": 0.12,
+                    "risk": 0.72,
+                    "reversible": False,
+                },
+                {
+                    "name": "inspect_submission_state",
+                    "cost": 0.02,
+                    "risk": 0.0,
+                    "reversible": True,
+                },
+            ],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["proposer_first"]["name"] == "submit_form"
+    assert body["selected"]["name"] == "inspect_submission_state"
+    assert body["changed_proposer_order"] is True
+    submit = next(row for row in body["ranking"] if row["candidate"]["name"] == "submit_form")
+    assert submit["score"]["risk"] == 0.72
+    assert submit["score"]["irreversibility"] == 1.0
+    assert set(submit["canonical_overrides"]) == {"risk", "irreversibility"}
+    assert any(row["code"] == "canonical_tool_policy" for row in body["reasons"])
+
+
+def test_one_shot_decide_api_normalizes_hypothesis_mass_for_runtime_discrimination():
+    response = client.post(
+        "/api/decide",
+        json={
+            "candidates": [
+                {
+                    "kind": "observe",
+                    "name": "broad_log_scan",
+                    "expected_information_gain": 0.2,
+                    "tests_hypotheses": ["H1"],
+                },
+                {
+                    "kind": "observe",
+                    "name": "mechanism_probe",
+                    "expected_information_gain": 0.01,
+                    "tests_hypotheses": ["H1", "H2"],
+                },
+            ],
+            "hypotheses": [
+                {"hypothesis_id": "H1", "statement": "release regression", "probability": 4},
+                {"hypothesis_id": "H2", "statement": "database saturation", "probability": 6},
+            ],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["selected"]["name"] == "mechanism_probe"
+    assert sum(row["probability"] for row in body["hypotheses"]) == 1.0
+    selected = body["ranking"][0]
+    assert selected["score"]["information_source"] == "runtime_hypothesis_discrimination"
+
+
+def test_one_shot_decide_api_rejects_duplicate_candidate_names():
+    response = client.post(
+        "/api/decide",
+        json={
+            "candidates": [
+                {"kind": "observe", "name": "same"},
+                {"kind": "intervene", "name": "same"},
+            ]
+        },
+    )
+    assert response.status_code == 400
+    assert "unique" in response.json()["detail"]
+
 
 def test_probe_step_context_api_exposes_full_frozen_debug_state():
     created = client.post(
