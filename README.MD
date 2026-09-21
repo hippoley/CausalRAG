@@ -14,7 +14,7 @@ Branchpoint turns messy agent state into inspectable next actions: **choose a br
 
 `typed actions` · `probabilistic decisions` · `confidence gates` · `tool routing` · `verification` · `human approval` · `counterfactuals`
 
-[Verified examples](https://hippoley.github.io/Branchpoint/examples.html) · [Capability packs](docs/capability-packs.md) · [Decision recipes](docs/decision-recipes.md) · [Contributing](CONTRIBUTING.md)
+[Verified examples](https://hippoley.github.io/branchpoint-runtime/examples.html) · [Capability packs](docs/capability-packs.md) · [Decision recipes](docs/decision-recipes.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
