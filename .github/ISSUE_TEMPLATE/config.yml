@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Start with a reproducible failure
+    url: https://github.com/hippoley/Branchpoint/issues/new/choose
+    about: Concrete states and traces are easier to improve than broad feature requests.
