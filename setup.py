@@ -45,7 +45,7 @@ extra_requirements = {
     "faiss": ["faiss-cpu>=1.7.0"],
     "api": api_requirements,
     "observability": observability_requirements,
-    "evaluation": ["pandas>=1.3.0", "ragas>=0.0.16"],
+    "evaluation": ["pandas>=1.3.0"],
     "dev": [
         "pytest>=7.0",
         "pytest-cov>=4.0",
