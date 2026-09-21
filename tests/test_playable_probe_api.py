@@ -40,6 +40,8 @@ def test_probe_surfaces_are_separated():
     assert "never executes your tools or invents outcomes" in decide_page.text
     assert "Import JSON" in decide_page.text
     assert "Run full trajectory" in decide_page.text
+    assert "Generate pack" in decide_page.text
+    assert "/api/scaffold" in decide_page.text
     assert "from=decision" in decide_page.text
     assert "Copy Python" in decide_page.text
     assert "Copy API payload" in decide_page.text
@@ -260,6 +262,38 @@ def test_one_shot_decide_api_uses_bayesian_contracts_for_evsi():
     assert selected["decision_value_source"] == "runtime_expected_decision_value_after_sampling"
     assert abs(selected["expected_value_of_sample_information"] - 0.1) < 1e-9
     assert abs(selected["net_value_of_sampling"] - 0.02) < 1e-9
+
+
+def test_scaffold_api_returns_truthful_importable_starter():
+    response = client.post(
+        "/api/scaffold",
+        json={
+            "decision": {
+                "candidates": [
+                    {"kind": "observe", "name": "inspect", "expected_information_gain": 0.4},
+                    {"kind": "intervene", "name": "repair", "expected_goal_gain": 0.8},
+                ],
+                "tools": [
+                    {"name": "inspect", "cost": 0.02, "risk": 0.0, "reversible": True},
+                    {"name": "repair", "cost": 0.2, "risk": 0.1, "reversible": False},
+                ],
+                "hypotheses": [
+                    {"hypothesis_id": "H1", "statement": "cause one", "probability": 0.7},
+                    {"hypothesis_id": "H2", "statement": "cause two", "probability": 0.3},
+                ],
+            },
+            "pack_id": "generated_api_pack",
+            "label": "Generated API pack",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["truthfulness"] == {
+        "live_handlers_connected": False,
+        "generated_starter": True,
+    }
+    assert "PACK_ID = 'generated_api_pack'" in body["source"]
+    compile(body["source"], "<generated_api_pack>", "exec")
 
 
 def test_one_shot_decide_api_rejects_duplicate_candidate_names():
