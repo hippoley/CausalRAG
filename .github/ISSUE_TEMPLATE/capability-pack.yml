@@ -1,0 +1,41 @@
+name: Capability pack
+description: Propose a new world + tools + decision environment
+title: "[pack] "
+labels: ["capability-pack"]
+body:
+  - type: input
+    id: domain
+    attributes:
+      label: Domain
+      placeholder: incident response, home automation, deployment diagnosis...
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision the runtime must make
+      description: What bounded next-step choice should the runtime own?
+    validations:
+      required: true
+  - type: textarea
+    id: hypotheses
+    attributes:
+      label: Competing hypotheses
+      description: List the plausible explanations the pack should represent.
+  - type: textarea
+    id: tools
+    attributes:
+      label: Tools and interventions
+      description: Include cost, risk, reversibility, or timing constraints where relevant.
+  - type: textarea
+    id: observations
+    attributes:
+      label: Observation model
+      description: What evidence can distinguish the hypotheses?
+  - type: textarea
+    id: metric
+    attributes:
+      label: Success metric
+      description: How will we know the runtime took a better trajectory?
+    validations:
+      required: true
