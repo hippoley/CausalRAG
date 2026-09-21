@@ -33,6 +33,88 @@ def test_probe_catalog_exposes_six_executable_scenarios():
     assert "open-world" in by_id["open_world_mismatch"]["recommended_test"].lower()
 
 
+def test_capability_pack_registry_rejects_invalid_specs_early():
+    invalid_specs = [
+        ProbeScenarioSpec(
+            scenario_id=" bad_id ",
+            label="Bad id",
+            description="invalid",
+            hidden_hypotheses=("H1",),
+            outcome_modes=("deterministic",),
+            recommended_test="validation",
+            default_hidden_hypothesis="H1",
+            default_outcome_mode="deterministic",
+            default_goal="test",
+            builder=lambda config: None,
+        ),
+        ProbeScenarioSpec(
+            scenario_id="duplicate_hypotheses",
+            label="Duplicate hypotheses",
+            description="invalid",
+            hidden_hypotheses=("H1", "H1"),
+            outcome_modes=("deterministic",),
+            recommended_test="validation",
+            default_hidden_hypothesis="H1",
+            default_outcome_mode="deterministic",
+            default_goal="test",
+            builder=lambda config: None,
+        ),
+    ]
+
+    for spec in invalid_specs:
+        try:
+            register_probe_scenario(spec)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid scenario should be rejected: {spec.scenario_id}")
+
+
+def test_capability_pack_registry_does_not_replace_without_explicit_opt_in():
+    first = ProbeScenarioSpec(
+        scenario_id="registry_collision_test",
+        label="First registration",
+        description="first",
+        hidden_hypotheses=("H1",),
+        outcome_modes=("deterministic",),
+        recommended_test="registry collision",
+        default_hidden_hypothesis="H1",
+        default_outcome_mode="deterministic",
+        default_goal="test collision behavior",
+        builder=lambda config: None,
+    )
+    second = ProbeScenarioSpec(
+        scenario_id="registry_collision_test",
+        label="Second registration",
+        description="second",
+        hidden_hypotheses=("H1",),
+        outcome_modes=("deterministic",),
+        recommended_test="registry collision",
+        default_hidden_hypothesis="H1",
+        default_outcome_mode="deterministic",
+        default_goal="test collision behavior",
+        builder=lambda config: None,
+    )
+
+    register_probe_scenario(first)
+    try:
+        try:
+            register_probe_scenario(second)
+        except ValueError as exc:
+            assert "already registered" in str(exc)
+        else:
+            raise AssertionError("duplicate registration should require replace=True")
+        assert available_probe_config()["scenarios"][-1]["label"] == "First registration"
+
+        register_probe_scenario(second, replace=True)
+        by_id = {
+            row["id"]: row for row in available_probe_config()["scenarios"]
+        }
+        assert by_id["registry_collision_test"]["label"] == "Second registration"
+    finally:
+        unregister_probe_scenario("registry_collision_test")
+
+
 def test_external_capability_pack_can_register_without_editing_core_switch():
     class ExternalEnvironment:
         def __init__(self):
