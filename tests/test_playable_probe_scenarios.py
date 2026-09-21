@@ -1,8 +1,19 @@
 import time
 
 from branchpoint.probe.session import ProbeSession
-from branchpoint.agent import RuntimeCapabilities
-from branchpoint.probe import ProbeRunConfig, available_probe_config, run_probe_comparison, run_probe_episode, run_probe_ladder
+from branchpoint.agent import ActionKind, CandidateAction, RuntimeCapabilities
+from branchpoint.probe import (
+    ProbeRunConfig,
+    ProbeScenarioRuntime,
+    ProbeScenarioSpec,
+    available_probe_config,
+    register_probe_scenario,
+    run_probe_comparison,
+    run_probe_episode,
+    run_probe_ladder,
+    unregister_probe_scenario,
+)
+from branchpoint.world_model import CausalWorldModel
 
 
 def test_probe_catalog_exposes_six_executable_scenarios():
@@ -20,6 +31,90 @@ def test_probe_catalog_exposes_six_executable_scenarios():
     assert by_id["temporal_delayed_effect"]["outcome_modes"] == ["deterministic"]
     assert by_id["open_world_mismatch"]["hidden_hypotheses"] == ["H4"]
     assert "open-world" in by_id["open_world_mismatch"]["recommended_test"].lower()
+
+
+def test_external_capability_pack_can_register_without_editing_core_switch():
+    class ExternalEnvironment:
+        def __init__(self):
+            self.world = CausalWorldModel()
+            self.world.upsert_hypothesis(
+                "H1",
+                "The external pack is active.",
+                probability=0.999,
+            )
+
+        def world_model(self):
+            return self.world
+
+        def tools(self):
+            return []
+
+        def metrics(self, result):
+            return {
+                "success": result.answer == "external-pack-ok",
+                "decision_rounds": len(result.state.decisions),
+            }
+
+    class ExternalReasoner:
+        def propose(self, state, world_model):
+            return [
+                CandidateAction(
+                    kind=ActionKind.STOP,
+                    name="stop",
+                    arguments={"answer": "external-pack-ok"},
+                    rationale="Custom pack controls its own reasoner.",
+                )
+            ]
+
+        def uncertainty(self, state, world_model):
+            return None
+
+    def build_external(config):
+        environment = ExternalEnvironment()
+        return ProbeScenarioRuntime(
+            scenario_id="external_test_pack",
+            environment=environment,
+            world_model=environment.world_model(),
+            tools=environment.tools(),
+            default_reasoner=ExternalReasoner(),
+            goal="Run an externally registered capability pack.",
+        )
+
+    spec = ProbeScenarioSpec(
+        scenario_id="external_test_pack",
+        label="External test pack",
+        description="Registered by application code, not the core scenario switch.",
+        hidden_hypotheses=("H1",),
+        outcome_modes=("deterministic",),
+        recommended_test="Registry extension",
+        default_hidden_hypothesis="H1",
+        default_outcome_mode="deterministic",
+        default_goal="Run an externally registered capability pack.",
+        builder=build_external,
+    )
+
+    register_probe_scenario(spec)
+    try:
+        catalog = {
+            row["id"]: row for row in available_probe_config()["scenarios"]
+        }
+        assert "external_test_pack" in catalog
+        episode = run_probe_episode(
+            ProbeRunConfig(
+                scenario="external_test_pack",
+                hidden_hypothesis="H1",
+                outcome_mode="deterministic",
+                proposer_family="deterministic",
+            )
+        )
+        assert episode["metrics"]["success"] is True
+        assert episode["answer"] == "external-pack-ok"
+    finally:
+        unregister_probe_scenario("external_test_pack")
+
+    assert "external_test_pack" not in {
+        row["id"] for row in available_probe_config()["scenarios"]
+    }
 
 
 def test_tool_routing_pack_executes_the_right_capability():
