@@ -1,12 +1,12 @@
-from causalrag.agent.actions import ActionKind, ActionScore, CandidateAction, DecisionRecord
-from causalrag.agent.state import AgentState
-from causalrag.reasoning.llm import LLMCausalReasoner
-from causalrag.tools.base import ToolRegistry
-from causalrag.world_model import CausalWorldModel
+from branchpoint.agent.actions import ActionKind, ActionScore, CandidateAction, DecisionRecord
+from branchpoint.agent.state import AgentState
+from branchpoint.reasoning.llm import LLMCausalReasoner
+from branchpoint.tools.base import ToolRegistry
+from branchpoint.world_model import CausalWorldModel
 import time
 
-from causalrag.probe import ProbeRunConfig
-from causalrag.probe.session import ProbeSession, _decision_inspector
+from branchpoint.probe import ProbeRunConfig
+from branchpoint.probe.session import ProbeSession, _decision_inspector
 
 
 def _wait_until(session, target, timeout=5.0):
