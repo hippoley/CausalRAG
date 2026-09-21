@@ -35,7 +35,7 @@ def test_packs_cli_can_load_application_pack_module(monkeypatch, capsys):
             "branchpoint",
             "packs",
             "--load-pack",
-            "examples.custom_capability_pack:register_pack",
+            "examples/custom_capability_pack.py:register_pack",
             "--json",
         ],
     )
@@ -55,7 +55,7 @@ def test_packs_cli_reports_missing_loader_as_user_error(monkeypatch, capsys):
             "branchpoint",
             "packs",
             "--load-pack",
-            "examples.custom_capability_pack:missing_loader",
+            "examples/custom_capability_pack.py:missing_loader",
         ],
     )
 
