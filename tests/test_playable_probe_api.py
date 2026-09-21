@@ -30,12 +30,13 @@ def test_probe_surfaces_are_separated():
 
     demo = client.get("/demo")
     assert demo.status_code == 200
-    assert "THREE THINGS ORDINARY AGENTS GET WRONG" in demo.text
+    assert "THREE DECISIONS THAT SHOULD NOT LIVE IN PROSE" in demo.text
     assert "Open in Workbench" in demo.text
     assert "from=examples" in demo.text
     assert "Every case runs the real Python runtime." in demo.text
-    assert "temporal_delayed_effect" in demo.text
-    assert "open_world_mismatch" in demo.text
+    assert "tool_routing" in demo.text
+    assert "incident_triage" in demo.text
+    assert "browser_action_guard" in demo.text
     assert "fetch('/api/run'" in demo.text
 
     workbench = client.get("/workbench")
