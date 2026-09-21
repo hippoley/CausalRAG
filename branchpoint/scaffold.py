@@ -67,6 +67,7 @@ environment/tool handlers with real domain I/O before treating this as a live pa
 import json
 
 from branchpoint import ActionKind, CandidateAction, ToolSpec
+from branchpoint.experiments import ExperimentContract, InterventionContract, OutcomeLikelihood
 from branchpoint.probe import ProbeScenarioRuntime, ProbeScenarioSpec, register_probe_scenario
 from branchpoint.world_model import CausalWorldModel
 
@@ -91,6 +92,31 @@ class GeneratedEnvironment:
         # TODO: replace no-op handlers with real read/write boundaries.
         tools = []
         for row in SOURCE_DECISION.get("tools", []):
+            experiment = row.get("experiment_contract")
+            experiment_contract = None
+            if experiment:
+                experiment_contract = ExperimentContract(
+                    experiment_id=experiment["experiment_id"],
+                    outcomes=[
+                        OutcomeLikelihood(
+                            outcome=outcome["outcome"],
+                            likelihoods=dict(outcome["likelihoods"]),
+                        )
+                        for outcome in experiment.get("outcomes", [])
+                    ],
+                    outcome_key=experiment.get("outcome_key", "outcome"),
+                    description=experiment.get("description", ""),
+                )
+
+            intervention = row.get("intervention_contract")
+            intervention_contract = None
+            if intervention:
+                intervention_contract = InterventionContract(
+                    intervention_id=intervention["intervention_id"],
+                    utilities=dict(intervention["utilities"]),
+                    description=intervention.get("description", ""),
+                )
+
             tools.append(
                 ToolSpec(
                     name=row["name"],
@@ -99,6 +125,8 @@ class GeneratedEnvironment:
                     cost=float(row.get("cost", 0.0)),
                     risk=float(row.get("risk", 0.0)),
                     reversible=bool(row.get("reversible", True)),
+                    experiment_contract=experiment_contract,
+                    intervention_contract=intervention_contract,
                 )
             )
         return tools
