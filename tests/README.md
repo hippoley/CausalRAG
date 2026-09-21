@@ -13,5 +13,5 @@ pytest
 To run tests with coverage:
 
 ```bash
-pytest --cov=causalrag
+pytest --cov=branchpoint
 ```
