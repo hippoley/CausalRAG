@@ -46,66 +46,62 @@ The first three are good templates for application developers. The last three ar
 
 ## Register a pack without editing Branchpoint
 
-Capability packs are registry-backed. Application code can add a pack before constructing `ProbeRunConfig`:
+Capability packs are registry-backed. A complete runnable external pack is included at:
+
+```text
+examples/custom_capability_pack.py
+```
+
+Run it directly:
+
+```bash
+python examples/custom_capability_pack.py
+```
+
+It registers `queue_incident_demo`, runs a real episode through the normal runtime, and then unregisters itself.
+
+Inspect the same application-owned pack through the CLI registry:
+
+```bash
+branchpoint packs \
+  --load-pack examples/custom_capability_pack.py:register_pack
+```
+
+Or load it into the real Workbench:
+
+```bash
+branchpoint probe \
+  --load-pack examples/custom_capability_pack.py:register_pack \
+  --open
+```
+
+The external file exposes a normal registration function:
 
 ```python
-from branchpoint.agent import ActionKind, CandidateAction
-from branchpoint.probe import (
-    ProbeScenarioRuntime,
-    ProbeScenarioSpec,
-    register_probe_scenario,
-)
-from branchpoint.world_model import CausalWorldModel
-
-
-class MyEnvironment:
-    def world_model(self):
-        world = CausalWorldModel()
-        world.upsert_hypothesis("H1", "mechanism one", probability=0.5)
-        world.upsert_hypothesis("H2", "mechanism two", probability=0.5)
-        return world
-
-    def tools(self):
-        return my_tool_specs
-
-    def metrics(self, result):
-        return {"success": my_success_check(result)}
-
-
-def build_my_pack(config):
-    env = MyEnvironment()
-    return ProbeScenarioRuntime(
-        scenario_id="my_pack",
-        environment=env,
-        world_model=env.world_model(),
-        tools=env.tools(),
-        default_reasoner=my_reasoner,
-        goal="Resolve the bounded decision.",
+def register_pack():
+    return register_probe_scenario(
+        ProbeScenarioSpec(
+            scenario_id="queue_incident_demo",
+            label="Queue incident demo",
+            description="An application-owned pack registered at runtime.",
+            hidden_hypotheses=("H1", "H2"),
+            outcome_modes=("deterministic", "stochastic"),
+            recommended_test="External capability-pack registration",
+            default_hidden_hypothesis="H2",
+            default_outcome_mode="deterministic",
+            default_goal="Diagnose why jobs are backing up.",
+            builder=build_pack,
+        ),
+        replace=True,
     )
-
-
-register_probe_scenario(
-    ProbeScenarioSpec(
-        scenario_id="my_pack",
-        label="My capability pack",
-        description="A domain-specific decision environment.",
-        hidden_hypotheses=("H1", "H2"),
-        outcome_modes=("deterministic",),
-        recommended_test="Domain regression",
-        default_hidden_hypothesis="H1",
-        default_outcome_mode="deterministic",
-        default_goal="Resolve the bounded decision.",
-        builder=build_my_pack,
-    )
-)
 ```
 
 After registration:
 
-- `ProbeRunConfig(scenario="my_pack", ...)` validates against the new spec;
+- `ProbeRunConfig(scenario="queue_incident_demo", ...)` validates against the new spec;
 - `/api/config` includes the new pack;
 - the Live Workbench scenario selector discovers it automatically;
-- sessions, Human Gate, trace, export, and evaluation reuse the existing runtime surface.
+- sessions, Human Gate, trace, export, comparison, and evaluation reuse the existing runtime surface.
 
 The builder must return `ProbeScenarioRuntime`. Branchpoint deliberately does not require custom frontend code for each domain.
 
