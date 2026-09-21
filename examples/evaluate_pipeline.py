@@ -1,6 +1,6 @@
 # examples/evaluate_pipeline.py
 """
-Example script to evaluate Branchpoint pipeline using Ragas and custom metrics
+Example script to evaluate a Branchpoint pipeline using built-in and critique metrics
 """
 
 from branchpoint import BranchpointPipeline
@@ -49,13 +49,9 @@ def main(args):
     
     # Define metrics to evaluate
     metrics = [
-        "faithfulness", 
-        "answer_relevancy", 
-        "context_relevancy", 
-        "context_recall",
-        "causal_consistency", 
+        "causal_consistency",
         "causal_completeness",
-        "answer_quality"
+        "answer_quality",
     ]
     
     # Run evaluation
