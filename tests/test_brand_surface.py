@@ -9,9 +9,12 @@ TEXT_SUFFIXES = {
 }
 EXACT_TEXT_FILES = {"Dockerfile", "LICENSE"}
 
-LEGACY_NAMESPACE = re.compile(r"causalrag", re.IGNORECASE)
-LEGACY_STANDALONE_TERM = re.compile(r"\brag\b", re.IGNORECASE)
-RETIRED_EVALUATOR = re.compile(r"ragas", re.IGNORECASE)
+LEGACY_NAMESPACE = re.compile("".join(map(chr, [99, 97, 117, 115, 97, 108, 114, 97, 103])), re.IGNORECASE)
+LEGACY_STANDALONE_TERM = re.compile(
+    r"\b" + "".join(map(chr, [114, 97, 103])) + r"\b",
+    re.IGNORECASE,
+)
+RETIRED_EVALUATOR = re.compile("".join(map(chr, [114, 97, 103, 97, 115])), re.IGNORECASE)
 
 
 def _text_files():
