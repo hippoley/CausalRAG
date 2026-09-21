@@ -1,6 +1,6 @@
 import json
 
-from causalrag import ActionKind, CandidateAction, CausalTelemetry, ToolSpec, create_agent, replay_trace
+from branchpoint import ActionKind, CandidateAction, CausalTelemetry, ToolSpec, create_agent, replay_trace
 
 
 class ProbeReasoner:
@@ -58,7 +58,7 @@ def test_agent_emits_one_correlated_machine_readable_causal_trace_without_conten
     assert {record["trace_id"] for record in trace} == {payload["trace_id"]}
 
     names = [record["name"] for record in trace]
-    assert "invoke_agent causalrag" in names
+    assert "invoke_agent branchpoint" in names
     assert "execute_tool sense" in names
     assert "causalrag.decision" in names
     assert "causalrag.observation" in names
@@ -67,7 +67,7 @@ def test_agent_emits_one_correlated_machine_readable_causal_trace_without_conten
     root_start = next(
         record
         for record in trace
-        if record["record_type"] == "span.start" and record["name"] == "invoke_agent causalrag"
+        if record["record_type"] == "span.start" and record["name"] == "invoke_agent branchpoint"
     )
     tool_start = next(
         record
