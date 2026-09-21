@@ -90,8 +90,9 @@ def build_pack(config) -> ProbeScenarioRuntime:
     )
 
 
-def main():
-    register_probe_scenario(
+def register_pack():
+    """Entry point that applications/CLI can call before starting the probe."""
+    return register_probe_scenario(
         ProbeScenarioSpec(
             scenario_id=PACK_ID,
             label="Queue incident demo",
@@ -106,8 +107,13 @@ def main():
                 "that matches the hidden mechanism."
             ),
             builder=build_pack,
-        )
+        ),
+        replace=True,
     )
+
+
+def main():
+    register_pack()
 
     try:
         ids = {row["id"] for row in available_probe_config()["scenarios"]}
