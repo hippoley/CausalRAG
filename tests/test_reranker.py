@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from causalrag.reranker.base import BaseReranker
-from causalrag.reranker.causal_path import CausalPathReranker
+from branchpoint.reranker.base import BaseReranker
+from branchpoint.reranker.causal_path import CausalPathReranker
 
 class TestRerankers(unittest.TestCase):
     def setUp(self):
