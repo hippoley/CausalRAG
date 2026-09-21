@@ -1,0 +1,41 @@
+{
+  "candidates": [
+    {
+      "kind": "intervene",
+      "name": "submit_form",
+      "expected_goal_gain": 0.95,
+      "expected_information_gain": 0.0,
+      "cost": 0.0,
+      "risk": 0.0,
+      "irreversibility": 0.0,
+      "rationale": "The page looks ready; submit immediately."
+    },
+    {
+      "kind": "observe",
+      "name": "inspect_submission_state",
+      "expected_goal_gain": 0.15,
+      "expected_information_gain": 0.70,
+      "cost": 0.0,
+      "risk": 0.0,
+      "irreversibility": 0.0,
+      "rationale": "Verify page/session state before creating an external side effect."
+    }
+  ],
+  "tools": [
+    {
+      "name": "submit_form",
+      "description": "Submit the external form.",
+      "cost": 0.12,
+      "risk": 0.72,
+      "reversible": false
+    },
+    {
+      "name": "inspect_submission_state",
+      "description": "Read the current page/session state.",
+      "cost": 0.02,
+      "risk": 0.0,
+      "reversible": true
+    }
+  ],
+  "hypotheses": []
+}
