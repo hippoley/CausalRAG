@@ -67,7 +67,7 @@ def test_owner_unlock_uses_http_only_derived_cookie_and_allows_model_test(monkey
     unlocked = client.post("/api/access", json={"token": "owner-secret"})
     assert unlocked.status_code == 200
     set_cookie = unlocked.headers["set-cookie"]
-    assert "causalrag_probe_access=" in set_cookie
+    assert "branchpoint_probe_access=" in set_cookie
     assert "HttpOnly" in set_cookie
     assert "SameSite=strict" in set_cookie
     assert "owner-secret" not in set_cookie
