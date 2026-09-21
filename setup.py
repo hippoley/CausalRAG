@@ -71,7 +71,7 @@ extra_requirements["full"] = sorted(
 setup(
     name="branchpoint",
     version=version,
-    description="Causal world models and goal-directed agent runtime",
+    description="Decision runtime and control plane for agents operating under uncertainty",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Branchpoint Team",
@@ -93,7 +93,7 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    keywords="causal agent world-model retrieval intervention reasoning",
+    keywords="agent control-plane typed-decisions probabilistic-routing uncertainty tool-routing verification human-in-the-loop world-model bayesian evaluation counterfactual",
     project_urls={
         "Documentation": "https://github.com/hippoley/Branchpoint",
         "Source": "https://github.com/hippoley/Branchpoint",
