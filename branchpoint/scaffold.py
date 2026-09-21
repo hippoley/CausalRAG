@@ -92,6 +92,12 @@ PACK_ID = {_literal(normalized_id)}
 SOURCE_DECISION = json.loads({_literal(payload_json)})
 
 
+def _not_connected(**kwargs):
+    raise NotImplementedError(
+        "Generated capability-pack tool handler is not connected to real domain I/O."
+    )
+
+
 class GeneratedEnvironment:
     def __init__(self):
         self.world = CausalWorldModel()
