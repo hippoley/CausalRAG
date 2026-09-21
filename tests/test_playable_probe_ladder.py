@@ -1,4 +1,4 @@
-from causalrag.probe import ProbeRunConfig, capability_ladder_profiles, run_probe_ladder
+from branchpoint.probe import ProbeRunConfig, capability_ladder_profiles, run_probe_ladder
 
 
 def test_capability_ladder_is_cumulative_and_runtime_real():
