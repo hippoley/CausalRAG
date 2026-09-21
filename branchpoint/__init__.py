@@ -24,6 +24,7 @@ from .agent import (
 )
 from .agent.runtime import AgentRunResult, CausalAgent, create_agent
 from .decision import DecisionResult, decide
+from .decision_io import DecisionPayloadError, arbitrate_payload
 from .experiments import (
     DecisionPreferences,
     ExperimentContract,
@@ -103,7 +104,7 @@ def create_pipeline(model_name="gpt-5.6-terra", embedding_model="text-embedding-
 
 
 __all__ = [
-    "CausalAgent", "AgentRunResult", "create_agent", "DecisionResult", "decide", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
+    "CausalAgent", "AgentRunResult", "create_agent", "DecisionResult", "decide", "DecisionPayloadError", "arbitrate_payload", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
     "ActionKind", "ActionScore", "AgentState", "CandidateAction", "CausalAgentLoop", "DecisionRecord", "Observation",
     "TemporalEffectContract", "PendingEffect", "TimeDriver", "VirtualTimeDriver",
     "ToolRegistry", "ToolSpec", "CausalBelief", "CausalWorldModel", "Evidence", "Hypothesis", "ModelMismatch", "Transition",
