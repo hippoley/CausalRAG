@@ -55,8 +55,8 @@ def test_human_gate_pauses_before_first_tool_and_can_approve_to_completion():
     assert final["status"] == "completed"
     assert final["result"]["metrics"]["success"] is True
     names = [row["name"] for row in final["result"]["causal_trace"]]
-    assert "causalrag.human_gate.waiting" in names
-    assert "causalrag.human_gate.approved" in names
+    assert "branchpoint.human_gate.waiting" in names
+    assert "branchpoint.human_gate.approved" in names
 
 
 def test_human_can_override_runtime_candidate_and_trace_matches_override():
@@ -399,7 +399,7 @@ def test_session_export_is_self_contained_and_replayable_from_ledger():
     final = _finish_by_approving(session)
     artifact = session.export_payload()
 
-    assert artifact["schema_version"] == "causalrag.playable_probe.session.v1"
+    assert artifact["schema_version"] == "branchpoint.playable_probe.session.v1"
     assert artifact["session_id"] == session.session_id
     assert artifact["status"] == "completed"
     assert artifact["result"]["metrics"]["success"] is True
