@@ -1,5 +1,5 @@
 # evaluation/evaluator.py
-# Comprehensive evaluation module for Branchpoint using Ragas framework with causal extensions
+# Evaluation utilities for Branchpoint with built-in causal and critique metrics
 
 import os
 import json
@@ -10,21 +10,6 @@ import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple, Union
 from pathlib import Path
 from dataclasses import dataclass
-
-# Ragas imports
-try:
-    from ragas.metrics import (
-        faithfulness, 
-        answer_relevancy,
-        context_relevancy,
-        context_recall
-    )
-    from ragas.metrics.critique import harmfulness
-    from ragas import evaluate
-    RAGAS_AVAILABLE = True
-except ImportError:
-    RAGAS_AVAILABLE = False
-    logging.warning("Ragas package not installed. Install with: pip install ragas")
 
 # Import LLM interface for critique-based evaluation
 try:
@@ -53,28 +38,21 @@ class CausalEvaluator:
     def __init__(self, 
                 llm_interface=None, 
                 metrics: List[str] = None,
-                use_ragas: bool = True,
                 results_dir: Optional[str] = None):
         """
         Initialize evaluator with specified metrics and LLM interface
         
         Args:
             llm_interface: LLM interface for critique-based evaluation
-            metrics: List of metrics to compute (defaults to all available)
-            use_ragas: Whether to use Ragas framework (if available)
+            metrics: List of metrics to compute (defaults to built-in metrics)
             results_dir: Directory to save evaluation results
         """
         self.llm_interface = llm_interface
-        self.use_ragas = use_ragas and RAGAS_AVAILABLE
-        
         # Setup metrics
         self.default_metrics = [
-            "faithfulness", 
-            "answer_relevancy", 
-            "context_relevancy", 
-            "context_recall",
-            "causal_consistency", 
-            "causal_completeness"
+            "causal_consistency",
+            "causal_completeness",
+            "answer_quality",
         ]
         
         self.metrics = metrics or self.default_metrics
@@ -118,16 +96,6 @@ class CausalEvaluator:
         if causal_paths is not None and len(questions) != len(causal_paths):
             raise ValueError("Number of questions and causal paths must match")
         
-        # Run Ragas evaluation if available and requested
-        if self.use_ragas:
-            ragas_results = self._run_ragas_evaluation(
-                questions, answers, contexts, ground_truths
-            )
-            if ragas_results:
-                all_metrics.update(ragas_results["metrics"])
-                detailed_scores.update(ragas_results["detailed"])
-                raw_results["ragas"] = ragas_results["raw"]
-        
         # Run causal-specific evaluations if causal paths are provided
         if causal_paths:
             causal_results = self._evaluate_causal_reasoning(
@@ -163,75 +131,6 @@ class CausalEvaluator:
             self._save_results(result)
         
         return result
-    
-    def _run_ragas_evaluation(self,
-                             questions: List[str],
-                             answers: List[str],
-                             contexts: List[List[str]],
-                             ground_truths: Optional[List[str]]) -> Dict[str, Any]:
-        """Run evaluation using Ragas framework"""
-        if not self.use_ragas:
-            return {}
-        
-        try:
-            # Prepare data in Ragas format
-            flattened_contexts = [" ".join(ctx) for ctx in contexts]
-            
-            # Define metrics to use
-            ragas_metrics = []
-            
-            if "faithfulness" in self.metrics:
-                ragas_metrics.append(faithfulness)
-            
-            if "answer_relevancy" in self.metrics:
-                ragas_metrics.append(answer_relevancy)
-            
-            if "context_relevancy" in self.metrics:
-                ragas_metrics.append(context_relevancy)
-                
-            if "context_recall" in self.metrics and ground_truths:
-                ragas_metrics.append(context_recall)
-            
-            if not ragas_metrics:
-                return {}
-            
-            # Create dataset dictionary
-            dataset_dict = {
-                "question": questions,
-                "answer": answers,
-                "contexts": [[ctx] for ctx in flattened_contexts],
-            }
-            
-            if ground_truths:
-                dataset_dict["ground_truth"] = ground_truths
-            
-            # Run evaluation
-            result = evaluate(
-                dataset_dict,
-                metrics=ragas_metrics
-            )
-            
-            # Extract results
-            metrics_dict = {}
-            detailed_dict = {}
-            
-            # Process result DataFrame
-            for column in result.columns:
-                if column in ['question', 'answer', 'contexts', 'ground_truth']:
-                    continue
-                
-                metrics_dict[column] = float(result[column].mean())
-                detailed_dict[column] = result[column].tolist()
-            
-            return {
-                "metrics": metrics_dict,
-                "detailed": detailed_dict,
-                "raw": result.to_dict()
-            }
-            
-        except Exception as e:
-            logger.error(f"Error in Ragas evaluation: {e}")
-            return {}
     
     def _evaluate_causal_reasoning(self,
                                   questions: List[str],
