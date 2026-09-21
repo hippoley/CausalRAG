@@ -132,3 +132,24 @@ def test_scaffold_preserves_experiment_and_intervention_contracts(tmp_path):
         "H1": 1.0,
         "H2": -1.0,
     }
+
+
+def test_generated_pack_tools_fail_closed_until_connected(tmp_path):
+    source = scaffold_capability_pack(
+        PAYLOAD,
+        pack_id="fail_closed_pack",
+        label="Fail closed pack",
+    )
+    path = tmp_path / "fail_closed_pack.py"
+    path.write_text(source, encoding="utf-8")
+    module = _load_generated(path)
+    runtime = module.build_pack(
+        type("Config", (), {"hidden_hypothesis": "H1"})()
+    )
+
+    try:
+        runtime.tools[0].handler()
+    except NotImplementedError as exc:
+        assert "not connected to real domain I/O" in str(exc)
+    else:
+        raise AssertionError("generated tool handlers must fail closed")
