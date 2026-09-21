@@ -5,6 +5,7 @@
 
 import argparse
 import importlib
+import importlib.util
 import json
 import logging
 import os
@@ -35,22 +36,47 @@ def _load_documents(path: str) -> List[str]:
 
 def _load_pack_modules(specs):
     loaded = []
-    for raw in specs or []:
+    for pack_index, raw in enumerate(specs or []):
         value = str(raw or "").strip()
         if not value:
             continue
-        module_name, sep, callable_name = value.partition(":")
-        module_name = module_name.strip()
-        callable_name = callable_name.strip()
-        if not module_name:
-            raise RuntimeError("--load-pack requires module or module:function")
-        try:
-            module = importlib.import_module(module_name)
-        except Exception as exc:
-            raise RuntimeError(
-                f"Could not import capability pack module {module_name!r}: {exc}"
-            ) from exc
-        if sep:
+
+        target = value
+        callable_name = ""
+        if ":" in value:
+            maybe_target, maybe_callable = value.rsplit(":", 1)
+            if maybe_callable.isidentifier():
+                target = maybe_target
+                callable_name = maybe_callable
+
+        target = target.strip()
+        if not target:
+            raise RuntimeError("--load-pack requires module/file or target:callable")
+
+        source = Path(target).expanduser()
+        if source.suffix == ".py":
+            if not source.exists() or not source.is_file():
+                raise RuntimeError(f"Capability pack file not found: {target}")
+            module_name = f"_branchpoint_pack_{pack_index}_{source.stem}"
+            spec = importlib.util.spec_from_file_location(module_name, source.resolve())
+            if spec is None or spec.loader is None:
+                raise RuntimeError(f"Could not load capability pack file: {target}")
+            module = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(module)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Could not import capability pack file {target!r}: {exc}"
+                ) from exc
+        else:
+            try:
+                module = importlib.import_module(target)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Could not import capability pack module {target!r}: {exc}"
+                ) from exc
+
+        if callable_name:
             factory = getattr(module, callable_name, None)
             if not callable(factory):
                 raise RuntimeError(
@@ -136,9 +162,9 @@ def parse_args():
         "--load-pack",
         action="append",
         default=[],
-        metavar="MODULE[:CALLABLE]",
+        metavar="MODULE|FILE[:CALLABLE]",
         help=(
-            "Import an application capability-pack module before listing. "
+            "Load an application capability-pack module or .py file before listing. "
             "Repeat for multiple packs."
         ),
     )
@@ -201,7 +227,7 @@ def parse_args():
         default=[],
         metavar="MODULE[:CALLABLE]",
         help=(
-            "Import/register an application capability pack before the server starts. "
+            "Load/register an application capability-pack module or .py file before the server starts. "
             "Repeat for multiple packs."
         ),
     )
