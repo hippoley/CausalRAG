@@ -35,6 +35,9 @@ def test_probe_surfaces_are_separated():
     assert "REGISTERED TOOL POLICY" in decide_page.text
     assert "Run decision" in decide_page.text
     assert "never executes your tools or invents outcomes" in decide_page.text
+    assert "Import JSON" in decide_page.text
+    assert "Run full trajectory" in decide_page.text
+    assert "from=decision" in decide_page.text
     assert "Copy Python" in decide_page.text
     assert "Copy API payload" in decide_page.text
     assert "fetch('/api/decide'" in decide_page.text
@@ -62,6 +65,7 @@ def test_probe_surfaces_are_separated():
     assert "phaseFromTrace" in workbench.text
     assert "WORLD MODEL CHANGED" in workbench.text
     assert "applyLaunchParams" in workbench.text
+    assert "Promoted from Decision Lab" in workbench.text
     assert "Test live model" in workbench.text
     assert "OWNER ACCESS · external models are locked" in workbench.text
     assert "Unlock external models" in workbench.text
