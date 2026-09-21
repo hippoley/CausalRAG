@@ -1,6 +1,6 @@
-from causalrag.probe import ProbeRunConfig, run_probe_comparison
-from causalrag.probe.compare import MemoizedLLM, SharedPromptMemo
-from causalrag.benchmarks.hidden_world import HiddenWorldEnvironment, build_hvac_hidden_world
+from branchpoint.probe import ProbeRunConfig, run_probe_comparison
+from branchpoint.probe.compare import MemoizedLLM, SharedPromptMemo
+from branchpoint.benchmarks.hidden_world import HiddenWorldEnvironment, build_hvac_hidden_world
 
 
 def test_same_world_comparison_is_real_and_isolates_causal_control_plane():
