@@ -34,6 +34,9 @@ def test_probe_surfaces_are_separated():
     assert "Bring one branch point." in decide_page.text
     assert "REGISTERED TOOL POLICY" in decide_page.text
     assert "Run decision" in decide_page.text
+    assert "Advanced causal contract" in decide_page.text
+    assert "ExperimentContract JSON" in decide_page.text
+    assert "InterventionContract JSON" in decide_page.text
     assert "never executes your tools or invents outcomes" in decide_page.text
     assert "Import JSON" in decide_page.text
     assert "Run full trajectory" in decide_page.text
@@ -192,6 +195,71 @@ def test_one_shot_decide_api_normalizes_hypothesis_mass_for_runtime_discriminati
     assert abs(sum(row["probability"] for row in body["hypotheses"]) - 1.0) < 1e-9
     selected = body["ranking"][0]
     assert selected["score"]["information_source"] == "runtime_hypothesis_discrimination"
+
+
+def test_one_shot_decide_api_uses_bayesian_contracts_for_evsi():
+    response = client.post(
+        "/api/decide",
+        json={
+            "candidates": [
+                {
+                    "kind": "observe",
+                    "name": "diagnose",
+                    "expected_information_gain": 0.0,
+                    "tests_hypotheses": ["H1", "H2"],
+                },
+                {"kind": "intervene", "name": "fix_h1", "expected_goal_gain": 1.0},
+                {"kind": "intervene", "name": "fix_h2", "expected_goal_gain": 1.0},
+            ],
+            "tools": [
+                {
+                    "name": "diagnose",
+                    "cost": 0.08,
+                    "experiment_contract": {
+                        "experiment_id": "diagnostic",
+                        "outcomes": [
+                            {
+                                "outcome": "leans_h1",
+                                "likelihoods": {"H1": 0.75, "H2": 0.25},
+                            },
+                            {
+                                "outcome": "leans_h2",
+                                "likelihoods": {"H1": 0.25, "H2": 0.75},
+                            },
+                        ],
+                    },
+                },
+                {
+                    "name": "fix_h1",
+                    "cost": 0.20,
+                    "intervention_contract": {
+                        "intervention_id": "fix_h1",
+                        "utilities": {"H1": 1.0, "H2": -1.0},
+                    },
+                },
+                {
+                    "name": "fix_h2",
+                    "cost": 0.20,
+                    "intervention_contract": {
+                        "intervention_id": "fix_h2",
+                        "utilities": {"H1": -1.0, "H2": 1.0},
+                    },
+                },
+            ],
+            "hypotheses": [
+                {"hypothesis_id": "H1", "statement": "mechanism one", "probability": 0.70},
+                {"hypothesis_id": "H2", "statement": "mechanism two", "probability": 0.30},
+            ],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["selected"]["name"] == "diagnose"
+    selected = body["ranking"][0]["score"]
+    assert selected["information_source"] == "runtime_bayesian_eig"
+    assert selected["decision_value_source"] == "runtime_expected_decision_value_after_sampling"
+    assert abs(selected["expected_value_of_sample_information"] - 0.1) < 1e-9
+    assert abs(selected["net_value_of_sampling"] - 0.02) < 1e-9
 
 
 def test_one_shot_decide_api_rejects_duplicate_candidate_names():
