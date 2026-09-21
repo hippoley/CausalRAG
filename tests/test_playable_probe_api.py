@@ -33,7 +33,7 @@ def test_probe_surfaces_are_separated():
     assert "THREE THINGS ORDINARY AGENTS GET WRONG" in demo.text
     assert "Open in Workbench" in demo.text
     assert "from=examples" in demo.text
-    assert "Bayesian learning / EIG / EVSI" in demo.text
+    assert "Every case runs the real Python runtime." in demo.text
     assert "temporal_delayed_effect" in demo.text
     assert "open_world_mismatch" in demo.text
     assert "fetch('/api/run'" in demo.text
