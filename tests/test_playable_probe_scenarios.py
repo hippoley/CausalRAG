@@ -1,8 +1,8 @@
 import time
 
-from causalrag.probe.session import ProbeSession
-from causalrag.agent import RuntimeCapabilities
-from causalrag.probe import ProbeRunConfig, available_probe_config, run_probe_comparison, run_probe_episode, run_probe_ladder
+from branchpoint.probe.session import ProbeSession
+from branchpoint.agent import RuntimeCapabilities
+from branchpoint.probe import ProbeRunConfig, available_probe_config, run_probe_comparison, run_probe_episode, run_probe_ladder
 
 
 def test_probe_catalog_exposes_three_executable_scenarios():
