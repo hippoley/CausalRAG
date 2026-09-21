@@ -78,7 +78,7 @@ class DecisionToolInput(BaseModel):
 class DecisionHypothesisInput(BaseModel):
     hypothesis_id: str = Field(min_length=1, max_length=80)
     statement: str = Field(min_length=1, max_length=1000)
-    probability: float = Field(ge=0.001, le=0.999)
+    probability: float = Field(gt=0.0, le=1000000.0)
 
 
 class OneShotDecisionRequest(BaseModel):
