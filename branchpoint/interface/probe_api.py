@@ -277,6 +277,40 @@ def one_shot_decision(payload: OneShotDecisionRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+class DecisionScaffoldRequest(BaseModel):
+    decision: OneShotDecisionRequest
+    pack_id: str = Field("my_capability_pack", min_length=1, max_length=120)
+    label: str = Field("My capability pack", min_length=1, max_length=200)
+
+
+@app.post("/api/scaffold")
+def scaffold_decision(payload: DecisionScaffoldRequest):
+    """Generate a starter capability pack from a validated portable decision."""
+    from branchpoint.scaffold import scaffold_capability_pack
+
+    try:
+        source = scaffold_capability_pack(
+            {
+                "candidates": [_model_payload(row) for row in payload.decision.candidates],
+                "tools": [_model_payload(row) for row in payload.decision.tools],
+                "hypotheses": [_model_payload(row) for row in payload.decision.hypotheses],
+            },
+            pack_id=payload.pack_id,
+            label=payload.label,
+        )
+    except DecisionPayloadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "pack_id": payload.pack_id,
+        "label": payload.label,
+        "source": source,
+        "truthfulness": {
+            "live_handlers_connected": False,
+            "generated_starter": True,
+        },
+    }
+
+
 @app.post("/api/run")
 def run_probe(payload: ProbeRunRequest, request: Request):
     """One-shot compatibility endpoint used by scripts and CI."""
