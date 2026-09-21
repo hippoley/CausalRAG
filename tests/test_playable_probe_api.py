@@ -2,7 +2,7 @@ import time
 
 from fastapi.testclient import TestClient
 
-from causalrag.interface.probe_api import app
+from branchpoint.interface.probe_api import app
 
 
 client = TestClient(app)
@@ -23,7 +23,7 @@ def test_probe_health_and_config():
 def test_probe_surfaces_are_separated():
     landing = client.get("/")
     assert landing.status_code == 200
-    assert "CAUSALRAG · TWO WAYS IN" in landing.text
+    assert "Your agent can propose" in landing.text
     assert 'href="/demo"' in landing.text
     assert 'href="/workbench"' in landing.text
     assert 'href="/research"' in landing.text
@@ -40,7 +40,7 @@ def test_probe_surfaces_are_separated():
 
     workbench = client.get("/workbench")
     assert workbench.status_code == 200
-    assert "CausalRAG · Live Workbench" in workbench.text
+    assert "Branchpoint · Live Workbench" in workbench.text
     assert "AGENT HISTORY" in workbench.text
     assert "Start live agent" in workbench.text
     assert "Safe Auto evidence" in workbench.text
@@ -62,7 +62,7 @@ def test_probe_surfaces_are_separated():
 
     research = client.get("/research")
     assert research.status_code == 200
-    assert "CausalRAG · Playable Causal Probe" in research.text
+    assert "Branchpoint · Playable Causal Probe" in research.text
     assert "Runtime capabilities" in research.text
     assert "Start interactive episode" in research.text
     assert "CAUSAL AGENT · COMPLETE LIVE FLOW" in research.text
@@ -331,7 +331,7 @@ def test_probe_config_reports_model_connection_state_without_secrets():
 def test_model_test_endpoint_reports_provider_result_without_network(monkeypatch):
     monkeypatch.setattr(
         "causalrag.interface.probe_api.LLMInterface.generate",
-        lambda self, prompt, temperature=0.0, max_tokens=32: "CAUSALRAG_MODEL_OK",
+        lambda self, prompt, temperature=0.0, max_tokens=32: "BRANCHPOINT_MODEL_OK",
     )
     response = client.post(
         "/api/model/test",
