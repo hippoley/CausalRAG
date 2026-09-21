@@ -126,7 +126,31 @@ That is the point.
 
 ## Try it
 
-### 1. Open the live workbench
+### 1. Reproduce the split
+
+No model key required:
+
+```bash
+python examples/browser_action_guard_demo.py
+```
+
+Expected shape:
+
+```text
+same world: True
+first divergence: 0
+proposal-order loop: submit_form -> success= False
+decision runtime: inspect_submission_state -> reauthenticate -> success= True
+```
+
+Two more no-key examples:
+
+```bash
+python examples/tool_routing_demo.py
+python examples/incident_triage_demo.py
+```
+
+### 2. Open the live workbench
 
 ```bash
 pip install -e ".[api]"
@@ -144,7 +168,7 @@ Then open:
 
 No model key is required for deterministic examples.
 
-### 2. Run one agent from Python
+### 3. Run one agent from Python
 
 ```python
 from branchpoint import ToolSpec, create_agent
