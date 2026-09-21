@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Branchpoint · Verified Examples</title>
 <style>
 :root{--bg:#f4f2eb;--paper:#fffef9;--ink:#15201d;--muted:#6d7773;--line:#d9d8cf;--green:#173f34;--mint:#d9f5e9;--amber:#ffe8bb;--blue:#e7f0ff}
@@ -8,11 +8,11 @@
 </style></head><body>
 <header class="top"><a class="brand" href="./">Branchpoint <span class="mono">VERIFIED EXAMPLES</span></a><a href="https://github.com/hippoley/Branchpoint">Source →</a></header>
 <main>
-<section class="hero"><div class="eyebrow">CI-GENERATED · REAL PYTHON RUNTIME</div><h1>一次只看懂一个精髓。</h1><p>这些不是浏览器里手写出来的剧情。每次 GitHub Pages 发布时，CI 会真的运行三次 Branchpoint Python runtime，然后把 canonical episode ledger 写进本页读取的数据里。</p><div class="truth"><b id="build">Loading verified build…</b><br>静态 Pages 只播放真实发布产物；它不会冒充 live backend。</div></section>
+<section class="hero"><div class="eyebrow">CI-GENERATED · REAL PYTHON RUNTIME</div><h1>One failure mode at a time.</h1><p>These are not scripted browser stories. Every Pages deploy runs Branchpoint in Python, then publishes the canonical episode ledgers produced by those runs.</p><div class="truth"><b id="build">Loading verified build…</b><br>Static Pages replays build artifacts. It never pretends to be a live backend.</div></section>
 <section class="cases">
-<button class="case active" data-key="hvac"><span>01 · INFORMATION VALUE</span><h2>哪个实验最值得先做？</h2><p>有限 probe budget 下，Agent 必须选择最可能改变后续决策的证据。</p></button>
-<button class="case" data-key="temporal"><span>02 · TEMPORAL CAUSALITY</span><h2>什么时候读数才算证据？</h2><p>真实读数如果落在错误 causal window，也不能拿来归因。</p></button>
-<button class="case" data-key="open_world"><span>03 · OPEN WORLD</span><h2>正确答案不在模型里怎么办？</h2><p>现实连续反驳 H1/H2 时，Agent 必须允许 hypothesis class 自己变化。</p></button>
+<button class="case active" data-key="hvac"><span>01 · INFORMATION VALUE</span><h2>Which probe is worth buying first?</h2><p>With a limited probe budget, the runtime must choose the evidence most likely to change the downstream decision.</p></button>
+<button class="case" data-key="temporal"><span>02 · TEMPORAL CAUSALITY</span><h2>When does a measurement become evidence?</h2><p>A real measurement can still be invalid evidence when it falls outside the causal window.</p></button>
+<button class="case" data-key="open_world"><span>03 · OPEN WORLD</span><h2>What if the right explanation is missing?</h2><p>When reality keeps contradicting H1/H2, the hypothesis set itself has to be allowed to change.</p></button>
 </section>
 <section class="story">
 <div id="loading" class="loading">Loading CI-generated runtime trajectory…</div>
@@ -21,22 +21,22 @@
   <div class="summary"><div class="metric"><span>RESULT</span><b id="result">—</b></div><div class="metric"><span>DECISIONS</span><b id="decisions">—</b></div><div class="metric"><span>TRUE POSTERIOR</span><b id="posterior">—</b></div><div class="metric"><span>TRACE</span><b id="trace">—</b></div></div>
   <div class="timeline" id="timeline"></div>
   <div class="takeaway"><b id="takeTitle">—</b><span id="takeText">—</span></div>
-  <div class="footer-cta"><p><b>想真正控制它？</b><br>Live Workbench 支持自己的 Goal、Human Gate、replan、新 hypothesis 与 Safe Auto；它需要 Python/FastAPI backend。</p><a class="btn" href="https://github.com/hippoley/Branchpoint">Run Live Workbench →</a></div>
+  <div class="footer-cta"><p><b>Want to steer it live?</b><br>The Live Workbench supports your own goal, human gates, replanning, new hypotheses, and Safe Auto. It runs on the Python/FastAPI backend.</p><a class="btn" href="https://github.com/hippoley/Branchpoint">Run Live Workbench →</a></div>
 </div>
 </section>
 </main>
 <script>
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));let data=null,active='hvac';
 const meta={
- hvac:{title:'有限预算下，先买哪条证据？',sub:'看 runtime 如何在多个 diagnostic actions 中选择，而不是照 proposer 顺序执行。',take:'精髓：实验的价值不是“能得到信息”就够了，而是这条信息是否值得它的成本，并且会不会改变最终 action。'},
- temporal:{title:'真实数值，也可能不是合法证据。',sub:'看 temporal guard 如何避免把 intervention 之前的 stale effect 当成刚才动作的结果。',take:'精髓：Branchpoint 不只问 observation 是什么，还问它在时间上有没有资格被归因给刚才的 action。'},
- open_world:{title:'Agent 发现：原来的模型里没有正确答案。',sub:'看 model mismatch 如何从“调 H1/H2 概率”升级成“新增并验证 H4”。',take:'精髓：真正的自精化不是永远在固定候选里重新加权，而是现实足够反常时，允许 world model 的 hypothesis class 发生结构变化。'}
+ hvac:{title:'Choose the evidence that can actually change the decision.',sub:'See the runtime arbitrate among diagnostic actions instead of executing proposer order.',take:'The point: information is not valuable merely because it is informative. It has to be worth its cost and capable of changing the downstream action.'},
+ temporal:{title:'A real number can still be invalid evidence.',sub:'See temporal guards prevent stale effects from being attributed to the latest action.',take:'The point: Branchpoint asks not only what was observed, but whether that observation is temporally eligible to be attributed to the preceding action.'},
+ open_world:{title:'The runtime discovers that the current model is missing the answer.',sub:'See model mismatch escalate from reweighting H1/H2 to adding and validating H4.',take:'The point: real self-correction is not endless reweighting inside a fixed list. When the evidence is strange enough, the world model must be able to change structure.'}
 };
 function topHyp(rows){return [...(rows||[])].sort((a,b)=>Number(b.probability||0)-Number(a.probability||0))[0]||null}
 function deltaChips(row){const d=Object.entries(row.posterior_delta||{}).filter(([,v])=>Math.abs(Number(v))>.001).sort((a,b)=>Math.abs(Number(b[1]))-Math.abs(Number(a[1]))).slice(0,3);return d.map(([id,v])=>'<span class="chip '+(Number(v)>0?'up':'')+'">'+esc(id)+' '+(Number(v)>=0?'+':'')+(100*Number(v)).toFixed(1)+'pp</span>').join('')}
 function modelChips(row){const hc=row.hypothesis_changes||{},added=hc.added||[],validated=hc.validation_changed||[];let out=[];added.forEach(h=>out.push('<span class="chip model">NEW '+esc(h.id||h.hypothesis_id)+'</span>'));validated.forEach(v=>out.push('<span class="chip model">'+esc(v.hypothesis_id)+' validated</span>'));return out.join('')}
 function stepHTML(row,i){const sel=row.selected||{},obs=row.observation||{},ins=row.decision_inspector||{},chips=deltaChips(row)+(ins.diverged?'<span class="chip guard">runtime changed proposer choice</span>':'')+modelChips(row);return '<div class="step"><div class="label">STEP '+(i+1)+'</div><i class="dot"></i><div class="content"><h3>'+esc((sel.kind||'action')+' · '+(sel.name||'—'))+'</h3><p>'+esc(JSON.stringify(obs.result??obs).slice(0,260))+'</p>'+(chips?'<div class="chips">'+chips+'</div>':'')+'</div></div>'}
-function render(){if(!data)return;const run=data.examples?.[active],m=meta[active];if(!run)return;$('title').textContent=m.title;$('sub').textContent=m.sub;const metrics=run.metrics||{};$('result').textContent=metrics.success===true?'SUCCESS':metrics.success===false?'NOT YET':'DONE';$('decisions').textContent=(run.decisions||[]).length;$('posterior').textContent=Math.round(100*Number(metrics.true_hypothesis_posterior||0))+'%';$('trace').textContent=String(run.trace_id||'—').slice(0,8);const rows=run.episode_ledger||[];$('timeline').innerHTML=rows.map(stepHTML).join('')||'<div class="loading">No ledger rows in this build.</div>';$('takeTitle').textContent='你刚才看到的是发布产物，不是前端模拟';$('takeText').textContent=m.take}
+function render(){if(!data)return;const run=data.examples?.[active],m=meta[active];if(!run)return;$('title').textContent=m.title;$('sub').textContent=m.sub;const metrics=run.metrics||{};$('result').textContent=metrics.success===true?'SUCCESS':metrics.success===false?'NOT YET':'DONE';$('decisions').textContent=(run.decisions||[]).length;$('posterior').textContent=Math.round(100*Number(metrics.true_hypothesis_posterior||0))+'%';$('trace').textContent=String(run.trace_id||'—').slice(0,8);const rows=run.episode_ledger||[];$('timeline').innerHTML=rows.map(stepHTML).join('')||'<div class="loading">No ledger rows in this build.</div>';$('takeTitle').textContent='This is a release artifact, not a frontend simulation';$('takeText').textContent=m.take}
 document.querySelectorAll('.case').forEach(b=>b.onclick=()=>{active=b.dataset.key;document.querySelectorAll('.case').forEach(x=>x.classList.toggle('active',x===b));render()});
 fetch('data/runtime.json').then(r=>r.json()).then(d=>{data=d;$('build').textContent='VERIFIED · '+String(d.commit||'current')+' · Python '+String(d.python||'');$('loading').hidden=true;$('content').hidden=false;render()}).catch(e=>{$('loading').textContent='Could not load verified runtime data: '+e});
 </script></body></html>
