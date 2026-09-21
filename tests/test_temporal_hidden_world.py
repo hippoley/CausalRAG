@@ -1,4 +1,4 @@
-from causalrag.benchmarks import compare_temporal_guard, run_temporal_hidden_world
+from branchpoint.benchmarks import compare_temporal_guard, run_temporal_hidden_world
 
 
 def test_temporal_guard_prevents_stale_immediate_read_for_h1():
