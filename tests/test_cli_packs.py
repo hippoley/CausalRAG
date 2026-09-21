@@ -1,0 +1,26 @@
+import json
+import sys
+
+from branchpoint import cli
+
+
+def test_packs_cli_lists_registered_builtin_capability_packs(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["branchpoint", "packs"])
+
+    assert cli.main() == 0
+    output = capsys.readouterr().out
+    assert "browser_action_guard" in output
+    assert "tool_routing" in output
+    assert "incident_triage" in output
+    assert "temporal_delayed_effect" in output
+    assert "open_world_mismatch" in output
+
+
+def test_packs_cli_json_is_machine_readable(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["branchpoint", "packs", "--json"])
+
+    assert cli.main() == 0
+    rows = json.loads(capsys.readouterr().out)
+    by_id = {row["id"]: row for row in rows}
+    assert by_id["browser_action_guard"]["default_hidden_hypothesis"] == "H2"
+    assert by_id["tool_routing"]["default_outcome_mode"] == "deterministic"
