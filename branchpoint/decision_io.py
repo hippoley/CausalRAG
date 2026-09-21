@@ -4,6 +4,11 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from branchpoint.agent.actions import ActionKind, CandidateAction
 from branchpoint.decision import decide
+from branchpoint.experiments import (
+    ExperimentContract,
+    InterventionContract,
+    OutcomeLikelihood,
+)
 from branchpoint.tools.base import ToolSpec
 from branchpoint.world_model.models import CausalWorldModel
 
@@ -102,6 +107,124 @@ def _candidate_from_row(row: Mapping[str, Any], index: int) -> CandidateAction:
     )
 
 
+def _experiment_contract_from_row(
+    value: Any,
+    *,
+    tool_index: int,
+) -> Optional[ExperimentContract]:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise DecisionPayloadError(
+            f"tools[{tool_index}].experiment_contract must be an object"
+        )
+    experiment_id = _non_empty(
+        value.get("experiment_id"),
+        name=f"tools[{tool_index}].experiment_contract.experiment_id",
+        maximum=120,
+    )
+    outcome_rows = _rows(
+        value.get("outcomes"),
+        name=f"tools[{tool_index}].experiment_contract.outcomes",
+        maximum=50,
+    )
+    outcomes = []
+    for outcome_index, outcome in enumerate(outcome_rows):
+        label = _non_empty(
+            outcome.get("outcome"),
+            name=(
+                f"tools[{tool_index}].experiment_contract."
+                f"outcomes[{outcome_index}].outcome"
+            ),
+            maximum=120,
+        )
+        likelihoods_raw = outcome.get("likelihoods")
+        if not isinstance(likelihoods_raw, Mapping):
+            raise DecisionPayloadError(
+                f"tools[{tool_index}].experiment_contract."
+                f"outcomes[{outcome_index}].likelihoods must be an object"
+            )
+        likelihoods = {
+            _non_empty(
+                hypothesis_id,
+                name="experiment likelihood hypothesis id",
+                maximum=80,
+            ): _bounded_float(
+                probability,
+                name=(
+                    f"tools[{tool_index}].experiment_contract."
+                    f"outcomes[{outcome_index}].likelihoods[{hypothesis_id}]"
+                ),
+                maximum=1.0,
+            )
+            for hypothesis_id, probability in likelihoods_raw.items()
+        }
+        outcomes.append(
+            OutcomeLikelihood(
+                outcome=label,
+                likelihoods=likelihoods,
+            )
+        )
+    try:
+        return ExperimentContract(
+            experiment_id=experiment_id,
+            outcomes=outcomes,
+            outcome_key=str(value.get("outcome_key") or "outcome"),
+            description=str(value.get("description") or "")[:1000],
+        )
+    except (TypeError, ValueError) as exc:
+        raise DecisionPayloadError(
+            f"tools[{tool_index}].experiment_contract invalid: {exc}"
+        ) from exc
+
+
+def _intervention_contract_from_row(
+    value: Any,
+    *,
+    tool_index: int,
+) -> Optional[InterventionContract]:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise DecisionPayloadError(
+            f"tools[{tool_index}].intervention_contract must be an object"
+        )
+    intervention_id = _non_empty(
+        value.get("intervention_id"),
+        name=f"tools[{tool_index}].intervention_contract.intervention_id",
+        maximum=120,
+    )
+    utilities_raw = value.get("utilities")
+    if not isinstance(utilities_raw, Mapping):
+        raise DecisionPayloadError(
+            f"tools[{tool_index}].intervention_contract.utilities must be an object"
+        )
+    utilities = {}
+    for hypothesis_id, utility in utilities_raw.items():
+        key = _non_empty(
+            hypothesis_id,
+            name="intervention utility hypothesis id",
+            maximum=80,
+        )
+        try:
+            utilities[key] = float(utility)
+        except (TypeError, ValueError) as exc:
+            raise DecisionPayloadError(
+                f"tools[{tool_index}].intervention_contract."
+                f"utilities[{hypothesis_id}] must be numeric"
+            ) from exc
+    try:
+        return InterventionContract(
+            intervention_id=intervention_id,
+            utilities=utilities,
+            description=str(value.get("description") or "")[:1000],
+        )
+    except (TypeError, ValueError) as exc:
+        raise DecisionPayloadError(
+            f"tools[{tool_index}].intervention_contract invalid: {exc}"
+        ) from exc
+
+
 def _tool_from_row(row: Mapping[str, Any], index: int) -> ToolSpec:
     name = _non_empty(row.get("name"), name=f"tools[{index}].name", maximum=120)
     reversible = row.get("reversible", True)
@@ -114,8 +237,15 @@ def _tool_from_row(row: Mapping[str, Any], index: int) -> ToolSpec:
         cost=_bounded_float(row.get("cost", 0.0), name=f"tools[{index}].cost"),
         risk=_bounded_float(row.get("risk", 0.0), name=f"tools[{index}].risk"),
         reversible=reversible,
+        experiment_contract=_experiment_contract_from_row(
+            row.get("experiment_contract"),
+            tool_index=index,
+        ),
+        intervention_contract=_intervention_contract_from_row(
+            row.get("intervention_contract"),
+            tool_index=index,
+        ),
     )
-
 
 def _candidate_payload(candidate: CandidateAction, index: int) -> Dict[str, Any]:
     return {
@@ -260,6 +390,16 @@ def arbitrate_payload(payload: Mapping[str, Any]) -> Dict[str, Any]:
                         "cost": registered.cost,
                         "risk": registered.risk,
                         "reversible": registered.reversible,
+                        "experiment_contract": (
+                            registered.experiment_contract.summary()
+                            if registered.experiment_contract is not None
+                            else None
+                        ),
+                        "intervention_contract": (
+                            registered.intervention_contract.summary()
+                            if registered.intervention_contract is not None
+                            else None
+                        ),
                     }
                     if registered is not None
                     else None
