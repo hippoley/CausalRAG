@@ -505,15 +505,30 @@ def register_probe_scenario(
     scenario_id = str(spec.scenario_id).strip()
     if not scenario_id:
         raise ValueError("scenario_id must be non-empty")
+    if scenario_id != str(spec.scenario_id):
+        raise ValueError("scenario_id must not contain surrounding whitespace")
+    if not str(spec.label).strip():
+        raise ValueError("scenario label must be non-empty")
+    if not str(spec.default_goal).strip():
+        raise ValueError("scenario default_goal must be non-empty")
     if not callable(spec.builder):
         raise TypeError("scenario builder must be callable")
-    if not spec.hidden_hypotheses:
-        raise ValueError("scenario must declare at least one hidden_hypothesis")
-    if not spec.outcome_modes:
-        raise ValueError("scenario must declare at least one outcome_mode")
-    if spec.default_hidden_hypothesis not in set(spec.hidden_hypotheses):
+
+    hidden_hypotheses = tuple(str(value).strip() for value in spec.hidden_hypotheses)
+    if not hidden_hypotheses or any(not value for value in hidden_hypotheses):
+        raise ValueError("scenario must declare non-empty hidden_hypotheses")
+    if len(hidden_hypotheses) != len(set(hidden_hypotheses)):
+        raise ValueError("scenario hidden_hypotheses must be unique")
+
+    outcome_modes = tuple(str(value).strip() for value in spec.outcome_modes)
+    if not outcome_modes or any(not value for value in outcome_modes):
+        raise ValueError("scenario must declare non-empty outcome_modes")
+    if len(outcome_modes) != len(set(outcome_modes)):
+        raise ValueError("scenario outcome_modes must be unique")
+
+    if spec.default_hidden_hypothesis not in set(hidden_hypotheses):
         raise ValueError("default_hidden_hypothesis must be declared by the scenario")
-    if spec.default_outcome_mode not in set(spec.outcome_modes):
+    if spec.default_outcome_mode not in set(outcome_modes):
         raise ValueError("default_outcome_mode must be declared by the scenario")
     if scenario_id in _SCENARIO_REGISTRY and not replace:
         raise ValueError(f"scenario already registered: {scenario_id}")
