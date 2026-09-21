@@ -93,7 +93,7 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    keywords="agent control-plane typed-decisions probabilistic-routing uncertainty tool-routing verification human-in-the-loop world-model bayesian evaluation counterfactual",
+    keywords="ai-agents decision-runtime probabilistic-decisions typed-decisions confidence-gating bounded-decisions semantic-routing tool-selection tool-routing agent-control-plane uncertainty verification human-in-the-loop world-model bayesian counterfactual agent-evaluation",
     project_urls={
         "Documentation": "https://github.com/hippoley/Branchpoint",
         "Source": "https://github.com/hippoley/Branchpoint",
