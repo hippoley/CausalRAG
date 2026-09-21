@@ -126,6 +126,8 @@ That is the point.
 
 ## Try it
 
+Start as small as you want: a CLI decision, one Python branch point, the visual Decision Lab, or the full agent loop.
+
 ### 1. Reproduce the split
 
 No model key required:
@@ -177,7 +179,43 @@ print(decision.selected.name)
 
 The proposer still gets to suggest an order. Registered tool policy remains canonical.
 
-### 3. Open the live workbench
+### 3. Run the same decision from JSON / CLI
+
+A portable example is included:
+
+```bash
+branchpoint decide examples/browser_action_guard.json
+```
+
+Output:
+
+```text
+proposer: submit_form
+runtime:  inspect_submission_state
+branch:   changed
+why:
+  - higher runtime utility: ...
+  - canonical tool policy: cost, risk, irreversibility
+```
+
+Use `--json` for the complete ranking and score provenance, or pipe a payload through stdin:
+
+```bash
+cat decision.json | branchpoint decide - --json
+```
+
+The CLI, `/api/decide`, and Decision Lab use the same portable arbitration path.
+
+### 4. Open the Decision Lab
+
+```bash
+pip install -e ".[api]"
+branchpoint probe --open
+```
+
+Open `/decide` to edit proposer order and registered tool policy side by side. The lab performs real runtime scoring but **does not execute arbitrary user-supplied tools or simulate outcomes**.
+
+### 5. Open the live workbench
 
 ```bash
 pip install -e ".[api]"
@@ -188,14 +226,15 @@ Then open:
 
 ```text
 /            product entrance
-/demo        three focused failure-mode examples
+/decide      bring-your-own-decision lab
+/demo        three verified decision trajectories
 /workbench   live agent history + human steering
 /research    full score / trace / counterfactual console
 ```
 
 No model key is required for deterministic examples.
 
-### 4. Run one agent from Python
+### 6. Run one agent from Python
 
 ```python
 from branchpoint import ToolSpec, create_agent
