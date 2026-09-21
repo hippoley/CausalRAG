@@ -252,3 +252,23 @@ def test_portable_contract_validation_rejects_non_normalized_likelihoods():
         assert "sum to 1" in str(exc)
     else:
         raise AssertionError("invalid likelihood contract should be rejected")
+
+
+def test_portable_decision_rejects_non_finite_numbers():
+    for bad_value in (float("nan"), float("inf"), float("-inf")):
+        try:
+            arbitrate_payload(
+                {
+                    "candidates": [
+                        {
+                            "kind": "observe",
+                            "name": "probe",
+                            "risk": bad_value,
+                        }
+                    ]
+                }
+            )
+        except DecisionPayloadError as exc:
+            assert "finite" in str(exc)
+        else:
+            raise AssertionError("non-finite decision values must be rejected")
