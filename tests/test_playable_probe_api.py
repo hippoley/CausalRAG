@@ -148,7 +148,7 @@ def test_one_shot_decide_api_applies_canonical_tool_policy():
     submit = next(row for row in body["ranking"] if row["candidate"]["name"] == "submit_form")
     assert submit["score"]["risk"] == 0.72
     assert submit["score"]["irreversibility"] == 1.0
-    assert set(submit["canonical_overrides"]) == {"risk", "irreversibility"}
+    assert set(submit["canonical_overrides"]) == {"cost", "risk", "irreversibility"}
     assert any(row["code"] == "canonical_tool_policy" for row in body["reasons"])
 
 
@@ -179,7 +179,7 @@ def test_one_shot_decide_api_normalizes_hypothesis_mass_for_runtime_discriminati
     assert response.status_code == 200
     body = response.json()
     assert body["selected"]["name"] == "mechanism_probe"
-    assert sum(row["probability"] for row in body["hypotheses"]) == 1.0
+    assert abs(sum(row["probability"] for row in body["hypotheses"]) - 1.0) < 1e-9
     selected = body["ranking"][0]
     assert selected["score"]["information_source"] == "runtime_hypothesis_discrimination"
 
