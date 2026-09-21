@@ -1,6 +1,6 @@
 import pytest
 
-from branchpoint import ActionKind, CandidateAction, ToolSpec, decide
+from branchpoint import ActionKind, CandidateAction, DecisionResult, ToolSpec, decide
 
 
 def _candidates():
@@ -68,3 +68,17 @@ def test_decide_empty_candidates_returns_explicit_stop():
     assert result.selected.kind == ActionKind.STOP
     assert result.selected.name == "stop"
     assert result.changed_proposer_order is False
+
+
+def test_decision_result_distinguishes_equal_but_distinct_candidates():
+    proposer = CandidateAction(kind=ActionKind.OBSERVE, name="same")
+    selected = CandidateAction(kind=ActionKind.OBSERVE, name="same")
+    assert proposer == selected
+    result = DecisionResult(
+        selected=selected,
+        proposer_first=proposer,
+        ranked_actions=(selected, proposer),
+        scores=(),
+    )
+
+    assert result.changed_proposer_order is True
