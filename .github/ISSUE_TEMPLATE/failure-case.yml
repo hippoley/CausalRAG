@@ -1,0 +1,45 @@
+name: Failure case
+description: Show a concrete state where an agent takes the wrong branch
+title: "[failure] "
+labels: ["failure-case"]
+body:
+  - type: textarea
+    id: state
+    attributes:
+      label: Initial state
+      description: What does the agent know before the decision?
+      placeholder: State, hypotheses, constraints, relevant context...
+    validations:
+      required: true
+  - type: textarea
+    id: candidates
+    attributes:
+      label: Candidate actions
+      description: What actions were available and which one was selected?
+    validations:
+      required: true
+  - type: textarea
+    id: world
+    attributes:
+      label: World response
+      description: What observation or outcome came back?
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: Why this is a failure
+      description: What branch should have been taken, or what guard should have fired?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Code, trace, capability pack, or steps to reproduce.
+      render: shell
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Expected invariant
+      description: What testable behavior should Branchpoint guarantee after this is fixed?
