@@ -47,15 +47,20 @@ jobs:
           report = data["playable_ab"]
           assert report["comparison"]["same_world_inputs"] is True
           assert report["first_divergence"] is not None
-          assert report["vanilla"]["metrics"]
-          assert report["causal"]["metrics"]
+          assert report["first_divergence"]["step"] == 0
+          assert report["vanilla"]["metrics"]["success"] is False
+          assert report["causal"]["metrics"]["success"] is True
+          assert report["vanilla"]["decisions"][0]["selected"]["name"] == "submit_form"
+          assert report["causal"]["decisions"][0]["selected"]["name"] == "inspect_submission_state"
           examples = data["examples"]
-          assert set(examples) == {"hvac", "temporal", "open_world"}
+          assert set(examples) == {"route", "incident", "browser"}
           assert all(run["episode_ledger"] for run in examples.values())
-          assert any(
-              (row.get("hypothesis_changes") or {}).get("structural_change")
-              for row in examples["open_world"]["episode_ledger"]
-          )
+          assert examples["route"]["metrics"]["success"] is True
+          assert examples["route"]["decisions"][0]["selected"]["name"] == "inspect_request_shape"
+          assert examples["incident"]["metrics"]["success"] is True
+          assert examples["incident"]["decisions"][0]["selected"]["name"] == "read_latency_signature"
+          assert examples["browser"]["metrics"]["success"] is True
+          assert examples["browser"]["decisions"][0]["selected"]["name"] == "inspect_submission_state"
           PY
       - uses: actions/configure-pages@v5
         with:
