@@ -1,4 +1,4 @@
-from causalrag.benchmarks import compare_temporal_suite, run_temporal_suite
+from branchpoint.benchmarks import compare_temporal_suite, run_temporal_suite
 
 
 def test_temporal_suite_isolates_early_late_and_stacking_failures():
