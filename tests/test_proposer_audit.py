@@ -1,10 +1,10 @@
-from causalrag.agent import CausalAgentLoop
-from causalrag.agent.actions import ActionKind, CandidateAction
-from causalrag.agent.loop import DecisionGateReplan
-from causalrag.reasoning.llm import LLMCausalReasoner
-from causalrag.observability import CausalTelemetry
-from causalrag.tools.base import ToolRegistry, ToolSpec
-from causalrag.world_model import CausalWorldModel
+from branchpoint.agent import CausalAgentLoop
+from branchpoint.agent.actions import ActionKind, CandidateAction
+from branchpoint.agent.loop import DecisionGateReplan
+from branchpoint.reasoning.llm import LLMCausalReasoner
+from branchpoint.observability import CausalTelemetry
+from branchpoint.tools.base import ToolRegistry, ToolSpec
+from branchpoint.world_model import CausalWorldModel
 
 
 class FakeLLM:
@@ -63,7 +63,7 @@ def test_llm_reasoner_exposes_only_formal_structured_submission_metadata():
     llm = FakeLLM()
     reasoner = LLMCausalReasoner(llm=llm, tools=registry)
 
-    from causalrag.agent.state import AgentState
+    from branchpoint.agent.state import AgentState
 
     world = CausalWorldModel()
     state = AgentState(goal="diagnose", max_steps=1)
@@ -180,7 +180,7 @@ def test_failed_model_call_is_explicit_in_proposer_metadata():
     registry = ToolRegistry()
     reasoner = LLMCausalReasoner(llm=FailingLLM(), tools=registry)
 
-    from causalrag.agent.state import AgentState
+    from branchpoint.agent.state import AgentState
 
     state = AgentState(goal="diagnose", max_steps=1)
     candidates = list(reasoner.propose(state, CausalWorldModel()))
