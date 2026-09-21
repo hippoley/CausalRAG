@@ -4,6 +4,7 @@
 """Command-line interface for Branchpoint."""
 
 import argparse
+import importlib
 import json
 import logging
 import os
@@ -30,6 +31,34 @@ def _load_documents(path: str) -> List[str]:
             if text:
                 documents.append(text)
     return documents
+
+
+def _load_pack_modules(specs):
+    loaded = []
+    for raw in specs or []:
+        value = str(raw or "").strip()
+        if not value:
+            continue
+        module_name, sep, callable_name = value.partition(":")
+        module_name = module_name.strip()
+        callable_name = callable_name.strip()
+        if not module_name:
+            raise RuntimeError("--load-pack requires module or module:function")
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Could not import capability pack module {module_name!r}: {exc}"
+            ) from exc
+        if sep:
+            factory = getattr(module, callable_name, None)
+            if not callable(factory):
+                raise RuntimeError(
+                    f"Capability pack loader {value!r} is not callable"
+                )
+            factory()
+        loaded.append(value)
+    return loaded
 
 
 def _load_decision_payload(path: str):
@@ -98,6 +127,16 @@ def parse_args():
         action="store_true",
         help="Print machine-readable capability-pack metadata.",
     )
+    packs_parser.add_argument(
+        "--load-pack",
+        action="append",
+        default=[],
+        metavar="MODULE[:CALLABLE]",
+        help=(
+            "Import an application capability-pack module before listing. "
+            "Repeat for multiple packs."
+        ),
+    )
 
     decide_parser = subparsers.add_parser(
         "decide",
@@ -151,6 +190,16 @@ def parse_args():
         action="store_true",
         help="Open the Playable Probe in the default browser after startup.",
     )
+    probe_parser.add_argument(
+        "--load-pack",
+        action="append",
+        default=[],
+        metavar="MODULE[:CALLABLE]",
+        help=(
+            "Import/register an application capability pack before the server starts. "
+            "Repeat for multiple packs."
+        ),
+    )
 
     return parser.parse_args()
 
@@ -164,6 +213,11 @@ def main():
         return 0
 
     if args.command == "packs":
+        try:
+            _load_pack_modules(args.load_pack)
+        except RuntimeError as exc:
+            logger.error(str(exc))
+            return 2
         from branchpoint.probe import available_probe_config
 
         rows = available_probe_config()["scenarios"]
@@ -287,6 +341,11 @@ def main():
         return 0
 
     if args.command == "probe":
+        try:
+            _load_pack_modules(args.load_pack)
+        except RuntimeError as exc:
+            logger.error(str(exc))
+            return 2
         uvicorn = _require_api()
         if args.open:
             browser_host = "127.0.0.1" if args.host in {"0.0.0.0", "::"} else args.host
