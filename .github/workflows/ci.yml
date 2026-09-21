@@ -46,7 +46,7 @@ jobs:
           branchpoint --version
           branchpoint --help
       - name: Agent, causal trace, hypothesis, open-world, environment, temporal, decision, benchmark, policy and CLI tests
-        run: pytest -q tests/test_brand_surface.py tests/test_release_version.py tests/test_decide.py tests/test_decision_payload.py tests/test_cli_packs.py tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_observability.py tests/test_hypothesis_falsification.py tests/test_discrimination_policy.py tests/test_experiment_contracts.py tests/test_open_world_mismatch.py tests/test_llm_open_world_discovery.py tests/test_boptest_client.py tests/test_decision_value.py tests/test_decision_preferences.py tests/test_temporal_runtime.py tests/test_temporal_hidden_world.py tests/test_temporal_attribution_guard.py tests/test_temporal_suite.py tests/test_hidden_world.py tests/test_hidden_world_stochastic.py tests/test_hidden_world_policy_comparison.py tests/test_llm_interface.py tests/test_user_quickstart.py tests/test_cli_embedding_options.py
+        run: pytest -q tests/test_brand_surface.py tests/test_release_version.py tests/test_decide.py tests/test_decision_payload.py tests/test_cli_packs.py tests/test_scaffold.py tests/test_agent_loop.py tests/test_agent_reasoning.py tests/test_observability.py tests/test_hypothesis_falsification.py tests/test_discrimination_policy.py tests/test_experiment_contracts.py tests/test_open_world_mismatch.py tests/test_llm_open_world_discovery.py tests/test_boptest_client.py tests/test_decision_value.py tests/test_decision_preferences.py tests/test_temporal_runtime.py tests/test_temporal_hidden_world.py tests/test_temporal_attribution_guard.py tests/test_temporal_suite.py tests/test_hidden_world.py tests/test_hidden_world_stochastic.py tests/test_hidden_world_policy_comparison.py tests/test_llm_interface.py tests/test_user_quickstart.py tests/test_cli_embedding_options.py
       - name: Run no-key falsification demo
         run: python examples/hypothesis_falsification_demo.py
       - name: Run no-key Bayesian experiment demo
@@ -75,6 +75,16 @@ jobs:
           assert result["selected"]["name"] == "diagnose"
           assert result["ranking"][0]["score"]["information_source"] == "runtime_bayesian_eig"
           assert result["ranking"][0]["score"]["decision_value_source"] == "runtime_expected_decision_value_after_sampling"
+          PY
+      - name: Scaffold and load a capability pack
+        run: |
+          branchpoint scaffold examples/value_of_information.json --pack-id evsi_generated --output /tmp/evsi_generated.py
+          branchpoint packs --load-pack /tmp/evsi_generated.py:register_pack --json > /tmp/packs.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows = json.loads(Path("/tmp/packs.json").read_text())
+          assert "evsi_generated" in {row["id"] for row in rows}
           PY
       - name: Run no-key HiddenWorld benchmark demo
         run: python examples/hidden_world_demo.py
