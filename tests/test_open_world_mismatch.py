@@ -1,7 +1,7 @@
 import pytest
 
-from causalrag.agent import ActionKind, CandidateAction, CausalAgentLoop
-from causalrag.experiments import (
+from branchpoint.agent import ActionKind, CandidateAction, CausalAgentLoop
+from branchpoint.experiments import (
     ExperimentContract,
     ModelMismatchPolicy,
     OutcomeLikelihood,
@@ -10,10 +10,10 @@ from causalrag.experiments import (
     expanded_experiment_contract,
     maybe_resolve_model_mismatch,
 )
-from causalrag.reasoning.hypothesis import HypothesisProposal
-from causalrag.reasoning.policy import score_action
-from causalrag.tools import ToolRegistry, ToolSpec
-from causalrag.world_model import CausalWorldModel
+from branchpoint.reasoning.hypothesis import HypothesisProposal
+from branchpoint.reasoning.policy import score_action
+from branchpoint.tools import ToolRegistry, ToolSpec
+from branchpoint.world_model import CausalWorldModel
 
 
 def _known_world():
