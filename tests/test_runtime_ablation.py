@@ -1,23 +1,23 @@
 import pytest
 
-from causalrag.agent import (
+from branchpoint.agent import (
     ActionKind,
     CandidateAction,
     RuntimeCapabilities,
     TemporalEffectContract,
     create_ablation_agent,
 )
-from causalrag.benchmarks import (
+from branchpoint.benchmarks import (
     AblationArm,
     AblationEpisode,
     ScenarioManifest,
     run_ablation_matrix,
 )
-from causalrag.experiments import ExperimentContract, InterventionContract, OutcomeLikelihood
-from causalrag.reasoning.hypothesis import HypothesisProposal
-from causalrag.reasoning.policy import score_action
-from causalrag.tools import ToolRegistry, ToolSpec
-from causalrag.world_model import CausalWorldModel
+from branchpoint.experiments import ExperimentContract, InterventionContract, OutcomeLikelihood
+from branchpoint.reasoning.hypothesis import HypothesisProposal
+from branchpoint.reasoning.policy import score_action
+from branchpoint.tools import ToolRegistry, ToolSpec
+from branchpoint.world_model import CausalWorldModel
 
 
 def _world():
