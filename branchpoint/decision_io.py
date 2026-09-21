@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from branchpoint.agent.actions import ActionKind, CandidateAction
@@ -28,6 +30,8 @@ def _bounded_float(
         result = float(value)
     except (TypeError, ValueError) as exc:
         raise DecisionPayloadError(f"{name} must be numeric") from exc
+    if not math.isfinite(result):
+        raise DecisionPayloadError(f"{name} must be finite")
     if result < minimum:
         raise DecisionPayloadError(f"{name} must be >= {minimum}")
     if maximum is not None and result > maximum:
@@ -159,12 +163,18 @@ def _experiment_contract_from_row(
             )
             for hypothesis_id, probability in likelihoods_raw.items()
         }
-        outcomes.append(
-            OutcomeLikelihood(
-                outcome=label,
-                likelihoods=likelihoods,
+        try:
+            outcomes.append(
+                OutcomeLikelihood(
+                    outcome=label,
+                    likelihoods=likelihoods,
+                )
             )
-        )
+        except (TypeError, ValueError) as exc:
+            raise DecisionPayloadError(
+                f"tools[{tool_index}].experiment_contract."
+                f"outcomes[{outcome_index}] invalid: {exc}"
+            ) from exc
     try:
         return ExperimentContract(
             experiment_id=experiment_id,
@@ -207,12 +217,18 @@ def _intervention_contract_from_row(
             maximum=80,
         )
         try:
-            utilities[key] = float(utility)
+            utility_value = float(utility)
         except (TypeError, ValueError) as exc:
             raise DecisionPayloadError(
                 f"tools[{tool_index}].intervention_contract."
                 f"utilities[{hypothesis_id}] must be numeric"
             ) from exc
+        if not math.isfinite(utility_value):
+            raise DecisionPayloadError(
+                f"tools[{tool_index}].intervention_contract."
+                f"utilities[{hypothesis_id}] must be finite"
+            )
+        utilities[key] = utility_value
     try:
         return InterventionContract(
             intervention_id=intervention_id,
