@@ -287,7 +287,7 @@ class CausalAgent:
         return self.loop.tools
 
 
-def _load_rag_pipeline():
+def _load_retrieval_pipeline():
     try:
         from branchpoint.pipeline import BranchpointPipeline
     except (ImportError, ModuleNotFoundError) as exc:
@@ -346,7 +346,7 @@ def create_agent(
     )
 
     if wants_retrieval:
-        BranchpointPipeline = _load_rag_pipeline()
+        BranchpointPipeline = _load_retrieval_pipeline()
         pipeline = BranchpointPipeline(
             model_name=model_name,
             embedding_model=embedding_model,
