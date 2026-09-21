@@ -2,25 +2,78 @@
 
 # Branchpoint
 
-### State in. Decisions out. The world gets a vote.
+### Your model can propose. Your software still has to decide.
 
-**A decision runtime for agents that must choose what to do next under uncertainty.**
+**A decision runtime for agents that need bounded choices, explicit uncertainty, and a defensible execution boundary.**
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-111?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-111?style=flat-square)
 ![Status](https://img.shields.io/badge/status-beta-111?style=flat-square)
 
-Models propose. Branchpoint scores, guards, executes, learns from the result, and decides whether the next branch is safe to take automatically or worth handing to a human.
+Branchpoint turns messy agent state into inspectable next actions: **choose a branch, score its value, gate its risk, execute it, read the world, update state, repeat.**
 
-`typed actions` · `probabilities` · `tool routing` · `verification` · `human approval` · `state updates` · `counterfactuals`
+`typed actions` · `probabilistic decisions` · `confidence gates` · `tool routing` · `verification` · `human approval` · `counterfactuals`
 
-[Capability packs](docs/capability-packs.md) · [Contributing](CONTRIBUTING.md)
+[Verified examples](https://hippoley.github.io/Branchpoint/examples.html) · [Capability packs](docs/capability-packs.md) · [Decision recipes](docs/decision-recipes.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
 <p align="center">
   <img src="docs/assets/branchpoint-hero.svg" alt="Branchpoint: state enters a branch, the runtime chooses, world evidence updates the next state" width="100%">
 </p>
+
+---
+
+## The idea in one screen
+
+Generative models are excellent **proposers**. Production software repeatedly needs something narrower:
+
+```text
+choose one option
+score a risk
+gate an action
+decide whether evidence is enough
+decide whether to continue
+decide whether to ask a human
+```
+
+Those are bounded decisions inside a workflow. They should not disappear inside prose.
+
+Branchpoint keeps them in code, with explicit state, probabilities, costs, risk, timing, and evidence.
+
+> **State in. Decision out. World feedback becomes the next state.**
+
+---
+
+## A receipt, not a claim
+
+One deterministic CI test runs the **same frozen world twice**:
+
+```text
+same hidden mechanism
+same seed
+same goal
+same tools
+same budget
+same proposer
+```
+
+Only the control layer changes.
+
+```text
+plain tool loop        → fails the task
+full Branchpoint loop  → succeeds
+                         ↑
+                 first divergence recorded
+```
+
+The repository tests the exact branch where the trajectories separate. It does not compare two unrelated prompts and call that an evaluation.
+
+Run it:
+
+```bash
+pytest -q tests/test_playable_probe_api.py::test_probe_compare_api_runs_same_world_causal_and_vanilla_arms
+```
 
 ---
 
@@ -116,6 +169,28 @@ print(result.to_dict()["decisions"])
 ```
 
 The answer is only one artifact. The runtime also records the candidates, scores, selected action, observations, belief changes, transitions, and trace.
+
+---
+
+## Where this fits
+
+Branchpoint is useful anywhere an agent has to make **small, consequential decisions inside otherwise deterministic software**:
+
+| decision | example |
+| --- | --- |
+| **choose** | which tool, skill, route, document, browser action, or recovery path |
+| **score** | risk, urgency, relevance, quality, expected utility |
+| **gate** | auto-execute, verify, ask a human, wait, or stop |
+| **verify** | did the action actually cause the observed result? |
+| **revise** | does the current hypothesis set still explain the world? |
+
+Typical surfaces include:
+
+`tool selection` · `semantic routing` · `browser actions` · `incident diagnosis` · `device control` · `workflow triage` · `code repair` · `context selection` · `agent evaluation`
+
+The point is not to replace your model.
+
+The point is to stop making one model response carry **proposal, policy, uncertainty, execution authority, and verification** all at once.
 
 ---
 
@@ -434,11 +509,13 @@ pip install -e ".[full]"              # hosted capability layers
 
 > **The model proposes. The runtime decides. The world corrects both.**
 
-Branchpoint is deliberately opinionated about one thing:
+Branchpoint is deliberately opinionated about three things:
 
-**uncertainty should be represented in the system, not hidden inside prose.**
+1. **A probability is more useful than confident prose when software must branch.**
+2. **Execution authority belongs to the runtime, not to the proposer.**
+3. **Reality must be able to change both the probabilities and the hypothesis set.**
 
-If that idea is useful to you, try the examples, break a capability pack, add a strange environment, or open an issue with a failure mode you want the runtime to survive.
+If that resonates, try the examples, break a capability pack, add a strange environment, or open an issue with a failure mode you want the runtime to survive.
 
 ---
 
