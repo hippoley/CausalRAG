@@ -34,6 +34,9 @@ def test_probe_surfaces_are_separated():
     assert "Bring one branch point." in decide_page.text
     assert "REGISTERED TOOL POLICY" in decide_page.text
     assert "Run decision" in decide_page.text
+    assert "never executes your tools or invents outcomes" in decide_page.text
+    assert "Copy Python" in decide_page.text
+    assert "Copy API payload" in decide_page.text
     assert "fetch('/api/decide'" in decide_page.text
 
     demo = client.get("/demo")
@@ -145,6 +148,9 @@ def test_one_shot_decide_api_applies_canonical_tool_policy():
     assert body["proposer_first"]["name"] == "submit_form"
     assert body["selected"]["name"] == "inspect_submission_state"
     assert body["changed_proposer_order"] is True
+    assert body["truthfulness"]["executes_tools"] is False
+    assert body["truthfulness"]["simulates_outcomes"] is False
+    assert body["truthfulness"]["uses_runtime_scoring"] is True
     submit = next(row for row in body["ranking"] if row["candidate"]["name"] == "submit_form")
     assert submit["score"]["risk"] == 0.72
     assert submit["score"]["irreversibility"] == 1.0
