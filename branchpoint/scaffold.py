@@ -35,26 +35,43 @@ def scaffold_capability_pack(
 
     result = arbitrate_payload(payload)
     normalized_id = _identifier(pack_id, "my_capability_pack")
-    hypotheses = result.get("hypotheses") or [
-        {
-            "hypothesis_id": "H1",
-            "statement": "Replace with a domain hypothesis.",
-            "probability": 1.0,
-        }
-    ]
+    normalized_hypotheses = list(result.get("hypotheses") or [])
     candidate_rows = list(payload.get("candidates") or [])
     tool_rows = list(payload.get("tools") or [])
+    input_hypotheses = list(payload.get("hypotheses") or [])
+
+    if input_hypotheses:
+        source_hypotheses = input_hypotheses
+    elif normalized_hypotheses:
+        source_hypotheses = [
+            {
+                "hypothesis_id": row["id"],
+                "statement": row["statement"],
+                "probability": row["probability"],
+            }
+            for row in normalized_hypotheses
+        ]
+    else:
+        source_hypotheses = [
+            {
+                "hypothesis_id": "H1",
+                "statement": "Replace with a domain hypothesis.",
+                "probability": 1.0,
+            }
+        ]
 
     source_payload = {
         "candidates": candidate_rows,
         "tools": tool_rows,
-        "hypotheses": list(payload.get("hypotheses") or []),
+        "hypotheses": source_hypotheses,
     }
     payload_json = json.dumps(source_payload, ensure_ascii=False, indent=2)
 
-    hypothesis_ids = tuple(str(row["hypothesis_id"]) for row in hypotheses)
+    hypothesis_ids = tuple(
+        str(row["hypothesis_id"]) for row in source_hypotheses
+    )
     default_hypothesis = max(
-        hypotheses,
+        source_hypotheses,
         key=lambda row: float(row.get("probability", 0.0)),
     )["hypothesis_id"]
 
