@@ -44,6 +44,71 @@ All six use the same session, trace, human-gate, comparison, and Workbench surfa
 
 The first three are good templates for application developers. The last three are good templates for deeper runtime behavior.
 
+## Register a pack without editing Branchpoint
+
+Capability packs are registry-backed. Application code can add a pack before constructing `ProbeRunConfig`:
+
+```python
+from branchpoint.agent import ActionKind, CandidateAction
+from branchpoint.probe import (
+    ProbeScenarioRuntime,
+    ProbeScenarioSpec,
+    register_probe_scenario,
+)
+from branchpoint.world_model import CausalWorldModel
+
+
+class MyEnvironment:
+    def world_model(self):
+        world = CausalWorldModel()
+        world.upsert_hypothesis("H1", "mechanism one", probability=0.5)
+        world.upsert_hypothesis("H2", "mechanism two", probability=0.5)
+        return world
+
+    def tools(self):
+        return my_tool_specs
+
+    def metrics(self, result):
+        return {"success": my_success_check(result)}
+
+
+def build_my_pack(config):
+    env = MyEnvironment()
+    return ProbeScenarioRuntime(
+        scenario_id="my_pack",
+        environment=env,
+        world_model=env.world_model(),
+        tools=env.tools(),
+        default_reasoner=my_reasoner,
+        goal="Resolve the bounded decision.",
+    )
+
+
+register_probe_scenario(
+    ProbeScenarioSpec(
+        scenario_id="my_pack",
+        label="My capability pack",
+        description="A domain-specific decision environment.",
+        hidden_hypotheses=("H1", "H2"),
+        outcome_modes=("deterministic",),
+        recommended_test="Domain regression",
+        default_hidden_hypothesis="H1",
+        default_outcome_mode="deterministic",
+        default_goal="Resolve the bounded decision.",
+        builder=build_my_pack,
+    )
+)
+```
+
+After registration:
+
+- `ProbeRunConfig(scenario="my_pack", ...)` validates against the new spec;
+- `/api/config` includes the new pack;
+- the Live Workbench scenario selector discovers it automatically;
+- sessions, Human Gate, trace, export, and evaluation reuse the existing runtime surface.
+
+The builder must return `ProbeScenarioRuntime`. Branchpoint deliberately does not require custom frontend code for each domain.
+
 ## 1. World state
 
 The world model contains explicit, defeasible state.
