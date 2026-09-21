@@ -232,33 +232,30 @@ Branchpoint makes those decisions explicit.
 
 ---
 
-## Three failure modes you can play
+## Six capability packs you can run
 
-Branchpoint ships with three small environments because each exposes a different failure that ordinary tool loops hide.
+The fastest way to understand Branchpoint is to watch one bounded decision change the trajectory.
 
-### 01 · The most useful tool is not the cheapest tool
+| pack | the decision |
+| --- | --- |
+| **Browser action guard** | The proposer puts **Submit** first. The runtime sees risk + irreversibility and verifies session state before crossing the execution boundary. |
+| **Ambiguous tool routing** | Decide whether a request needs private data, fresh public information, or a state-changing path that should escalate. |
+| **Production incident triage** | Choose which observation is worth buying before rollback, DB mitigation, or dependency failover. |
+| **HVAC hidden mechanism** | Choose diagnostic evidence under a probe budget, then act on the leading mechanism. |
+| **Delayed effect** | Reject a fresh-looking measurement until the causal window makes it attributable to the intervention. |
+| **Unknown mechanism** | Stop reweighting a broken hypothesis set and admit a new explanation when reality no longer fits. |
 
-Several explanations are plausible. Probe budget is limited.
+The first three are designed to look like ordinary software work. The last three expose deeper runtime behavior.
 
-The runtime has to decide which observation is most likely to change the downstream action enough to justify its cost.
+A useful starting point is **Browser action guard** because the first divergence is visible immediately:
 
-**What you see:** candidate scores, information value, selected probe, posterior movement.
+```text
+proposer order:  submit_form → inspect_submission_state
+plain loop:      submit_form → wrong external action
+Branchpoint:     inspect_submission_state → reauthenticate → success
+```
 
-### 02 · A real number can still be bad evidence
-
-An actuator changes state, but the physical effect arrives later.
-
-Reading too early returns a perfectly real measurement that should **not** be attributed to the intervention.
-
-**What you see:** wait actions, temporal guards, valid observation windows.
-
-### 03 · The correct explanation is missing
-
-All known hypotheses assign very low probability to what the world keeps returning.
-
-The correct move is not to keep redistributing probability among bad explanations.
-
-**What you see:** model mismatch, a newly discovered hypothesis, structural world-model change.
+Same goal. Same hidden state. Same candidates. Different execution authority.
 
 ---
 
