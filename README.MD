@@ -204,6 +204,14 @@ Use `--json` for the complete ranking and score provenance, or pipe a payload th
 cat decision.json | branchpoint decide - --json
 ```
 
+Reproduce runtime-owned Bayesian EIG / EVSI with a second portable decision:
+
+```bash
+branchpoint decide examples/value_of_information.json --json
+```
+
+That file deliberately sets the model's information-gain estimate to zero. The runtime still selects the diagnostic when the supplied likelihood and intervention contracts make sampling worth more than acting immediately.
+
 The CLI, `/api/decide`, and Decision Lab use the same portable arbitration path.
 
 ### 4. Open the Decision Lab
@@ -220,6 +228,20 @@ Open `/decide` to edit proposer order and registered tool policy side by side. T
 ```bash
 pip install -e ".[api]"
 branchpoint probe --open
+```
+
+Discover the built-in capability packs:
+
+```bash
+branchpoint packs
+```
+
+Or load an application-owned `.py` pack into the same Workbench without editing Branchpoint core:
+
+```bash
+branchpoint probe \
+  --load-pack examples/custom_capability_pack.py:register_pack \
+  --open
 ```
 
 Then open:
