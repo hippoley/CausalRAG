@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List
 
 from branchpoint import __version__, create_agent, create_pipeline
+from branchpoint.decision_io import DecisionPayloadError, arbitrate_payload
 from branchpoint.utils.logging import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,25 @@ def _load_documents(path: str) -> List[str]:
             if text:
                 documents.append(text)
     return documents
+
+
+def _load_decision_payload(path: str):
+    if path == "-":
+        raw = sys.stdin.read()
+    else:
+        source = Path(path)
+        if not source.exists() or not source.is_file():
+            raise DecisionPayloadError(f"decision file not found: {path}")
+        raw = source.read_text(encoding="utf-8")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise DecisionPayloadError(
+            f"decision input must be valid JSON: line {exc.lineno} column {exc.colno}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise DecisionPayloadError("decision input root must be a JSON object")
+    return payload
 
 
 def _require_api():
@@ -68,6 +88,20 @@ def parse_args():
     )
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
+
+    decide_parser = subparsers.add_parser(
+        "decide",
+        help="Arbitrate one bounded decision from a portable JSON payload",
+    )
+    decide_parser.add_argument(
+        "input",
+        help="Decision JSON file, or '-' to read JSON from stdin.",
+    )
+    decide_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print the complete ranking, score provenance, and truthfulness metadata.",
+    )
 
     agent_parser = subparsers.add_parser("agent", help="Run the v0.3 causal agent runtime")
     agent_parser.add_argument("--goal", "-g", required=True, help="Goal for the agent")
@@ -117,6 +151,43 @@ def main():
 
     if args.version:
         print(f"Branchpoint version {__version__}")
+        return 0
+
+    if args.command == "decide":
+        try:
+            result = arbitrate_payload(_load_decision_payload(args.input))
+        except DecisionPayloadError as exc:
+            logger.error(str(exc))
+            return 2
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        else:
+            proposer = result["proposer_first"]["name"]
+            selected = result["selected"]["name"]
+            changed = result["changed_proposer_order"]
+            marker = "changed" if changed else "accepted"
+            print(f"proposer: {proposer}")
+            print(f"runtime:  {selected}")
+            print(f"branch:   {marker}")
+            if result["reasons"]:
+                print("why:")
+                for reason in result["reasons"]:
+                    code = reason.get("code", "runtime_reason")
+                    if code == "canonical_tool_policy":
+                        fields = ", ".join(reason.get("fields") or [])
+                        print(f"  - canonical tool policy: {fields}")
+                    elif code == "higher_runtime_utility":
+                        print(
+                            "  - higher runtime utility: "
+                            f"{float(reason.get('delta', 0.0)):+.3f}"
+                        )
+                    elif code == "runtime_information_source":
+                        print(
+                            "  - information source: "
+                            f"{reason.get('source', 'runtime')}"
+                        )
+                    else:
+                        print(f"  - {code}")
         return 0
 
     if args.command == "agent":
