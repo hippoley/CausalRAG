@@ -1,4 +1,4 @@
-from causalrag import (
+from branchpoint import (
     ActionKind,
     CandidateAction,
     CausalWorldModel,
