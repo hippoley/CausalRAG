@@ -10,14 +10,8 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from branchpoint import (
-    ActionKind,
-    CandidateAction,
-    CausalWorldModel,
-    ToolSpec,
-    __version__,
-    decide,
-)
+from branchpoint import __version__
+from branchpoint.decision_io import DecisionPayloadError, arbitrate_payload
 from branchpoint.agent import RuntimeCapabilities
 from branchpoint.generator.llm_interface import LLMInterface
 from branchpoint.probe import (
@@ -260,185 +254,25 @@ def logout_probe_access(response: Response):
     return {"authenticated": False}
 
 
-def _candidate_payload(candidate: CandidateAction, index: int):
-    return {
-        "index": int(index),
-        "kind": candidate.kind.value,
-        "name": candidate.name,
-        "expected_goal_gain": float(candidate.expected_goal_gain),
-        "expected_information_gain": float(candidate.expected_information_gain),
-        "cost": float(candidate.cost),
-        "risk": float(candidate.risk),
-        "irreversibility": float(candidate.irreversibility),
-        "rationale": candidate.rationale,
-        "tests_hypotheses": list(candidate.tests_hypotheses),
-    }
+def _model_payload(row: BaseModel):
+    if hasattr(row, "model_dump"):
+        return row.model_dump()
+    return row.dict()
 
 
 @app.post("/api/decide")
 def one_shot_decision(payload: OneShotDecisionRequest):
     """Arbitrate one bounded decision without starting an agent session."""
-    candidate_names = [row.name for row in payload.candidates]
-    if len(candidate_names) != len(set(candidate_names)):
-        raise HTTPException(status_code=400, detail="candidate names must be unique")
-    tool_names = [row.name for row in payload.tools]
-    if len(tool_names) != len(set(tool_names)):
-        raise HTTPException(status_code=400, detail="tool names must be unique")
-
-    candidates = [
-        CandidateAction(
-            kind=ActionKind(row.kind),
-            name=row.name,
-            expected_goal_gain=row.expected_goal_gain,
-            expected_information_gain=row.expected_information_gain,
-            cost=row.cost,
-            risk=row.risk,
-            irreversibility=row.irreversibility,
-            rationale=row.rationale,
-            tests_hypotheses=list(row.tests_hypotheses),
-        )
-        for row in payload.candidates
-    ]
-    tools = [
-        ToolSpec(
-            name=row.name,
-            description=row.description or row.name,
-            handler=lambda **_kwargs: None,
-            cost=row.cost,
-            risk=row.risk,
-            reversible=row.reversible,
-        )
-        for row in payload.tools
-    ]
-
-    world = None
-    if payload.hypotheses:
-        total = sum(float(row.probability) for row in payload.hypotheses)
-        if total <= 0.0:
-            raise HTTPException(status_code=400, detail="hypothesis probability mass must be positive")
-        world = CausalWorldModel()
-        seen_hypotheses = set()
-        for row in payload.hypotheses:
-            if row.hypothesis_id in seen_hypotheses:
-                raise HTTPException(status_code=400, detail="hypothesis ids must be unique")
-            seen_hypotheses.add(row.hypothesis_id)
-            world.upsert_hypothesis(
-                row.hypothesis_id,
-                row.statement,
-                probability=float(row.probability) / total,
-            )
-
-    result = decide(candidates, tools=tools or None, world_model=world)
-    tool_by_name = {row.name: row for row in payload.tools}
-    candidate_by_name = {row.name: row for row in payload.candidates}
-
-    ranking = []
-    for rank, (action, score) in enumerate(zip(result.ranked_actions, result.scores), start=1):
-        submitted = candidate_by_name[action.name]
-        registered = tool_by_name.get(action.name)
-        canonical_overrides = []
-        if registered is not None:
-            if float(registered.cost) > float(submitted.cost):
-                canonical_overrides.append("cost")
-            if float(registered.risk) > float(submitted.risk):
-                canonical_overrides.append("risk")
-            if not registered.reversible and float(submitted.irreversibility) < 1.0:
-                canonical_overrides.append("irreversibility")
-        ranking.append(
+    try:
+        return arbitrate_payload(
             {
-                "rank": rank,
-                "candidate": _candidate_payload(action, score.candidate_index),
-                "score": {
-                    "total_utility": score.total_utility,
-                    "goal_gain": score.goal_gain,
-                    "information_gain": score.information_gain,
-                    "information_source": score.information_source,
-                    "model_information_gain": score.model_information_gain,
-                    "discrimination_score": score.discrimination_score,
-                    "bayesian_information_gain": score.bayesian_information_gain,
-                    "cost": score.cost,
-                    "risk": score.risk,
-                    "irreversibility": score.irreversibility,
-                    "decision_value": score.decision_value,
-                    "decision_value_source": score.decision_value_source,
-                    "expected_value_of_sample_information": score.expected_value_of_sample_information,
-                    "net_value_of_sampling": score.net_value_of_sampling,
-                },
-                "registered_tool": (
-                    {
-                        "cost": registered.cost,
-                        "risk": registered.risk,
-                        "reversible": registered.reversible,
-                    }
-                    if registered is not None
-                    else None
-                ),
-                "canonical_overrides": canonical_overrides,
+                "candidates": [_model_payload(row) for row in payload.candidates],
+                "tools": [_model_payload(row) for row in payload.tools],
+                "hypotheses": [_model_payload(row) for row in payload.hypotheses],
             }
         )
-
-    proposer_index = 0
-    selected_index = next(
-        row["candidate"]["index"]
-        for row in ranking
-        if row["candidate"]["name"] == result.selected.name
-        and row["candidate"]["kind"] == result.selected.kind.value
-    )
-    proposer_row = next(row for row in ranking if row["candidate"]["index"] == proposer_index)
-    selected_row = next(row for row in ranking if row["candidate"]["index"] == selected_index)
-
-    reasons = []
-    if result.changed_proposer_order:
-        reasons.append(
-            {
-                "code": "higher_runtime_utility",
-                "delta": (
-                    selected_row["score"]["total_utility"]
-                    - proposer_row["score"]["total_utility"]
-                ),
-            }
-        )
-    if proposer_row["canonical_overrides"]:
-        reasons.append(
-            {
-                "code": "canonical_tool_policy",
-                "fields": proposer_row["canonical_overrides"],
-            }
-        )
-    if selected_row["score"]["information_source"] not in {"model_estimate", "unanchored_model_estimate"}:
-        reasons.append(
-            {
-                "code": "runtime_information_source",
-                "source": selected_row["score"]["information_source"],
-            }
-        )
-
-    return {
-        "truthfulness": {
-            "executes_tools": False,
-            "simulates_outcomes": False,
-            "uses_runtime_scoring": True,
-            "canonical_tool_policy_applied": bool(payload.tools),
-            "next_step_for_real_outcomes": "Run a capability pack or Live Workbench session.",
-        },
-        "proposer_first": _candidate_payload(result.proposer_first, 0),
-        "selected": _candidate_payload(result.selected, selected_index),
-        "changed_proposer_order": result.changed_proposer_order,
-        "ranking": ranking,
-        "reasons": reasons,
-        "hypotheses": (
-            [
-                {
-                    "id": row.hypothesis_id,
-                    "statement": row.statement,
-                    "probability": row.probability,
-                }
-                for row in world.hypotheses(include_rejected=False)
-            ]
-            if world is not None
-            else []
-        ),
-    }
+    except DecisionPayloadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/run")
