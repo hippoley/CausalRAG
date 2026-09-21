@@ -21,7 +21,7 @@ class DecisionResult:
 
     @property
     def changed_proposer_order(self) -> bool:
-        return self.selected != self.proposer_first
+        return self.selected is not self.proposer_first
 
 
 def decide(
