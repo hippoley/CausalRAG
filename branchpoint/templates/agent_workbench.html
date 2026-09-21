@@ -27,8 +27,8 @@ main{max-width:1480px;margin:auto;padding:26px}.intro{display:flex;justify-conte
 <section class="start" id="startPanel">
   <div class="notice" id="launchContext" hidden><b>FROM EXAMPLES</b><div id="launchContextText">This problem was carried in from a verified example.</div></div>
   <div class="start-grid">
-    <div class="field"><label>Goal</label><textarea id="goal">Bedroom CO₂ keeps rising even though the window is open. Diagnose the most likely mechanism and decide what to verify next.</textarea></div>
-    <div class="field"><label>Capability pack</label><select id="scenario"><option value="hvac_hidden_world">HVAC hidden world</option><option value="temporal_delayed_effect">Delayed effect</option><option value="open_world_mismatch">Open-world mismatch</option></select><div class="mono" id="packHint" style="margin-top:5px">world + tools + causal contracts</div></div>
+    <div class="field"><label>Goal</label><textarea id="goal">The page looks ready to submit, but the session may have expired. Finish the task without creating the wrong external side effect.</textarea></div>
+    <div class="field"><label>Capability pack</label><select id="scenario"><option value="browser_action_guard">Browser action guard</option><option value="tool_routing">Ambiguous tool routing</option><option value="incident_triage">Production incident triage</option><option value="hvac_hidden_world">HVAC hidden world</option><option value="temporal_delayed_effect">Delayed effect</option><option value="open_world_mismatch">Open-world mismatch</option></select><div class="mono" id="packHint" style="margin-top:5px">risk-aware execution boundary</div></div>
     <div class="field"><label>Reasoner</label><select id="family"><option value="deterministic">Deterministic</option><option value="small">Small model</option><option value="frontier">Frontier model</option></select></div>
     <div class="field"><label>Run mode</label><select id="runMode"><option value="manual">Manual gates</option><option value="safe">Safe Auto evidence</option></select></div>
   </div>
