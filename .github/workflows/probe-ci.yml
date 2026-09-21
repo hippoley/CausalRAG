@@ -124,6 +124,7 @@ jobs:
           PY
           curl --fail --silent http://127.0.0.1:8765/ | grep -q "Your agent can propose"
           curl --fail --silent http://127.0.0.1:8765/demo | grep -q "THREE DECISIONS THAT SHOULD NOT LIVE IN PROSE"
+          curl --fail --silent http://127.0.0.1:8765/decide | grep -q "Bring one branch point."
           curl --fail --silent http://127.0.0.1:8765/workbench | grep -q "AGENT HISTORY"
           curl --fail --silent http://127.0.0.1:8765/research | grep -q "LIVE WORKBENCH · REAL AGENT CONTROL PLANE"
           test "$(curl --silent --output /tmp/model-test.json --write-out '%{http_code}' \
