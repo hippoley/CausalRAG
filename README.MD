@@ -214,6 +214,23 @@ That file deliberately sets the model's information-gain estimate to zero. The r
 
 The CLI, `/api/decide`, and Decision Lab use the same portable arbitration path.
 
+Promote a validated decision into an application capability-pack starter:
+
+```bash
+branchpoint scaffold examples/value_of_information.json \
+  --pack-id my_domain \
+  --output my_domain_pack.py
+```
+
+The generated file preserves hypotheses, canonical tool policy, ExperimentContracts, and InterventionContracts. Its handlers intentionally raise `NotImplementedError` until you connect real domain I/O; it will not manufacture fake observations.
+
+Load the starter into the registry / Workbench after wiring those handlers:
+
+```bash
+branchpoint packs --load-pack ./my_domain_pack.py:register_pack
+branchpoint probe --load-pack ./my_domain_pack.py:register_pack --open
+```
+
 ### 4. Open the Decision Lab
 
 ```bash
