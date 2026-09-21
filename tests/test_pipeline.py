@@ -1,5 +1,5 @@
 """
-Basic tests for the CausalRAG pipeline.
+Basic tests for the Branchpoint pipeline.
 """
 
 import unittest
@@ -7,7 +7,7 @@ import os
 import tempfile
 import shutil
 
-from causalrag import CausalRAGPipeline
+from branchpoint import BranchpointPipeline
 
 class TestPipeline(unittest.TestCase):
     """Test the core pipeline functionality."""
@@ -26,14 +26,14 @@ class TestPipeline(unittest.TestCase):
     
     def test_pipeline_init(self):
         """Test pipeline initialization."""
-        pipeline = CausalRAGPipeline()
+        pipeline = BranchpointPipeline()
         self.assertIsNotNone(pipeline)
         self.assertIsNotNone(pipeline.graph_builder)
         self.assertIsNotNone(pipeline.vector_retriever)
     
     def test_document_indexing(self):
         """Test document indexing functionality."""
-        pipeline = CausalRAGPipeline()
+        pipeline = BranchpointPipeline()
         result = pipeline.index(self.test_docs)
         
         # Check that documents were indexed
@@ -45,7 +45,7 @@ class TestPipeline(unittest.TestCase):
     
     def test_query_execution(self):
         """Test basic query execution."""
-        pipeline = CausalRAGPipeline()
+        pipeline = BranchpointPipeline()
         pipeline.index(self.test_docs)
         
         result = pipeline.run("What causes coastal flooding?")
@@ -61,7 +61,7 @@ class TestPipeline(unittest.TestCase):
     def test_save_and_load(self):
         """Test saving and loading functionality."""
         # Create and index with a pipeline
-        pipeline1 = CausalRAGPipeline()
+        pipeline1 = BranchpointPipeline()
         pipeline1.index(self.test_docs)
         
         # Save to temp directory
@@ -70,7 +70,7 @@ class TestPipeline(unittest.TestCase):
         pipeline1.save(save_path)
         
         # Create a new pipeline and load the saved state
-        pipeline2 = CausalRAGPipeline(
+        pipeline2 = BranchpointPipeline(
             graph_path=os.path.join(save_path, "causal_graph.json"),
             index_path=save_path
         )
