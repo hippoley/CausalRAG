@@ -171,6 +171,30 @@ def parse_args():
         ),
     )
 
+    scaffold_parser = subparsers.add_parser(
+        "scaffold",
+        help="Generate a capability-pack starter from a portable decision",
+    )
+    scaffold_parser.add_argument(
+        "input",
+        help="Decision JSON file, or '-' to read JSON from stdin.",
+    )
+    scaffold_parser.add_argument(
+        "--pack-id",
+        default="my_capability_pack",
+        help="Scenario/pack identifier for the generated starter.",
+    )
+    scaffold_parser.add_argument(
+        "--label",
+        default="My capability pack",
+        help="Human-readable label for the generated pack.",
+    )
+    scaffold_parser.add_argument(
+        "--output",
+        "-o",
+        help="Write the generated Python pack to this path instead of stdout.",
+    )
+
     decide_parser = subparsers.add_parser(
         "decide",
         help="Arbitrate one bounded decision from a portable JSON payload",
@@ -265,6 +289,27 @@ def main():
                 description = str(row.get("description") or "").strip()
                 if description:
                     print(f"  {description}")
+        return 0
+
+    if args.command == "scaffold":
+        from branchpoint.scaffold import scaffold_capability_pack
+
+        try:
+            source = scaffold_capability_pack(
+                _load_decision_payload(args.input),
+                pack_id=args.pack_id,
+                label=args.label,
+            )
+        except DecisionPayloadError as exc:
+            logger.error(str(exc))
+            return 2
+        if args.output:
+            destination = Path(args.output).expanduser()
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(source, encoding="utf-8")
+            print(f"Wrote capability-pack starter to {destination}")
+        else:
+            print(source, end="")
         return 0
 
     if args.command == "decide":
