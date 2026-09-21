@@ -65,7 +65,7 @@ class TestPipeline(unittest.TestCase):
         pipeline1.index(self.test_docs)
         
         # Save to temp directory
-        save_path = os.path.join(self.temp_dir, "causalrag_test")
+        save_path = os.path.join(self.temp_dir, "branchpoint_test")
         os.makedirs(save_path, exist_ok=True)
         pipeline1.save(save_path)
         
