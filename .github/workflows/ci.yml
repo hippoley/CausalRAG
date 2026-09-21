@@ -42,7 +42,7 @@ jobs:
           python -m compileall -q branchpoint/agent branchpoint/world_model branchpoint/reasoning branchpoint/experiments branchpoint/environments branchpoint/observability branchpoint/benchmarks branchpoint/tools branchpoint/generator branchpoint/utils
       - name: Core import and CLI smoke
         run: |
-          python -c "import branchpoint; assert branchpoint.__version__ == '0.3.0'; from branchpoint import CausalAgent, CausalTelemetry, DecisionPreferences, Hypothesis, ExperimentContract, ModelMismatchPolicy, TemporalEffectContract, VirtualTimeDriver, create_agent, decide; from branchpoint.environments import BOPTESTClient; from branchpoint.experiments import InterventionContract, experiment_decision_value; from branchpoint.benchmarks import DecisionValuePolicy, compare_hidden_world_policies, compare_risk_sensitivity, compare_temporal_guard, compare_temporal_suite; print(branchpoint.__version__)"
+          python -c "import branchpoint; assert branchpoint.__version__ == '0.3.0'; from branchpoint import CausalAgent, CausalTelemetry, DecisionPreferences, Hypothesis, ExperimentContract, ModelMismatchPolicy, TemporalEffectContract, VirtualTimeDriver, arbitrate_payload, create_agent, decide; from branchpoint.environments import BOPTESTClient; from branchpoint.experiments import InterventionContract, experiment_decision_value; from branchpoint.benchmarks import DecisionValuePolicy, compare_hidden_world_policies, compare_risk_sensitivity, compare_temporal_guard, compare_temporal_suite; print(branchpoint.__version__)"
           branchpoint --version
           branchpoint --help
       - name: Agent, causal trace, hypothesis, open-world, environment, temporal, decision, benchmark, policy and CLI tests
@@ -65,6 +65,17 @@ jobs:
         run: python examples/custom_capability_pack.py
       - name: List capability packs
         run: branchpoint packs --json
+      - name: Run portable Bayesian EVSI decision
+        run: |
+          branchpoint decide examples/value_of_information.json --json > /tmp/evsi.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("/tmp/evsi.json").read_text())
+          assert result["selected"]["name"] == "diagnose"
+          assert result["ranking"][0]["score"]["information_source"] == "runtime_bayesian_eig"
+          assert result["ranking"][0]["score"]["decision_value_source"] == "runtime_expected_decision_value_after_sampling"
+          PY
       - name: Run no-key HiddenWorld benchmark demo
         run: python examples/hidden_world_demo.py
       - name: Run seeded stochastic HiddenWorld suite
