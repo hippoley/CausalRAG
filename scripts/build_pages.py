@@ -54,28 +54,28 @@ def main() -> None:
             )
         ),
         "examples": {
-            "hvac": run_probe_episode(
+            "route": run_probe_episode(
                 ProbeRunConfig(
-                    scenario="hvac_hidden_world",
+                    scenario="tool_routing",
+                    hidden_hypothesis="H3",
+                    outcome_mode="deterministic",
+                    seed=0,
+                    proposer_family="deterministic",
+                )
+            ),
+            "incident": run_probe_episode(
+                ProbeRunConfig(
+                    scenario="incident_triage",
                     hidden_hypothesis="H2",
                     outcome_mode="deterministic",
                     seed=0,
                     proposer_family="deterministic",
                 )
             ),
-            "temporal": run_probe_episode(
+            "browser": run_probe_episode(
                 ProbeRunConfig(
-                    scenario="temporal_delayed_effect",
-                    hidden_hypothesis="H1",
-                    outcome_mode="deterministic",
-                    seed=0,
-                    proposer_family="deterministic",
-                )
-            ),
-            "open_world": run_probe_episode(
-                ProbeRunConfig(
-                    scenario="open_world_mismatch",
-                    hidden_hypothesis="H4",
+                    scenario="browser_action_guard",
+                    hidden_hypothesis="H2",
                     outcome_mode="deterministic",
                     seed=0,
                     proposer_family="deterministic",
