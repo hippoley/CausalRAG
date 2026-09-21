@@ -75,6 +75,15 @@ Run it:
 pytest -q tests/test_playable_probe_api.py::test_probe_compare_api_runs_same_world_causal_and_vanilla_arms
 ```
 
+A second fixed stochastic suite contains **30 episodes** across three hidden mechanisms and ten seeds:
+
+| policy snapshot | success | mean regret |
+| --- | ---: | ---: |
+| neutral one-step decision value | **0.833** | **0.251** |
+| wrong-action loss = 1.0 | **0.900** | **0.216** |
+
+These are repository benchmark numbers, not claims about arbitrary external tasks. The point is reproducibility: frozen environments, explicit policies, and trajectory-level metrics.
+
 ---
 
 ## The 20-second version
