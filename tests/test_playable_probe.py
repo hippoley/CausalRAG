@@ -1,5 +1,5 @@
-from causalrag.agent import RuntimeCapabilities
-from causalrag.probe import ProbeRunConfig, available_probe_config, run_probe_episode
+from branchpoint.agent import RuntimeCapabilities
+from branchpoint.probe import ProbeRunConfig, available_probe_config, run_probe_episode
 
 
 def test_probe_config_exposes_research_controls_without_credentials():
