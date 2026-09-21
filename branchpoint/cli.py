@@ -56,7 +56,12 @@ def _load_pack_modules(specs):
                 raise RuntimeError(
                     f"Capability pack loader {value!r} is not callable"
                 )
-            factory()
+            try:
+                factory()
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Capability pack loader {value!r} failed: {exc}"
+                ) from exc
         loaded.append(value)
     return loaded
 
