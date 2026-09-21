@@ -15,12 +15,13 @@ class DecisionResult:
     """Result of one bounded runtime arbitration."""
 
     selected: CandidateAction
+    proposer_first: CandidateAction
     ranked_actions: Tuple[CandidateAction, ...]
     scores: Tuple[ActionScore, ...]
 
     @property
     def changed_proposer_order(self) -> bool:
-        return bool(self.ranked_actions and self.ranked_actions[0] is not self.selected)
+        return self.selected != self.proposer_first
 
 
 def decide(
@@ -44,7 +45,12 @@ def decide(
             name="stop",
             rationale="No candidate actions were supplied.",
         )
-        return DecisionResult(selected=stop, ranked_actions=(stop,), scores=())
+        return DecisionResult(
+            selected=stop,
+            proposer_first=stop,
+            ranked_actions=(stop,),
+            scores=(),
+        )
 
     if tools is None:
         registry = None
@@ -65,6 +71,7 @@ def decide(
 
     return DecisionResult(
         selected=selected,
+        proposer_first=candidate_list[0],
         ranked_actions=ranked_actions,
         scores=scores,
     )
