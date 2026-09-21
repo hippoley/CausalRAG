@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from causalrag.generator.llm_interface import LLMInterface
+from branchpoint.generator.llm_interface import LLMInterface
 
 
 class FakeResponses:
