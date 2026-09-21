@@ -2,13 +2,13 @@ import types
 
 from fastapi.testclient import TestClient
 
-from causalrag.interface import probe_api
+from branchpoint.interface import probe_api
 
 
 def _client(monkeypatch):
-    monkeypatch.setenv("CAUSALRAG_REQUIRE_PROBE_AUTH", "true")
-    monkeypatch.setenv("CAUSALRAG_PROBE_ACCESS_TOKEN", "owner-secret")
-    monkeypatch.setenv("CAUSALRAG_PROBE_COOKIE_SECURE", "false")
+    monkeypatch.setenv("BRANCHPOINT_REQUIRE_PROBE_AUTH", "true")
+    monkeypatch.setenv("BRANCHPOINT_PROBE_ACCESS_TOKEN", "owner-secret")
+    monkeypatch.setenv("BRANCHPOINT_PROBE_COOKIE_SECURE", "false")
     return TestClient(probe_api.app)
 
 
@@ -82,7 +82,7 @@ def test_owner_unlock_uses_http_only_derived_cookie_and_allows_model_test(monkey
             self.provider = provider
 
         def generate(self, prompt, temperature=0.0, max_tokens=32):
-            return "CAUSALRAG_MODEL_OK"
+            return "BRANCHPOINT_MODEL_OK"
 
     monkeypatch.setattr(probe_api, "LLMInterface", FakeLLM)
     model_test = client.post(
@@ -106,7 +106,7 @@ def test_bearer_token_allows_scripted_owner_access(monkeypatch):
             self.provider = provider
 
         def generate(self, prompt, temperature=0.0, max_tokens=32):
-            return "CAUSALRAG_MODEL_OK"
+            return "BRANCHPOINT_MODEL_OK"
 
     monkeypatch.setattr(probe_api, "LLMInterface", FakeLLM)
     response = client.post(
@@ -119,8 +119,8 @@ def test_bearer_token_allows_scripted_owner_access(monkeypatch):
 
 
 def test_required_auth_without_configured_token_fails_closed(monkeypatch):
-    monkeypatch.setenv("CAUSALRAG_REQUIRE_PROBE_AUTH", "true")
-    monkeypatch.delenv("CAUSALRAG_PROBE_ACCESS_TOKEN", raising=False)
+    monkeypatch.setenv("BRANCHPOINT_REQUIRE_PROBE_AUTH", "true")
+    monkeypatch.delenv("BRANCHPOINT_PROBE_ACCESS_TOKEN", raising=False)
     client = TestClient(probe_api.app)
 
     status = client.get("/api/access/status").json()
