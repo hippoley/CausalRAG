@@ -7,8 +7,8 @@ date-released: 2026-09-16
 license: MIT
 authors:
   - family-names: "Branchpoint contributors"
-repository-code: "https://github.com/hippoley/Branchpoint"
-url: "https://github.com/hippoley/Branchpoint"
+repository-code: "https://github.com/hippoley/branchpoint-runtime"
+url: "https://github.com/hippoley/branchpoint-runtime"
 keywords:
   - ai agents
   - decision runtime
