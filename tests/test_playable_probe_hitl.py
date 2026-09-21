@@ -81,10 +81,10 @@ def test_human_can_override_runtime_candidate_and_trace_matches_override():
     assert first_decision["selected"]["name"] == alternative["name"]
     override_events = [
         row for row in final["result"]["causal_trace"]
-        if row["name"] == "causalrag.human_gate.override"
+        if row["name"] == "branchpoint.human_gate.override"
     ]
     assert override_events
-    assert override_events[0]["attributes"]["causalrag.action.name"] == alternative["name"]
+    assert override_events[0]["attributes"]["branchpoint.action.name"] == alternative["name"]
 
 
 def test_human_can_add_provisional_hypothesis_while_paused():
@@ -140,7 +140,7 @@ def test_human_world_model_edit_can_force_replan_before_execution():
     session.resolve_decision("approve")
     final = _finish_by_approving(session)
     names = [row["name"] for row in final["result"]["causal_trace"]]
-    assert "causalrag.human_gate.replan" in names
+    assert "branchpoint.human_gate.replan" in names
 
 
 def test_human_gate_response_is_single_assignment_and_cannot_be_overwritten():
@@ -217,8 +217,8 @@ def test_operator_message_replans_before_old_action_executes():
     session.resolve_decision("approve")
     final = _finish_by_approving(session)
     names = [record["name"] for record in final["result"]["causal_trace"]]
-    assert "causalrag.human.operator_message" in names
-    assert "causalrag.human_gate.replan" in names
+    assert "branchpoint.human.operator_message" in names
+    assert "branchpoint.human_gate.replan" in names
 
 
 def test_episode_ledger_appears_only_after_execution_and_tracks_posterior():
