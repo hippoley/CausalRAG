@@ -150,7 +150,34 @@ python examples/tool_routing_demo.py
 python examples/incident_triage_demo.py
 ```
 
-### 2. Open the live workbench
+### 2. Put one decision point into existing code
+
+```python
+from branchpoint import ActionKind, CandidateAction, ToolSpec, decide
+
+decision = decide(
+    [
+        CandidateAction(ActionKind.INTERVENE, "submit_form", expected_goal_gain=0.95),
+        CandidateAction(
+            ActionKind.OBSERVE,
+            "inspect_submission_state",
+            expected_goal_gain=0.15,
+            expected_information_gain=0.70,
+        ),
+    ],
+    tools=[
+        ToolSpec("submit_form", "External submit", lambda: None, risk=0.72, reversible=False),
+        ToolSpec("inspect_submission_state", "Read-only check", lambda: None, cost=0.02),
+    ],
+)
+
+print(decision.selected.name)
+# inspect_submission_state
+```
+
+The proposer still gets to suggest an order. Registered tool policy remains canonical.
+
+### 3. Open the live workbench
 
 ```bash
 pip install -e ".[api]"
@@ -168,7 +195,7 @@ Then open:
 
 No model key is required for deterministic examples.
 
-### 3. Run one agent from Python
+### 4. Run one agent from Python
 
 ```python
 from branchpoint import ToolSpec, create_agent
