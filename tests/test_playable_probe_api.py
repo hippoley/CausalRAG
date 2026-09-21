@@ -330,7 +330,7 @@ def test_probe_config_reports_model_connection_state_without_secrets():
 
 def test_model_test_endpoint_reports_provider_result_without_network(monkeypatch):
     monkeypatch.setattr(
-        "causalrag.interface.probe_api.LLMInterface.generate",
+        "branchpoint.interface.probe_api.LLMInterface.generate",
         lambda self, prompt, temperature=0.0, max_tokens=32: "BRANCHPOINT_MODEL_OK",
     )
     response = client.post(
@@ -571,7 +571,7 @@ def test_probe_session_export_api_returns_replay_schema_and_ledger():
     exported = client.get(f"/api/sessions/{session_id}/export")
     assert exported.status_code == 200
     body = exported.json()
-    assert body["schema_version"] == "causalrag.playable_probe.session.v1"
+    assert body["schema_version"] == "branchpoint.playable_probe.session.v1"
     assert body["status"] == "completed"
     assert body["episode_ledger"]
     assert body["trace"]
