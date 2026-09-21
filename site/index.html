@@ -1,16 +1,38 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Branchpoint · Start here</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Branchpoint is a decision runtime and control plane for agents operating under uncertainty.">
+<title>Branchpoint — the decision layer for agents</title>
 <style>
-:root{--bg:#f3f1ea;--paper:#fffef9;--ink:#14201d;--muted:#69756f;--line:#d9d7cf;--green:#143f34;--mint:#d9f5e9}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}main{max-width:1180px;margin:auto;padding:64px 28px 84px}.eyebrow{font:10px ui-monospace,monospace;letter-spacing:.13em;color:#527067}.hero{max-width:900px}.hero h1{font-size:62px;line-height:.95;letter-spacing:-.06em;margin:10px 0 16px}.hero p{font-size:18px;color:var(--muted);max-width:770px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:38px}.card{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);background:var(--paper);border-radius:25px;padding:28px;min-height:360px;position:relative;transition:.17s}.card:hover{transform:translateY(-2px);box-shadow:0 14px 42px #17231f10}.card.dark{background:var(--green);border-color:var(--green);color:white}.tag{display:inline-block;padding:5px 8px;border-radius:999px;background:var(--mint);font:9px ui-monospace,monospace}.dark .tag{background:#275b4e;color:#fff}.card h2{font-size:36px;letter-spacing:-.045em;margin:22px 0 8px}.card p{color:var(--muted);max-width:470px}.dark p{color:#c4d5cf}.steps{margin-top:25px;display:grid;gap:8px}.steps span{font:11px ui-monospace,monospace;color:#3d574f}.dark .steps span{color:#c3d7d0}.arrow{position:absolute;right:27px;bottom:22px;font-size:30px}.status{position:absolute;left:28px;bottom:27px;font:10px ui-monospace,monospace;color:#537067}.dark .status{color:#b9cec7}.note{margin-top:16px;color:var(--muted);font-size:12px}.note a{color:inherit}.proof{display:flex;gap:8px;flex-wrap:wrap;margin-top:21px}.proof span{border:1px solid var(--line);border-radius:999px;padding:6px 9px;font:10px ui-monospace,monospace;color:#415850}@media(max-width:760px){.grid{grid-template-columns:1fr}.hero h1{font-size:43px}.card{min-height:330px}}
-</style></head><body><main>
-<div class="eyebrow">BRANCHPOINT · TWO PRODUCT SURFACES</div>
-<section class="hero"><h1>先把它玩懂。<br>再把自己的问题交给它。</h1><p>Branchpoint 的前端有两个用途：一个负责把“因果 agent 到底哪里不同”变成可体验的案例；另一个负责真正工作，让你看到 agent 如何在现实反馈里不断修正自己的 hypotheses、actions 和 posterior。</p>
-<div class="proof"><span>competing hypotheses</span><span>probe value</span><span>human gate</span><span>world feedback</span><span>posterior update</span><span>replan</span></div></section>
-<section class="grid">
-<a class="card" href="examples.html"><span class="tag">ZERO-SETUP EXAMPLES</span><h2>Examples</h2><p>直接在浏览器里体验几个精心设计的案例。不需要 API key。重点不是读架构，而是亲手感受到“不同选择为什么会把后续轨迹带到不同地方”。</p><div class="steps"><span>Choose → observe → belief changes</span><span>HVAC · temporal · retrieval-style causal probe</span></div><span class="status">AVAILABLE NOW</span><span class="arrow">→</span></a>
-<a class="card dark" href="https://github.com/hippoley/Branchpoint"><span class="tag">REAL SESSION BACKEND</span><h2>Live Workbench</h2><p>真正的工作界面已经在 FastAPI backend 里：输入自己的 Goal，启动 session，看 Agent History；每一步都能 approve / override / replan / add hypothesis。</p><div class="steps"><span>Goal → hypotheses → action → world → posterior</span><span>/workbench · /research · real Python runtime</span></div><span class="status">BACKEND READY · PUBLIC HOST NEXT</span><span class="arrow">→</span></a>
+:root{--bg:#07110f;--paper:#0b1715;--ink:#eff8f4;--muted:#90a49e;--line:#1d3530;--mint:#78f0be;--soft:#cfe0da}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,ui-sans-serif,system-ui,sans-serif}a{color:inherit}.wrap{max-width:1180px;margin:auto;padding:26px 28px 78px}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:84px}.brand{font-weight:850;letter-spacing:-.03em;text-decoration:none}.brand small{margin-left:8px;color:var(--muted);font:9px ui-monospace,monospace;letter-spacing:.1em}.topnav{display:flex;gap:16px}.topnav a{color:var(--muted);font-size:12px;text-decoration:none}.hero{max-width:920px}.eyebrow{color:var(--mint);font:10px ui-monospace,monospace;letter-spacing:.14em}.hero h1{font-size:clamp(54px,8vw,104px);line-height:.88;letter-spacing:-.075em;margin:13px 0 24px;max-width:1000px}.hero h1 em{color:var(--mint);font-style:normal}.hero p{max-width:740px;margin:0;color:#b7c8c2;font-size:18px}.proof{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}.proof span{border:1px solid var(--line);border-radius:999px;padding:6px 9px;color:#8ea49e;font:10px ui-monospace,monospace}.statement{margin:72px 0 22px;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:34px}.statement b{font-size:24px;letter-spacing:-.035em}.statement p{margin:0;color:var(--muted)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{display:block;position:relative;min-height:350px;padding:27px;border:1px solid var(--line);border-radius:24px;background:var(--paper);text-decoration:none;transition:.16s}.card:hover{transform:translateY(-2px);border-color:#40665a}.card.primary{background:var(--mint);color:#062018;border-color:var(--mint)}.tag{font:9px ui-monospace,monospace;letter-spacing:.12em;color:#7d958d}.primary .tag{color:#295e4d}.card h2{font-size:36px;letter-spacing:-.045em;margin:20px 0 10px}.card p{max-width:470px;color:var(--muted)}.primary p{color:#285848}.flow{position:absolute;left:27px;bottom:28px;font:11px ui-monospace,monospace;color:#6f8880}.primary .flow{color:#2a6551}.arrow{position:absolute;right:27px;bottom:20px;font-size:33px}.mini{margin-top:18px;color:#728a82;font-size:11px}.mini strong{color:#c8d9d3}.footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:20px;color:#6f857e;font-size:11px}
+@media(max-width:760px){.top{margin-bottom:54px}.topnav{display:none}.hero h1{font-size:55px}.statement,.grid{grid-template-columns:1fr}.card{min-height:320px}.wrap{padding-inline:18px}}
+</style></head>
+<body><main class="wrap">
+<header class="top"><a class="brand" href="./">Branchpoint <small>DECISION RUNTIME</small></a><nav class="topnav"><a href="examples.html">Examples</a><a href="https://github.com/hippoley/Branchpoint">Source</a></nav></header>
+<section class="hero">
+<div class="eyebrow">THE CONTROL LAYER BETWEEN A MODEL AND THE WORLD</div>
+<h1>Your agent can propose.<br><em>Can it decide?</em></h1>
+<p>Branchpoint turns uncertain state into inspectable next actions: score candidates, verify evidence, route tools, wait when timing matters, escalate when confidence is weak, and change the model when reality stops fitting it.</p>
+<div class="proof"><span>typed actions</span><span>probabilities</span><span>tool routing</span><span>human approval</span><span>verification</span><span>counterfactuals</span></div>
 </section>
-<div class="note">GitHub Pages 只能托管静态前端，所以这里不会伪装成 live backend。真实工作台已经在仓库的 <code>/workbench</code>；连接一个 Python hosting provider 后即可把第二张卡直接指向公网工作台。</div>
+<section class="statement">
+<b>State in. Decisions out.<br>The world gets a vote.</b>
+<p>A model can suggest the next move. Branchpoint owns the execution boundary: runtime validity, cost, risk, temporal attribution, belief updates, and the points where a human should actually look.</p>
+</section>
+<section class="grid">
+<a class="card" href="examples.html">
+<span class="tag">VERIFIED EXAMPLES</span>
+<h2>Watch the world change the next move.</h2>
+<p>Three CI-generated Python trajectories: choosing the most valuable probe, rejecting stale evidence, and discovering a missing hypothesis.</p>
+<div class="flow">state → action → world → updated state</div><span class="arrow">→</span>
+</a>
+<a class="card primary" href="https://github.com/hippoley/Branchpoint">
+<span class="tag">LIVE WORKBENCH</span>
+<h2>Bring your own goal.</h2>
+<p>Run a real session with Agent History, Safe Auto, human gates, replanning, new hypotheses, score provenance, and frozen-step forks.</p>
+<div class="flow">goal → branch → evidence → replan</div><span class="arrow">→</span>
+</a>
+</section>
+<div class="mini"><strong>Zero-setup Pages:</strong> verified replay only. <strong>Live execution:</strong> Python + FastAPI backend.</div>
+<footer class="footer"><span>Branchpoint · MIT</span><span>The model proposes. The runtime decides. The world corrects both.</span></footer>
 </main></body></html>
