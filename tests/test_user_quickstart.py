@@ -1,4 +1,4 @@
-from causalrag import ActionKind, CandidateAction, ToolSpec, create_agent
+from branchpoint import ActionKind, CandidateAction, ToolSpec, create_agent
 
 
 class LocalReasoner:
