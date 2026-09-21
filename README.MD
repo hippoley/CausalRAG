@@ -12,6 +12,10 @@ Models propose. Branchpoint scores, guards, executes, learns from the result, an
 
 </div>
 
+<p align="center">
+  <img src="docs/assets/branchpoint-hero.svg" alt="Branchpoint: state enters a branch, the runtime chooses, world evidence updates the next state" width="100%">
+</p>
+
 ---
 
 ## The 20-second version
@@ -57,8 +61,6 @@ That is the point.
 ### 1. Open the live workbench
 
 ```bash
-git clone <this-repository>
-cd Branchpoint
 pip install -e ".[api]"
 branchpoint probe --open
 ```
