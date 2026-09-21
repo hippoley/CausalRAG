@@ -1,11 +1,11 @@
 import subprocess
 import sys
 
-import causalrag
+import branchpoint
 
 
 def test_package_version_is_v030():
-    assert causalrag.__version__ == "0.3.0"
+    assert branchpoint.__version__ == "0.3.0"
 
 
 def test_cli_reports_v030():
