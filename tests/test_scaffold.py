@@ -103,3 +103,32 @@ def test_scaffold_cli_rejects_invalid_decision(monkeypatch, tmp_path):
     )
 
     assert cli.main() == 2
+
+
+def test_scaffold_preserves_experiment_and_intervention_contracts(tmp_path):
+    import json
+    from pathlib import Path
+
+    source_payload = json.loads(
+        Path("examples/value_of_information.json").read_text(encoding="utf-8")
+    )
+    source = scaffold_capability_pack(
+        source_payload,
+        pack_id="evsi_scaffold_test",
+        label="EVSI scaffold test",
+    )
+    path = tmp_path / "evsi_pack.py"
+    path.write_text(source, encoding="utf-8")
+    module = _load_generated(path)
+
+    runtime = module.build_pack(
+        type("Config", (), {"hidden_hypothesis": "H1"})()
+    )
+    tools = {tool.name: tool for tool in runtime.tools}
+    assert tools["diagnose"].experiment_contract is not None
+    assert tools["diagnose"].experiment_contract.experiment_id == "diagnostic"
+    assert tools["fix_h1"].intervention_contract is not None
+    assert tools["fix_h1"].intervention_contract.utilities == {
+        "H1": 1.0,
+        "H2": -1.0,
+    }
