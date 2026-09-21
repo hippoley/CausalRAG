@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use Branchpoint in research or evaluation, please cite this repository."
+title: "Branchpoint: a decision runtime for agents operating under uncertainty"
+type: software
+version: 0.3.0
+date-released: 2026-09-16
+license: MIT
+authors:
+  - family-names: "Branchpoint contributors"
+repository-code: "https://github.com/hippoley/Branchpoint"
+url: "https://github.com/hippoley/Branchpoint"
+keywords:
+  - ai agents
+  - decision runtime
+  - probabilistic decisions
+  - tool routing
+  - human in the loop
+  - counterfactual evaluation
