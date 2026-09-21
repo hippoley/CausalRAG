@@ -5,18 +5,67 @@ from branchpoint.agent import RuntimeCapabilities
 from branchpoint.probe import ProbeRunConfig, available_probe_config, run_probe_comparison, run_probe_episode, run_probe_ladder
 
 
-def test_probe_catalog_exposes_three_executable_scenarios():
+def test_probe_catalog_exposes_six_executable_scenarios():
     config = available_probe_config()
     by_id = {row["id"]: row for row in config["scenarios"]}
     assert set(by_id) == {
         "hvac_hidden_world",
         "temporal_delayed_effect",
         "open_world_mismatch",
+        "tool_routing",
+        "incident_triage",
+        "browser_action_guard",
     }
     assert by_id["temporal_delayed_effect"]["hidden_hypotheses"] == ["H1", "H2"]
     assert by_id["temporal_delayed_effect"]["outcome_modes"] == ["deterministic"]
     assert by_id["open_world_mismatch"]["hidden_hypotheses"] == ["H4"]
     assert "open-world" in by_id["open_world_mismatch"]["recommended_test"].lower()
+
+
+def test_tool_routing_pack_executes_the_right_capability():
+    episode = run_probe_episode(
+        ProbeRunConfig(
+            scenario="tool_routing",
+            hidden_hypothesis="H3",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    assert episode["metrics"]["success"] is True
+    assert episode["metrics"]["selected_intervention"] == "escalate_for_approval"
+    assert episode["metrics"]["true_hypothesis_posterior"] > 0.8
+    assert episode["decisions"][0]["selected"]["name"] == "inspect_request_shape"
+
+
+def test_incident_triage_prefers_specific_signal_over_generic_logs():
+    episode = run_probe_episode(
+        ProbeRunConfig(
+            scenario="incident_triage",
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    assert episode["metrics"]["success"] is True
+    assert episode["metrics"]["selected_intervention"] == "shed_database_load"
+    assert episode["decisions"][0]["selected"]["name"] == "read_latency_signature"
+
+
+def test_browser_action_guard_changes_the_first_branch_and_prevents_bad_submit():
+    report = run_probe_comparison(
+        ProbeRunConfig(
+            scenario="browser_action_guard",
+            hidden_hypothesis="H2",
+            outcome_mode="deterministic",
+            proposer_family="deterministic",
+        )
+    )
+    assert report["vanilla"]["metrics"]["success"] is False
+    assert report["vanilla"]["decisions"][0]["selected"]["name"] == "submit_form"
+    assert report["causal"]["metrics"]["success"] is True
+    assert report["causal"]["decisions"][0]["selected"]["name"] == "inspect_submission_state"
+    assert report["causal"]["metrics"]["selected_intervention"] == "reauthenticate"
+    assert report["first_divergence"]["step"] == 0
 
 
 def test_temporal_probe_fails_without_temporal_attribution_and_succeeds_with_it():
