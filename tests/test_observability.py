@@ -60,9 +60,9 @@ def test_agent_emits_one_correlated_machine_readable_causal_trace_without_conten
     names = [record["name"] for record in trace]
     assert "invoke_agent branchpoint" in names
     assert "execute_tool sense" in names
-    assert "causalrag.decision" in names
-    assert "causalrag.observation" in names
-    assert "causalrag.run.completed" in names
+    assert "branchpoint.decision" in names
+    assert "branchpoint.observation" in names
+    assert "branchpoint.run.completed" in names
 
     root_start = next(
         record
