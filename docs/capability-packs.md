@@ -29,6 +29,21 @@ The frontend discovers registered packs through `/api/config`.
 
 That means a pack should not require custom UI code.
 
+## Packs included in the repository
+
+| pack | what it makes explicit |
+| --- | --- |
+| `browser_action_guard` | proposal order vs canonical risk / irreversibility at the execution boundary |
+| `tool_routing` | private read vs fresh public information vs state-changing work |
+| `incident_triage` | weak generic evidence vs a diagnostic that can change the intervention |
+| `hvac_hidden_world` | information value under a limited probe budget |
+| `temporal_delayed_effect` | attribution windows for delayed effects |
+| `open_world_mismatch` | structural hypothesis discovery when the current model stops fitting |
+
+All six use the same session, trace, human-gate, comparison, and Workbench surfaces.
+
+The first three are good templates for application developers. The last three are good templates for deeper runtime behavior.
+
 ## 1. World state
 
 The world model contains explicit, defeasible state.
@@ -81,10 +96,8 @@ CandidateAction(
     name="cross_room_pressure_test",
     kind=ActionKind.OBSERVE,
     rationale="Distinguish local window flow from effective room ventilation.",
-    tests_hypotheses=("H2", "H3"),
-    cost=0.03,
-    risk=0.0,
-    reversible=True,
+    tests_hypotheses=["H2", "H3"],
+    expected_information_gain=0.4,
 )
 ```
 
@@ -106,6 +119,21 @@ Prefer tools that declare:
 - the action kind they support.
 
 A tool result should become an observation before it affects the world model.
+
+```python
+ToolSpec(
+    name="cross_room_pressure_test",
+    description="Read cross-room pressure without changing device state.",
+    handler=read_pressure,
+    cost=0.03,
+    risk=0.0,
+    reversible=True,
+    metadata={"kind": "observe"},
+    experiment_contract=pressure_test,
+)
+```
+
+**Tool metadata is canonical.** A proposer cannot make a dangerous tool safe by reporting a lower cost or risk. During scoring, the runtime reconciles candidate metadata against the registered tool boundary; a non-reversible tool remains non-reversible regardless of what the proposer says.
 
 ## 4. Experiment contracts
 
