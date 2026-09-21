@@ -89,6 +89,16 @@ def parse_args():
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
+    packs_parser = subparsers.add_parser(
+        "packs",
+        help="List registered capability packs available to the probe runtime",
+    )
+    packs_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print machine-readable capability-pack metadata.",
+    )
+
     decide_parser = subparsers.add_parser(
         "decide",
         help="Arbitrate one bounded decision from a portable JSON payload",
@@ -151,6 +161,23 @@ def main():
 
     if args.version:
         print(f"Branchpoint version {__version__}")
+        return 0
+
+    if args.command == "packs":
+        from branchpoint.probe import available_probe_config
+
+        rows = available_probe_config()["scenarios"]
+        if args.json:
+            print(json.dumps(rows, ensure_ascii=False, indent=2))
+        else:
+            for row in rows:
+                print(
+                    f"{row['id']:<25} "
+                    f"{row.get('label', row['id'])}"
+                )
+                description = str(row.get("description") or "").strip()
+                if description:
+                    print(f"  {description}")
         return 0
 
     if args.command == "decide":
