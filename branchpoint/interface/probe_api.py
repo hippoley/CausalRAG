@@ -67,6 +67,8 @@ class DecisionToolInput(BaseModel):
     cost: float = Field(0.0, ge=0.0, le=1000.0)
     risk: float = Field(0.0, ge=0.0, le=1000.0)
     reversible: bool = True
+    experiment_contract: Optional[Dict[str, Any]] = None
+    intervention_contract: Optional[Dict[str, Any]] = None
 
 
 class DecisionHypothesisInput(BaseModel):
