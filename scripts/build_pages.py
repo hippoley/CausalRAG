@@ -47,6 +47,7 @@ def main() -> None:
         "policy_comparison": run_example("examples/hidden_world_policy_comparison.py"),
         "playable_ab": run_probe_comparison(
             ProbeRunConfig(
+                scenario="browser_action_guard",
                 hidden_hypothesis="H2",
                 outcome_mode="deterministic",
                 seed=0,
