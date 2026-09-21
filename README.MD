@@ -6,9 +6,15 @@
 
 **A decision runtime for agents that must choose what to do next under uncertainty.**
 
+![Python](https://img.shields.io/badge/python-3.10%2B-111?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-111?style=flat-square)
+![Status](https://img.shields.io/badge/status-beta-111?style=flat-square)
+
 Models propose. Branchpoint scores, guards, executes, learns from the result, and decides whether the next branch is safe to take automatically or worth handing to a human.
 
 `typed actions` · `probabilities` · `tool routing` · `verification` · `human approval` · `state updates` · `counterfactuals`
+
+[Capability packs](docs/capability-packs.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
