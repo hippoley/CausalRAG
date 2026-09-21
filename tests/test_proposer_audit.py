@@ -116,9 +116,9 @@ def test_agent_loop_records_provider_model_latency_tokens_and_submission_event()
     assert trace["hypothesis_proposals"][0]["id"] == "H1"
 
     events = list(registry.telemetry.records())
-    submitted = [row for row in events if row["name"] == "causalrag.proposer.submitted"]
+    submitted = [row for row in events if row["name"] == "branchpoint.proposer.submitted"]
     assert submitted
-    assert submitted[0]["attributes"]["causalrag.proposer.model"] == "fake-frontier"
+    assert submitted[0]["attributes"]["branchpoint.proposer.model"] == "fake-frontier"
 
 
 class OneActionReasoner:
