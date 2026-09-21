@@ -71,7 +71,7 @@ jobs:
           python -m py_compile branchpoint/probe/runtime.py branchpoint/probe/session.py branchpoint/probe/compare.py branchpoint/interface/probe_api.py branchpoint/reasoning/llm.py branchpoint/agent/loop.py
       - name: Run real no-key probe tests
         run: |
-          pytest -q tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py tests/test_playable_probe_compare.py tests/test_proposer_audit.py tests/test_probe_access.py tests/test_cli_embedding_options.py
+          pytest -q tests/test_brand_surface.py tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py tests/test_playable_probe_compare.py tests/test_proposer_audit.py tests/test_probe_access.py tests/test_cli_embedding_options.py
       - name: Syntax-check live UI JavaScript
         if: matrix.python-version == '3.12'
         run: |
