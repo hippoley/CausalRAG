@@ -1,0 +1,80 @@
+{
+  "candidates": [
+    {
+      "kind": "observe",
+      "name": "diagnose",
+      "expected_goal_gain": 0.0,
+      "expected_information_gain": 0.0,
+      "tests_hypotheses": ["H1", "H2"],
+      "rationale": "Buy evidence only if it improves the downstream intervention."
+    },
+    {
+      "kind": "intervene",
+      "name": "fix_h1",
+      "expected_goal_gain": 1.0,
+      "rationale": "Act on H1 now."
+    },
+    {
+      "kind": "intervene",
+      "name": "fix_h2",
+      "expected_goal_gain": 1.0,
+      "rationale": "Act on H2 now."
+    }
+  ],
+  "tools": [
+    {
+      "name": "diagnose",
+      "description": "Run a discriminative diagnostic.",
+      "cost": 0.08,
+      "risk": 0.0,
+      "reversible": true,
+      "experiment_contract": {
+        "experiment_id": "diagnostic",
+        "outcomes": [
+          {
+            "outcome": "leans_h1",
+            "likelihoods": {"H1": 0.75, "H2": 0.25}
+          },
+          {
+            "outcome": "leans_h2",
+            "likelihoods": {"H1": 0.25, "H2": 0.75}
+          }
+        ]
+      }
+    },
+    {
+      "name": "fix_h1",
+      "description": "Apply intervention for H1.",
+      "cost": 0.20,
+      "risk": 0.0,
+      "reversible": true,
+      "intervention_contract": {
+        "intervention_id": "fix_h1",
+        "utilities": {"H1": 1.0, "H2": -1.0}
+      }
+    },
+    {
+      "name": "fix_h2",
+      "description": "Apply intervention for H2.",
+      "cost": 0.20,
+      "risk": 0.0,
+      "reversible": true,
+      "intervention_contract": {
+        "intervention_id": "fix_h2",
+        "utilities": {"H1": -1.0, "H2": 1.0}
+      }
+    }
+  ],
+  "hypotheses": [
+    {
+      "hypothesis_id": "H1",
+      "statement": "Mechanism one is active.",
+      "probability": 0.70
+    },
+    {
+      "hypothesis_id": "H2",
+      "statement": "Mechanism two is active.",
+      "probability": 0.30
+    }
+  ]
+}
