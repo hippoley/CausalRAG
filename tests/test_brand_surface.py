@@ -23,10 +23,9 @@ PUBLIC_DIRS = [
 
 TEXT_SUFFIXES = {".md", ".html", ".yml", ".yaml", ".py", ".cff", ".svg"}
 
-# The Python import/CLI remains `branchpoint` for compatibility. What is retired is
-# the old public *brand* and external repository namespace.
+# The repository URL remains /CausalRAG for compatibility until a deliberate rename.
+# What must not return is the abandoned external namespace or retired evaluator.
 RETIRED_REPOSITORY_NAMESPACE = re.compile(r"branchpoint-runtime", re.IGNORECASE)
-RETIRED_PUBLIC_BRAND = re.compile(r"\bBranchpoint\b")
 RETIRED_EVALUATOR = re.compile(r"\bragas\b", re.IGNORECASE)
 
 
@@ -45,15 +44,13 @@ def _public_text_files():
                 yield path
 
 
-def test_public_brand_is_causalrag():
+def test_public_surfaces_have_no_retired_namespace():
     violations = []
     for path in _public_text_files():
         text = path.read_text(encoding="utf-8", errors="ignore")
         reasons = []
         if RETIRED_REPOSITORY_NAMESPACE.search(text):
             reasons.append("retired repository namespace")
-        if RETIRED_PUBLIC_BRAND.search(text):
-            reasons.append("retired public brand")
         if RETIRED_EVALUATOR.search(text):
             reasons.append("retired evaluator")
         if reasons:
@@ -61,12 +58,14 @@ def test_public_brand_is_causalrag():
     assert not violations, "\n".join(violations)
 
 
-def test_primary_surfaces_name_causalrag():
+def test_primary_surfaces_name_branchpoint():
     readme = (ROOT / "README.MD").read_text(encoding="utf-8")
     landing = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
     examples = (ROOT / "site" / "examples.html").read_text(encoding="utf-8")
+    workbench = (ROOT / "branchpoint" / "templates" / "agent_workbench.html").read_text(encoding="utf-8")
 
-    assert "# CausalRAG" in readme
-    assert "<title>CausalRAG" in landing
-    assert "<title>CausalRAG" in examples
+    assert "# Branchpoint" in readme
+    assert "<title>Branchpoint" in landing
+    assert "<title>Branchpoint" in examples
+    assert "<title>Branchpoint · Live Workbench" in workbench
     assert "https://hippoley.github.io/CausalRAG/" in landing
