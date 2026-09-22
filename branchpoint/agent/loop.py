@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from time import perf_counter
+import uuid
 from typing import Any, Callable, Optional
 
 from branchpoint.experiments import (
@@ -317,6 +318,7 @@ class CausalAgentLoop:
     def run(self, goal: str, max_steps: int = 10) -> AgentState:
         state = AgentState(goal=goal, max_steps=max_steps)
         state.scratch["runtime_capabilities"] = self.capabilities.to_dict()
+        state.scratch["execution_run_id"] = uuid.uuid4().hex
         self._sync_state_time(state)
         while not state.done and state.step < state.max_steps:
             self._sync_state_time(state)
@@ -518,7 +520,16 @@ class CausalAgentLoop:
                 tool_spec = None
             else:
                 tool_spec = self.tools.get(selected.name)
-                result = self.tools.execute(selected.name, selected.arguments)
+                effect_id = None
+                if getattr(self.tools, "execution_ledger", None) is not None:
+                    effect_id = (
+                        f"{state.scratch['execution_run_id']}:{int(state.step)}:{selected.name}"
+                    )
+                result = self.tools.execute(
+                    selected.name,
+                    selected.arguments,
+                    effect_id=effect_id,
+                )
 
             self._schedule_temporal_effect(tool_spec, selected, state)
             temporal_evaluations = self._evaluate_temporal_observation(selected, result, state)
