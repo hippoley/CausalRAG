@@ -136,7 +136,7 @@ Then open the local workbench:
 branchpoint probe --open
 ```
 
-> The Python package / CLI is still named `branchpoint` for compatibility. The public project and documentation identity is **CausalRAG**.
+> The repository URL is still `/CausalRAG` for link compatibility. The public runtime identity is **Branchpoint**, and the Python package / CLI is `branchpoint`.
 
 Surfaces:
 
@@ -179,7 +179,7 @@ The proposer can still rank actions. Canonical tool policy remains in code.
 
 ---
 
-## What CausalRAG gives you
+## What Branchpoint gives you
 
 | capability | what becomes explicit |
 | --- | --- |
@@ -197,9 +197,9 @@ Typical surfaces:
 
 ---
 
-## What CausalRAG is — and is not
+## What Branchpoint is — and is not
 
-CausalRAG is a **runtime decision layer** for bounded choices inside agent workflows.
+Branchpoint is a **runtime decision layer** for bounded choices inside agent workflows.
 
 It is **not**:
 
@@ -219,10 +219,54 @@ and you want that answer to be inspectable in code.
 
 ## One project, one identity
 
-**CausalRAG is the project, repository, docs, and public brand.**  
-`branchpoint` is the Python package / CLI that implements the current decision runtime.
+**Branchpoint is the public runtime and product identity.**  
+The repository remains at `hippoley/CausalRAG` for link compatibility; `branchpoint` is the Python package / CLI.
 
-The repository started with causal retrieval experiments. The durable idea was not “RAG” itself; it was **making hidden assumptions, causal structure, evidence, and decision boundaries explicit enough to test**. The current runtime is that idea pushed into agent execution.
+The repository started with causal retrieval experiments. The durable idea was not “RAG” itself; it was **making hidden assumptions, causal structure, evidence, and decision boundaries explicit enough to test**. Branchpoint is that idea pushed into agent execution.
+
+---
+
+## Jev + Branchpoint
+
+Jev and Branchpoint solve different parts of the same problem.
+
+**Jev proposes a typed probabilistic choice. Branchpoint decides whether that proposal has execution authority.**
+
+```python
+from branchpoint import ActionKind, CandidateAction, ToolSpec, jev_then_branchpoint
+
+candidates = [
+    CandidateAction(
+        ActionKind.INTERVENE,
+        "submit_form",
+        expected_goal_gain=0.95,
+        rationale="Submit the form now.",
+    ),
+    CandidateAction(
+        ActionKind.OBSERVE,
+        "inspect_submission_state",
+        expected_goal_gain=0.15,
+        expected_information_gain=0.70,
+        rationale="Check session state before an irreversible submit.",
+    ),
+]
+
+jev, decision = jev_then_branchpoint(
+    {"session_status": "unknown"},
+    candidates,
+    tools=[
+        ToolSpec("submit_form", "External submit", lambda: None, risk=0.72, reversible=False),
+        ToolSpec("inspect_submission_state", "Read-only check", lambda: None, cost=0.02),
+    ],
+)
+
+print("Jev proposes:", jev.selected_name)
+print("Branchpoint authorizes:", decision.selected.name)
+```
+
+The bridge deliberately does **not** copy Jev confidence into canonical risk or permission policy. Model probabilities are evidence; application-owned tool policy remains code.
+
+Use Jev for fast semantic judgments when the answer space is bounded. Use Branchpoint when the system also needs execution gates, state transitions, evidence acquisition, human approval, temporal attribution, or replay.
 
 ---
 
