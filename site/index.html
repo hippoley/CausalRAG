@@ -1,69 +1,104 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="CausalRAG is a causal decision runtime for AI agents: explicit uncertainty, tool routing, risk gates, verification, human approval, and counterfactual replay.">
-<meta name="keywords" content="CausalRAG, causal AI agents, decision runtime, probabilistic decisions, typed actions, tool routing, confidence gates, human in the loop, agent evaluation, counterfactual replay">
-<meta property="og:title" content="CausalRAG — causal decision runtime for AI agents">
-<meta property="og:description" content="The model proposes. CausalRAG decides what is safe, informative, and worth doing next.">
+<meta name="description" content="Branchpoint is the control layer between model proposals and real-world side effects: inspect uncertainty, gate risky actions, and let world evidence change the next move.">
+<meta name="keywords" content="Branchpoint, AI agents, decision runtime, tool routing, human in the loop, verification, agent safety, counterfactual replay">
+<meta property="og:title" content="Branchpoint — the control layer between a model and the world">
+<meta property="og:description" content="The model said submit. The world said no. Branchpoint inserts a decision boundary before real side effects.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://hippoley.github.io/CausalRAG/">
 <meta property="og:image" content="https://hippoley.github.io/CausalRAG/social-preview.svg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="CausalRAG — causal decision runtime for AI agents">
-<meta name="twitter:description" content="The model proposes. CausalRAG decides what is safe, informative, and worth doing next.">
+<meta name="twitter:title" content="Branchpoint — model intent is not execution authority">
+<meta name="twitter:description" content="Same world. Same model. Different control layer.">
 <meta name="twitter:image" content="https://hippoley.github.io/CausalRAG/social-preview.svg">
 <link rel="canonical" href="https://hippoley.github.io/CausalRAG/">
-<title>CausalRAG — causal decision runtime for AI agents</title>
+<title>Branchpoint — the control layer between a model and the world</title>
 <style>
-:root{--bg:#07110f;--paper:#0b1715;--ink:#eff8f4;--muted:#90a49e;--line:#1d3530;--mint:#78f0be;--soft:#cfe0da}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,ui-sans-serif,system-ui,sans-serif}a{color:inherit}.wrap{max-width:1180px;margin:auto;padding:26px 28px 78px}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:84px}.brand{font-weight:850;letter-spacing:-.03em;text-decoration:none}.brand small{margin-left:8px;color:var(--muted);font:9px ui-monospace,monospace;letter-spacing:.1em}.topnav{display:flex;gap:16px}.topnav a{color:var(--muted);font-size:12px;text-decoration:none}.hero{max-width:920px}.eyebrow{color:var(--mint);font:10px ui-monospace,monospace;letter-spacing:.14em}.hero h1{font-size:clamp(54px,8vw,104px);line-height:.88;letter-spacing:-.075em;margin:13px 0 24px;max-width:1000px}.hero h1 em{color:var(--mint);font-style:normal}.hero p{max-width:740px;margin:0;color:#b7c8c2;font-size:18px}.proof{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}.proof span{border:1px solid var(--line);border-radius:999px;padding:6px 9px;color:#8ea49e;font:10px ui-monospace,monospace}.statement{margin:72px 0 22px;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:34px}.statement b{font-size:24px;letter-spacing:-.035em}.statement p{margin:0;color:var(--muted)}.receipt{margin:22px 0 14px;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:#091513}.receipt-head{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}.receipt-head span{font:9px ui-monospace,monospace;color:var(--mint);letter-spacing:.12em}.receipt-head small{color:var(--muted);font:10px ui-monospace,monospace}.receipt-grid{display:grid;grid-template-columns:1fr 52px 1fr}.arm{padding:24px;min-height:190px}.arm.bad{opacity:.72}.arm.good{background:#0c1d18}.arm-label{font:9px ui-monospace,monospace;color:var(--muted);letter-spacing:.1em}.arm h3{font-size:26px;letter-spacing:-.04em;margin:13px 0 7px}.arm p{margin:0;color:var(--muted);font-size:12px}.arm strong{display:inline-block;margin-top:18px;font:11px ui-monospace,monospace}.arm.good strong{color:var(--mint)}.split{display:grid;place-items:center;border-left:1px solid var(--line);border-right:1px solid var(--line);color:#537168;font-size:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{display:block;position:relative;min-height:350px;padding:27px;border:1px solid var(--line);border-radius:24px;background:var(--paper);text-decoration:none;transition:.16s}.card:hover{transform:translateY(-2px);border-color:#40665a}.card.primary{background:var(--mint);color:#062018;border-color:var(--mint)}.tag{font:9px ui-monospace,monospace;letter-spacing:.12em;color:#7d958d}.primary .tag{color:#295e4d}.card h2{font-size:36px;letter-spacing:-.045em;margin:20px 0 10px}.card p{max-width:470px;color:var(--muted)}.primary p{color:#285848}.flow{position:absolute;left:27px;bottom:28px;font:11px ui-monospace,monospace;color:#6f8880}.primary .flow{color:#2a6551}.arrow{position:absolute;right:27px;bottom:20px;font-size:33px}.mini{margin-top:18px;color:#728a82;font-size:11px}.mini strong{color:#c8d9d3}.footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:20px;color:#6f857e;font-size:11px}
-@media(max-width:760px){.top{margin-bottom:54px}.topnav{display:none}.hero h1{font-size:55px}.statement,.grid{grid-template-columns:1fr}.receipt-grid{grid-template-columns:1fr}.split{height:42px;border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(90deg)}.card{min-height:320px}.wrap{padding-inline:18px}}
+:root{--bg:#050607;--panel:#0a0c0e;--ink:#f4f7f5;--muted:#7c8580;--line:#1b211f;--acid:#b7ff5d;--cyan:#8deeff;--red:#ff6b6b;--amber:#ffc857;--green:#78f0be}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 78% 10%,#102016 0,#07090a 28%,#050607 58%);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit}.shell{max-width:1240px;margin:auto;padding:20px 28px 68px}.top{height:54px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:900;letter-spacing:-.03em}.brand i{width:8px;height:8px;border-radius:50%;background:var(--acid);box-shadow:0 0 18px #b7ff5d99}.brand small,.nav a{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;color:#7b8781;text-decoration:none}.nav{display:flex;gap:18px}.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(460px,.95fr);gap:44px;align-items:center;min-height:690px;padding:56px 0 36px}.eyebrow{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em;color:var(--acid);text-transform:uppercase}.hero h1{font-size:clamp(64px,7.5vw,108px);line-height:.85;letter-spacing:-.078em;margin:15px 0 28px;max-width:760px}.hero h1 span{display:block;color:#aab3af}.hero-copy{max-width:690px;color:#a1aaa5;font-size:18px}.hero-copy b{color:var(--ink)}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:30px}.btn{padding:12px 16px;border-radius:999px;text-decoration:none;font-weight:850;font-size:12px;border:1px solid var(--line)}.btn.primary{background:var(--acid);color:#071006;border-color:var(--acid)}.btn.ghost{color:#cbd3cf}.micro{display:flex;gap:18px;flex-wrap:wrap;margin-top:28px;color:#6f7873;font:10px ui-monospace,monospace}.micro b{color:#a9b3ae;font-weight:600}
+.demo{border:1px solid #202623;background:linear-gradient(180deg,#0b0e0f,#07090a);border-radius:28px;overflow:hidden;box-shadow:0 35px 90px #0008,0 0 0 1px #ffffff05 inset}.demo-head{height:54px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 18px}.demo-head span{font:10px ui-monospace,monospace;letter-spacing:.12em;color:#87908c}.lights{display:flex;gap:6px}.lights i{width:7px;height:7px;border-radius:50%;background:#242a27}.lights i:first-child{background:var(--red)}.board{padding:18px}.prompt{border:1px solid #1d2421;border-radius:18px;padding:14px 15px;background:#080a0b}.prompt small,.lane-label,.event small{display:block;font:9px ui-monospace,monospace;letter-spacing:.13em;color:#6d7772}.prompt b{display:block;margin-top:5px;font-size:17px}.proposal{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:12px 14px;border-radius:14px;background:#111514;border:1px solid #202724}.proposal code{font:12px ui-monospace,monospace;color:#dfe7e3}.proposal span{font:9px ui-monospace,monospace;color:#77817c}.lanes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.lane{position:relative;min-height:302px;border:1px solid #1c221f;border-radius:18px;padding:14px;background:#090b0c;overflow:hidden}.lane.branch{background:linear-gradient(180deg,#09100c,#080b0a)}.lane-label{margin-bottom:13px}.event{position:relative;padding:11px 12px 11px 15px;border-radius:12px;border:1px solid #1f2623;background:#0f1211;margin-bottom:9px;opacity:.28;transform:translateY(4px);transition:.35s}.event b{display:block;margin-top:3px;font:12px ui-monospace,monospace;color:#d6dfda}.event::before{content:"";position:absolute;left:-1px;top:10px;bottom:10px;width:2px;border-radius:3px;background:#38403c}.event.hot{opacity:1;transform:none;border-color:#39413d}.event.hot::before{background:var(--acid);box-shadow:0 0 15px #b7ff5d80}.event.bad.hot::before{background:var(--red);box-shadow:0 0 15px #ff6b6b80}.event.good.hot::before{background:var(--green);box-shadow:0 0 15px #78f0be80}.event.guard.hot::before{background:var(--amber);box-shadow:0 0 15px #ffc85780}.status{position:absolute;left:14px;right:14px;bottom:14px;border-top:1px solid #1b211f;padding-top:11px;display:flex;justify-content:space-between;font:10px ui-monospace,monospace;color:#626b67}.status strong{color:#7a8580}.status strong.fail{color:var(--red)}.status strong.ok{color:var(--green)}.ticker{height:34px;border-top:1px solid var(--line);display:flex;align-items:center;padding:0 18px;color:#65706a;font:9px ui-monospace,monospace;letter-spacing:.08em}.ticker b{color:#aeb8b3;margin-right:8px}
+.thesis{margin:54px 0 0;padding:66px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;grid-template-columns:170px 1fr;gap:38px}.thesis h2{margin:0;font-size:clamp(38px,5vw,72px);line-height:.96;letter-spacing:-.06em;max-width:910px}.thesis h2 em{font-style:normal;color:var(--acid)}.thesis p{margin:0;color:#68736d;font:10px ui-monospace,monospace;letter-spacing:.12em}
+.proof{padding:48px 0 20px}.proof-top{display:flex;justify-content:space-between;gap:24px;align-items:end;margin-bottom:20px}.proof h3{margin:0;font-size:31px;letter-spacing:-.04em}.proof-top p{max-width:570px;margin:0;color:#7e8983}.receipt{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:20px;overflow:hidden}.cell{padding:19px;border-right:1px solid var(--line);background:#080a0b}.cell:last-child{border-right:0}.cell span{display:block;font:9px ui-monospace,monospace;letter-spacing:.12em;color:#69736e}.cell b{display:block;margin-top:7px;font-size:18px}.cell b.acid{color:var(--acid)}.paths{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin-top:10px}.path{position:relative;min-height:190px;padding:20px;border:1px solid var(--line);border-radius:20px;text-decoration:none;background:#080a0b}.path:hover{border-color:#3b4741}.path small{font:9px ui-monospace,monospace;color:#69736e;letter-spacing:.12em}.path h4{font-size:24px;letter-spacing:-.04em;margin:14px 0 6px}.path p{color:#7c8580;margin:0;max-width:400px;font-size:12px}.path i{position:absolute;right:18px;bottom:14px;font-style:normal;font-size:28px}.path.primary{background:var(--acid);color:#081106;border-color:var(--acid)}.path.primary p,.path.primary small{color:#34472a}.foot{margin-top:54px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:#5f6863;font:10px ui-monospace,monospace}
+@media(max-width:980px){.hero{grid-template-columns:1fr;min-height:0}.demo{max-width:760px}.thesis{grid-template-columns:1fr}.receipt{grid-template-columns:1fr 1fr}.cell:nth-child(2){border-right:0}.paths{grid-template-columns:1fr}.hero h1{font-size:72px}}@media(max-width:620px){.shell{padding:12px 16px 46px}.nav{display:none}.hero{padding-top:38px;gap:28px}.hero h1{font-size:55px}.hero-copy{font-size:15px}.lanes{grid-template-columns:1fr}.lane{min-height:270px}.thesis{padding:44px 0}.receipt{grid-template-columns:1fr}.cell{border-right:0;border-bottom:1px solid var(--line)}.cell:last-child{border-bottom:0}.proof-top{align-items:flex-start;flex-direction:column}.foot{flex-direction:column;gap:8px}}
 </style></head>
-<body><main class="wrap">
-<header class="top"><a class="brand" href="./">CausalRAG <small>CAUSAL DECISION RUNTIME</small></a><nav class="topnav"><a href="examples.html">Examples</a><a href="https://github.com/hippoley/CausalRAG">Source</a></nav></header>
+<body><main class="shell">
+<header class="top"><a class="brand" href="./"><i></i>BRANCHPOINT <small>HIPPOLEY / CONTROL PLANE</small></a><nav class="nav"><a href="#split">THE SPLIT</a><a href="examples.html">EVIDENCE</a><a href="https://github.com/hippoley/CausalRAG">SOURCE</a></nav></header>
+
 <section class="hero">
-<div class="eyebrow">THE DECISION LAYER BETWEEN A MODEL AND THE WORLD</div>
-<h1>Your agent can propose.<br><em>Can it decide?</em></h1>
-<p>CausalRAG turns uncertain state into inspectable next actions: score candidates, verify evidence, route tools, wait when timing matters, escalate when confidence is weak, and change the model when reality stops fitting it.</p>
-<div class="proof"><span>typed actions</span><span>probabilities</span><span>tool routing</span><span>human approval</span><span>verification</span><span>counterfactuals</span></div>
+<div>
+<div class="eyebrow">MODEL INTENT ≠ EXECUTION AUTHORITY</div>
+<h1>The model said submit.<span>The world said no.</span></h1>
+<p class="hero-copy"><b>Branchpoint is the control layer between a model and real side effects.</b> It can let a proposal through, stop it, inspect first, ask a human, or change course when the world disagrees.</p>
+<div class="actions"><a class="btn primary" href="#split">WATCH THE SPLIT ↓</a><a class="btn ghost" href="https://github.com/hippoley/CausalRAG">VIEW SOURCE ↗</a></div>
+<div class="micro"><span><b>SAME WORLD</b> yes</span><span><b>SAME MODEL</b> yes</span><span><b>FIRST DIVERGENCE</b> step 0</span></div>
+</div>
+
+<section class="demo" id="split" aria-label="Same-world comparison">
+<div class="demo-head"><span>LIVE RECEIPT / BROWSER ACTION GUARD</span><div class="lights"><i></i><i></i><i></i></div></div>
+<div class="board">
+<div class="prompt"><small>MODEL PROPOSAL</small><b>"The form looks ready. Submit it."</b><div class="proposal"><code>submit_form</code><span>confidence 0.78</span></div></div>
+<div class="lanes">
+<div class="lane">
+<div class="lane-label">NAIVE LOOP</div>
+<div class="event bad" data-naive="1"><small>STEP 01 / EXECUTE</small><b>submit_form</b></div>
+<div class="event bad" data-naive="2"><small>WORLD RESPONSE</small><b>session_expired</b></div>
+<div class="event bad" data-naive="3"><small>OUTCOME</small><b>external action failed</b></div>
+<div class="status"><span>proposal order</span><strong class="fail" id="naiveStatus">waiting…</strong></div>
+</div>
+<div class="lane branch">
+<div class="lane-label">BRANCHPOINT</div>
+<div class="event guard" data-branch="1"><small>GUARD</small><b>blocked · irreversible / unverified</b></div>
+<div class="event" data-branch="2"><small>OBSERVE</small><b>inspect_submission_state</b></div>
+<div class="event" data-branch="3"><small>WORLD RESPONSE</small><b>session_expired</b></div>
+<div class="event good" data-branch="4"><small>INTERVENE</small><b>reauthenticate → success</b></div>
+<div class="status"><span>runtime decision</span><strong class="ok" id="branchStatus">waiting…</strong></div>
+</div>
+</div>
+</div>
+<div class="ticker"><b id="tickerLabel">TRACE</b><span id="tickerText">same goal · same hidden world · same proposer</span></div>
 </section>
-<section class="statement">
-<b>State in. Decisions out.<br>The world gets a vote.</b>
-<p>A model can suggest the next move. CausalRAG owns the execution boundary: runtime validity, cost, risk, temporal attribution, belief updates, and the points where a human should actually look.</p>
 </section>
-<section class="receipt" aria-label="Verified same-world comparison">
-  <div class="receipt-head"><span>VERIFIED SAME-WORLD RECEIPT</span><small id="receiptBuild">loading CI artifact…</small></div>
-  <div class="receipt-grid">
-    <div class="arm bad"><div class="arm-label">PROPOSAL ORDER</div><h3 id="plainMove">submit_form</h3><p>First candidate crosses the external execution boundary immediately.</p><strong id="plainResult">→ result loading…</strong></div>
-    <div class="split">→</div>
-    <div class="arm good"><div class="arm-label">RUNTIME DECISION</div><h3 id="runtimeMove">inspect_submission_state</h3><p>Canonical risk and irreversibility move a read-only check ahead of the side effect.</p><strong id="runtimeResult">→ result loading…</strong></div>
-  </div>
+
+<section class="thesis">
+<p>THE RULE</p>
+<h2>A model can propose an action.<br><em>It does not inherit the right to execute it.</em></h2>
 </section>
-<section class="grid">
-<a class="card" href="examples.html">
-<span class="tag">VERIFIED EXAMPLES</span>
-<h2>Watch the world change the next move.</h2>
-<p>Three CI-generated Python trajectories: route an ambiguous request, diagnose a production incident, and stop a risky browser action before execution.</p>
-<div class="flow">state → action → world → updated state</div><span class="arrow">→</span>
-</a>
-<a class="card primary" href="https://github.com/hippoley/CausalRAG">
-<span class="tag">LIVE WORKBENCH</span>
-<h2>Bring your own goal.</h2>
-<p>Run a real session with Agent History, Safe Auto, human gates, replanning, new hypotheses, score provenance, and frozen-step forks.</p>
-<div class="flow">goal → branch → evidence → replan</div><span class="arrow">→</span>
-</a>
+
+<section class="proof">
+<div class="proof-top"><div><div class="eyebrow">REPRODUCIBLE, NOT THEATRICAL</div><h3>The page is a replay of the runtime.</h3></div><p>Every Pages deployment runs the Python comparison in CI and publishes its canonical artifact. The interface shows the split; it does not manufacture the outcome.</p></div>
+<div class="receipt">
+<div class="cell"><span>SAME-WORLD INPUTS</span><b class="acid" id="sameWorld">VERIFIED</b></div>
+<div class="cell"><span>FIRST DIVERGENCE</span><b id="divergence">STEP 0</b></div>
+<div class="cell"><span>NAIVE LOOP</span><b id="naiveResult">FAILED</b></div>
+<div class="cell"><span>BRANCHPOINT</span><b class="acid" id="branchResult">SUCCESS</b></div>
+</div>
+<div class="paths">
+<a class="path primary" href="examples.html"><small>01 / EVIDENCE</small><h4>Open the trajectories.</h4><p>Routing, incident diagnosis, and browser-action guard — all generated from the current runtime.</p><i>→</i></a>
+<a class="path" href="https://github.com/hippoley/CausalRAG#5-open-the-live-workbench"><small>02 / WORKBENCH</small><h4>Steer a live branch.</h4><p>Human gates, replanning, new hypotheses, score provenance, and frozen-step forks.</p><i>→</i></a>
+<a class="path" href="https://github.com/hippoley/CausalRAG"><small>03 / SOURCE</small><h4>Break the claim.</h4><p>Run the same-world test, inspect the policy, change the environment, and see where it fails.</p><i>↗</i></a>
+</div>
 </section>
-<div class="mini"><strong>Zero-setup Pages:</strong> verified replay only. <strong>Live execution:</strong> Python + FastAPI backend.</div>
-<footer class="footer"><span>CausalRAG · Apache-2.0</span><span>The model proposes. The runtime decides. The world corrects both.</span></footer>
+<footer class="foot"><span>BRANCHPOINT / HIPPOLEY</span><span>BUILD THE MECHANISM. EXPOSE THE STATE. LET REALITY DISAGREE.</span></footer>
 </main>
 <script>
+const naive=[...document.querySelectorAll('[data-naive]')],branch=[...document.querySelectorAll('[data-branch]')];
+const ticker=document.getElementById('tickerText'),ns=document.getElementById('naiveStatus'),bs=document.getElementById('branchStatus');
+const phases=[
+{n:0,b:0,t:'same goal · same hidden world · same proposer',ns:'waiting…',bs:'waiting…'},
+{n:1,b:1,t:'proposal: submit_form',ns:'executing',bs:'guarding'},
+{n:2,b:2,t:'Branchpoint spends 0.02 on a read-only observation before the side effect',ns:'world rejected',bs:'inspecting'},
+{n:3,b:3,t:'observation: session_expired',ns:'failed',bs:'updating state'},
+{n:3,b:4,t:'next intervention: reauthenticate',ns:'failed',bs:'success'}
+];let phase=0;
+function paint(p){naive.forEach((e,i)=>e.classList.toggle('hot',i<p.n));branch.forEach((e,i)=>e.classList.toggle('hot',i<p.b));ticker.textContent=p.t;ns.textContent=p.ns;bs.textContent=p.bs}
+paint(phases[0]);setInterval(()=>{phase=(phase+1)%phases.length;paint(phases[phase])},1800);
+
 fetch('data/runtime.json').then(r=>r.json()).then(data=>{
-  const report=data.playable_ab||{},v=report.vanilla||{},q=report.causal||{};
-  const vm=v.metrics||{},qm=q.metrics||{};
-  const vd=(v.decisions||[])[0]?.selected?.name,qd=(q.decisions||[])[0]?.selected?.name;
-  if(vd)document.getElementById('plainMove').textContent=vd;
-  if(qd)document.getElementById('runtimeMove').textContent=qd;
-  document.getElementById('plainResult').textContent='→ '+(vm.success?'success':'failed');
-  document.getElementById('runtimeResult').textContent='→ '+(qm.success?'success':'failed');
-  document.getElementById('receiptBuild').textContent='build '+String(data.commit||'verified')+' · first divergence step '+String(report.first_divergence?.step??'—');
-}).catch(()=>{document.getElementById('receiptBuild').textContent='verified artifact available in Examples';});
+ const report=data.playable_ab||{},v=report.vanilla||{},q=report.causal||{},cmp=report.comparison||{};
+ document.getElementById('sameWorld').textContent=cmp.same_world_inputs===true?'VERIFIED':'CHECK';
+ document.getElementById('divergence').textContent='STEP '+String(report.first_divergence?.step??'—');
+ document.getElementById('naiveResult').textContent=v.metrics?.success===false?'FAILED':String(v.metrics?.success??'—').toUpperCase();
+ document.getElementById('branchResult').textContent=q.metrics?.success===true?'SUCCESS':String(q.metrics?.success??'—').toUpperCase();
+ document.getElementById('tickerLabel').textContent='BUILD '+String(data.commit||'verified').toUpperCase();
+}).catch(()=>{document.getElementById('tickerLabel').textContent='CI RECEIPT';});
 </script></body></html>
