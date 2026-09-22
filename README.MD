@@ -248,32 +248,20 @@ The point is to stop making one model response carry **proposal, policy, uncerta
 
 ---
 
-## Why CausalRAG exists
+## Why not a plain agent loop?
 
-A fluent model response is not the same thing as a good software decision.
-
-Production agents repeatedly face bounded decisions such as:
-
-- Which tool should run next?
-- Is the current evidence strong enough to act?
-- Should the workflow continue, retry, wait, ask a human, or stop?
-- Which hypothesis is worth testing first?
-- Is an observation actually attributable to the action that preceded it?
-- Did the world just invalidate the model we were using?
-- Is another probe worth its latency, cost, or risk?
-
-CausalRAG makes those decisions explicit.
-
-| Ordinary loop | CausalRAG runtime |
+| Ordinary loop | CausalRAG |
 | --- | --- |
 | State lives mostly in prompt history | Beliefs and hypotheses are first-class runtime state |
 | Model output directly drives the next tool | Model proposes; runtime validates and arbitrates |
 | Tool results become more text | Observations can update explicit probabilities |
 | Every observation is treated as usable | Temporal attribution can reject stale evidence |
-| Hypothesis set is fixed implicitly | Model mismatch can trigger hypothesis discovery |
+| Hypothesis set stays implicit | Model mismatch can admit a new explanation |
 | Human approval is bolted on | Human gates are part of the execution protocol |
 | Debugging ends at logs | Every step can be inspected and forked |
 | Evaluation asks “did it answer?” | Same-world runs measure trajectory differences |
+
+The goal is not maximum autonomy. It is **explicit execution authority at the branch where a wrong choice becomes expensive**.
 
 ---
 
@@ -574,7 +562,7 @@ If that resonates, try the examples, break a capability pack, add a strange envi
 
 **The easiest way to contribute is to bring a failure.**
 
-If an ordinary agent loop takes the wrong branch, open a [Failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml). If you already have a reproducible world + tools + hypotheses, propose a [Capability pack](https://github.com/hippoley/CausalRAG/issues/new?template=capability-pack.yml).
+If an ordinary agent loop takes the wrong branch, open a [Failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml). If you already have a reproducible world + tools + hypotheses, propose a [Capability pack](https://github.com/hippoley/CausalRAG/issues/new?template=capability-pack.yml). If you built something public with CausalRAG, share it through the [Showcase](https://github.com/hippoley/CausalRAG/issues/new?template=showcase.yml).
 
 Small, falsifiable contributions are preferred over large speculative rewrites.
 
