@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+<title id="title">CausalRAG</title>
+<desc id="desc">A causal decision runtime for AI agents that must act under uncertainty.</desc>
+<rect width="1200" height="630" fill="#07110f"/>
+<rect x="54" y="54" width="1092" height="522" rx="34" fill="#0b1715" stroke="#1d3530"/>
+<g font-family="Inter,Arial,sans-serif">
+  <text x="96" y="132" fill="#78f0be" font-size="22" font-weight="750" letter-spacing="3">CAUSALRAG</text>
+  <text x="96" y="218" fill="#eff8f4" font-size="58" font-weight="780" letter-spacing="-2">The model proposes.</text>
+  <text x="96" y="282" fill="#eff8f4" font-size="58" font-weight="780" letter-spacing="-2">The runtime decides.</text>
+  <text x="96" y="346" fill="#78f0be" font-size="58" font-weight="780" letter-spacing="-2">The world gets a vote.</text>
+  <text x="96" y="415" fill="#a9bbb5" font-size="24">Causal decision runtime for AI agents under uncertainty.</text>
+</g>
+<g font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="16">
+  <text x="96" y="500" fill="#90a49e">typed actions · risk gates · value of information · human approval · counterfactual replay</text>
+  <text x="96" y="540" fill="#5f7770">runtime package / CLI: branchpoint</text>
+</g>
+<circle cx="1012" cy="140" r="18" fill="#78f0be"/>
+<path d="M1012 158 C1012 250 930 258 930 328 C930 398 1012 408 1012 486" fill="none" stroke="#2f7660" stroke-width="4" stroke-dasharray="9 11"/>
+</svg>
