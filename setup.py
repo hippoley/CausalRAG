@@ -71,7 +71,7 @@ extra_requirements["full"] = sorted(
 setup(
     name="branchpoint",
     version=version,
-    description="Decision runtime and control plane for agents operating under uncertainty",
+    description="CausalRAG: causal decision runtime and control plane for AI agents under uncertainty",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Branchpoint Team",
