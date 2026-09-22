@@ -14,7 +14,7 @@
 ![Status](https://img.shields.io/badge/status-beta-111?style=flat-square)
 [![Stars](https://img.shields.io/github/stars/hippoley/CausalRAG?style=flat-square)](https://github.com/hippoley/CausalRAG/stargazers)
 
-[**Live verified replay**](https://hippoley.github.io/CausalRAG/) · [**Verified examples**](https://hippoley.github.io/CausalRAG/examples.html) · [**Quickstart**](#60-second-quickstart) · [**Capability packs**](docs/capability-packs.md)
+[**Live verified replay**](https://hippoley.github.io/CausalRAG/) · [**Verified examples**](https://hippoley.github.io/CausalRAG/examples.html) · [**Quickstart**](#60-second-quickstart) · [**Production contract**](docs/production-execution-contract.md) · [**Capability packs**](docs/capability-packs.md)
 
 
 </div>
@@ -444,6 +444,20 @@ Current packs include:
 - open-world model mismatch.
 
 This is the extension point for incident response, operations, device control, deployment diagnosis, support routing, evaluation workflows, and domain-specific agent systems.
+
+---
+
+## One production boundary, end to end
+
+The no-key reference composes runtime arbitration, principal authorization, downstream idempotency, and durable receipts in one flow:
+
+```bash
+python examples/production_execution_boundary.py
+```
+
+It proves that a proposer can put `submit_form` first while Branchpoint verifies state first, that an authorized operator can cross the side-effect boundary, that the same effect id does not submit twice, and that an unauthorized guest never reaches the handler.
+
+See the [production execution contract](docs/production-execution-contract.md) for guarantees and non-guarantees.
 
 ---
 
