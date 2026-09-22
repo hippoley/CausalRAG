@@ -1,11 +1,11 @@
 <div align="center">
 
-# CausalRAG
+# Branchpoint
 
-### From causal retrieval to causal control.
+### Model intent is not execution authority.
 
-**A decision runtime for AI agents that must act under uncertainty.**  
-**The model proposes. CausalRAG decides what is safe, informative, and worth doing next.**
+**A control layer for AI agents that must act under uncertainty.**  
+**The model proposes. Branchpoint decides what is safe, informative, and worth doing next.**
 
 [![CI](https://github.com/hippoley/CausalRAG/actions/workflows/ci.yml/badge.svg)](https://github.com/hippoley/CausalRAG/actions/workflows/ci.yml)
 [![Pages](https://github.com/hippoley/CausalRAG/actions/workflows/pages.yml/badge.svg)](https://github.com/hippoley/CausalRAG/actions/workflows/pages.yml)
@@ -20,7 +20,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/assets/causalrag-hero.svg" alt="CausalRAG places an explicit decision boundary between model proposals and real-world actions" width="100%">
+  <img src="docs/assets/branchpoint-hero.svg" alt="Branchpoint places an explicit decision boundary between model proposals and real-world actions" width="100%">
 </p>
 
 ### Pick a path
@@ -44,7 +44,7 @@ Most agent loops collapse **proposal, policy, uncertainty, execution authority, 
 model → tool → model → tool → answer
 ```
 
-CausalRAG inserts an explicit decision boundary:
+Branchpoint inserts an explicit decision boundary:
 
 ```text
 model proposes
@@ -83,7 +83,7 @@ same proposer
 
 Only the control layer changes.
 
-| same world | proposal-order loop | CausalRAG |
+| same world | proposal-order loop | Branchpoint |
 | --- | --- | --- |
 | first move | `submit_form` | `inspect_submission_state` |
 | execution boundary | crossed immediately | verified first |
