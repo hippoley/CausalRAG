@@ -1,4 +1,13 @@
-from examples.production_execution_boundary import run_demo
+from pathlib import Path
+import runpy
+
+
+EXAMPLE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "examples"
+    / "production_execution_boundary.py"
+)
+run_demo = runpy.run_path(str(EXAMPLE_PATH))["run_demo"]
 
 
 def test_production_boundary_reference_composes_all_runtime_guards(tmp_path):
