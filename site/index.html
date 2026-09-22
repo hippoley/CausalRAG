@@ -1,24 +1,29 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="CausalRAG / Branchpoint is a causal decision runtime for AI agents: bounded probabilistic decisions, tool routing, confidence gates, verification, human approval, and counterfactual replay.">
-<meta name="keywords" content="CausalRAG, Branchpoint, causal AI agents, decision runtime, probabilistic decisions, typed decisions, tool routing, semantic routing, confidence gates, human in the loop, agent evaluation, counterfactual replay">
-<meta property="og:title" content="CausalRAG / Branchpoint — the decision layer for agents">
-<meta property="og:description" content="Your model can propose. Your software still has to decide.">
+<meta name="description" content="CausalRAG is a causal decision runtime for AI agents: explicit uncertainty, tool routing, risk gates, verification, human approval, and counterfactual replay.">
+<meta name="keywords" content="CausalRAG, causal AI agents, decision runtime, probabilistic decisions, typed actions, tool routing, confidence gates, human in the loop, agent evaluation, counterfactual replay, Branchpoint runtime">
+<meta property="og:title" content="CausalRAG — causal decision runtime for AI agents">
+<meta property="og:description" content="The model proposes. CausalRAG decides what is safe, informative, and worth doing next.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://hippoley.github.io/CausalRAG/">
+<meta property="og:image" content="https://hippoley.github.io/CausalRAG/social-preview.svg">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CausalRAG — causal decision runtime for AI agents">
+<meta name="twitter:description" content="The model proposes. CausalRAG decides what is safe, informative, and worth doing next.">
+<meta name="twitter:image" content="https://hippoley.github.io/CausalRAG/social-preview.svg">
 <link rel="canonical" href="https://hippoley.github.io/CausalRAG/">
-<title>CausalRAG / Branchpoint — causal decision runtime for AI agents</title>
+<title>CausalRAG — causal decision runtime for AI agents</title>
 <style>
 :root{--bg:#07110f;--paper:#0b1715;--ink:#eff8f4;--muted:#90a49e;--line:#1d3530;--mint:#78f0be;--soft:#cfe0da}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,ui-sans-serif,system-ui,sans-serif}a{color:inherit}.wrap{max-width:1180px;margin:auto;padding:26px 28px 78px}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:84px}.brand{font-weight:850;letter-spacing:-.03em;text-decoration:none}.brand small{margin-left:8px;color:var(--muted);font:9px ui-monospace,monospace;letter-spacing:.1em}.topnav{display:flex;gap:16px}.topnav a{color:var(--muted);font-size:12px;text-decoration:none}.hero{max-width:920px}.eyebrow{color:var(--mint);font:10px ui-monospace,monospace;letter-spacing:.14em}.hero h1{font-size:clamp(54px,8vw,104px);line-height:.88;letter-spacing:-.075em;margin:13px 0 24px;max-width:1000px}.hero h1 em{color:var(--mint);font-style:normal}.hero p{max-width:740px;margin:0;color:#b7c8c2;font-size:18px}.proof{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}.proof span{border:1px solid var(--line);border-radius:999px;padding:6px 9px;color:#8ea49e;font:10px ui-monospace,monospace}.statement{margin:72px 0 22px;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:34px}.statement b{font-size:24px;letter-spacing:-.035em}.statement p{margin:0;color:var(--muted)}.receipt{margin:22px 0 14px;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:#091513}.receipt-head{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}.receipt-head span{font:9px ui-monospace,monospace;color:var(--mint);letter-spacing:.12em}.receipt-head small{color:var(--muted);font:10px ui-monospace,monospace}.receipt-grid{display:grid;grid-template-columns:1fr 52px 1fr}.arm{padding:24px;min-height:190px}.arm.bad{opacity:.72}.arm.good{background:#0c1d18}.arm-label{font:9px ui-monospace,monospace;color:var(--muted);letter-spacing:.1em}.arm h3{font-size:26px;letter-spacing:-.04em;margin:13px 0 7px}.arm p{margin:0;color:var(--muted);font-size:12px}.arm strong{display:inline-block;margin-top:18px;font:11px ui-monospace,monospace}.arm.good strong{color:var(--mint)}.split{display:grid;place-items:center;border-left:1px solid var(--line);border-right:1px solid var(--line);color:#537168;font-size:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{display:block;position:relative;min-height:350px;padding:27px;border:1px solid var(--line);border-radius:24px;background:var(--paper);text-decoration:none;transition:.16s}.card:hover{transform:translateY(-2px);border-color:#40665a}.card.primary{background:var(--mint);color:#062018;border-color:var(--mint)}.tag{font:9px ui-monospace,monospace;letter-spacing:.12em;color:#7d958d}.primary .tag{color:#295e4d}.card h2{font-size:36px;letter-spacing:-.045em;margin:20px 0 10px}.card p{max-width:470px;color:var(--muted)}.primary p{color:#285848}.flow{position:absolute;left:27px;bottom:28px;font:11px ui-monospace,monospace;color:#6f8880}.primary .flow{color:#2a6551}.arrow{position:absolute;right:27px;bottom:20px;font-size:33px}.mini{margin-top:18px;color:#728a82;font-size:11px}.mini strong{color:#c8d9d3}.footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:20px;color:#6f857e;font-size:11px}
 @media(max-width:760px){.top{margin-bottom:54px}.topnav{display:none}.hero h1{font-size:55px}.statement,.grid{grid-template-columns:1fr}.receipt-grid{grid-template-columns:1fr}.split{height:42px;border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(90deg)}.card{min-height:320px}.wrap{padding-inline:18px}}
 </style></head>
 <body><main class="wrap">
-<header class="top"><a class="brand" href="./">CausalRAG <small>BRANCHPOINT RUNTIME</small></a><nav class="topnav"><a href="examples.html">Examples</a><a href="https://github.com/hippoley/CausalRAG">Source</a></nav></header>
+<header class="top"><a class="brand" href="./">CausalRAG <small>CAUSAL DECISION RUNTIME</small></a><nav class="topnav"><a href="examples.html">Examples</a><a href="https://github.com/hippoley/CausalRAG">Source</a></nav></header>
 <section class="hero">
-<div class="eyebrow">CAUSAL CONTROL BETWEEN A MODEL AND THE WORLD</div>
+<div class="eyebrow">THE DECISION LAYER BETWEEN A MODEL AND THE WORLD</div>
 <h1>Your agent can propose.<br><em>Can it decide?</em></h1>
-<p><b>Branchpoint is the runtime layer of CausalRAG.</b> It turns uncertain state into inspectable next actions: score candidates, verify evidence, route tools, wait when timing matters, escalate when confidence is weak, and change the model when reality stops fitting it.</p>
+<p>CausalRAG turns uncertain state into inspectable next actions: score candidates, verify evidence, route tools, wait when timing matters, escalate when confidence is weak, and change the model when reality stops fitting it.</p>
 <div class="proof"><span>typed actions</span><span>probabilities</span><span>tool routing</span><span>human approval</span><span>verification</span><span>counterfactuals</span></div>
 </section>
 <section class="statement">
@@ -48,7 +53,7 @@
 </a>
 </section>
 <div class="mini"><strong>Zero-setup Pages:</strong> verified replay only. <strong>Live execution:</strong> Python + FastAPI backend.</div>
-<footer class="footer"><span>CausalRAG · Branchpoint · MIT</span><span>The model proposes. The runtime decides. The world corrects both.</span></footer>
+<footer class="footer"><span>CausalRAG · MIT</span><span>The model proposes. The runtime decides. The world corrects both.</span></footer>
 </main>
 <script>
 fetch('data/runtime.json').then(r=>r.json()).then(data=>{
