@@ -1,12 +1,12 @@
 cff-version: 1.2.0
-message: "If you use CausalRAG / Branchpoint in research or evaluation, please cite this repository."
-title: "CausalRAG / Branchpoint: a causal decision runtime for agents operating under uncertainty"
+message: "If you use CausalRAG in research or evaluation, please cite this repository."
+title: "CausalRAG: a causal decision runtime for agents operating under uncertainty"
 type: software
 version: 0.3.0
 date-released: 2026-09-16
 license: MIT
 authors:
-  - family-names: "CausalRAG / Branchpoint contributors"
+  - family-names: "CausalRAG contributors"
 repository-code: "https://github.com/hippoley/CausalRAG"
 url: "https://github.com/hippoley/CausalRAG"
 keywords:
