@@ -1,10 +1,12 @@
 <div align="center">
 
-# Branchpoint
+# CausalRAG · Branchpoint
 
 ### Your model can propose. Your software still has to decide.
 
-**A decision runtime for agents that need bounded choices, explicit uncertainty, and a defensible execution boundary.**
+**A causal decision runtime for agents that need bounded choices, explicit uncertainty, and a defensible execution boundary.**
+
+> **CausalRAG → Branchpoint.** This repository began as CausalRAG experiments around causal structure and retrieval. The causal thread stayed; the runtime grew into a broader agent control layer. **CausalRAG is the project lineage and repository. Branchpoint is the current runtime/API surface.** The benchmarks and claims below describe the code that is in this repository now.
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-111?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-111?style=flat-square)
@@ -14,7 +16,7 @@ Branchpoint turns messy agent state into inspectable next actions: **choose a br
 
 `typed actions` · `probabilistic decisions` · `confidence gates` · `tool routing` · `verification` · `human approval` · `counterfactuals`
 
-[Verified examples](https://hippoley.github.io/branchpoint-runtime/examples.html) · [Capability packs](docs/capability-packs.md) · [Decision recipes](docs/decision-recipes.md) · [Contributing](CONTRIBUTING.md)
+[Verified examples](https://hippoley.github.io/CausalRAG/examples.html) · [Capability packs](docs/capability-packs.md) · [Decision recipes](docs/decision-recipes.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
