@@ -323,6 +323,7 @@ def create_agent(
     mismatch_policy: Optional[ModelMismatchPolicy] = None,
     telemetry: Optional[CausalTelemetry] = None,
     decision_gate: Optional[Any] = None,
+    execution_ledger: Optional[Any] = None,
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
 
@@ -335,6 +336,7 @@ def create_agent(
         tools,
         decision_preferences=decision_preferences,
         telemetry=telemetry,
+        execution_ledger=execution_ledger,
     )
     model_state = world_model or CausalWorldModel()
     pipeline = None
