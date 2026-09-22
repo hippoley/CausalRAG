@@ -447,6 +447,20 @@ This is the extension point for incident response, operations, device control, d
 
 ---
 
+## Durable sessions and execution receipts
+
+For local or single-node deployments, Branchpoint can persist both **session artifacts** and **effect receipts** in SQLite.
+
+```bash
+export BRANCHPOINT_PROBE_SESSION_DB=./data/probe-sessions.sqlite3
+```
+
+The probe archive stores the latest world snapshot, pending Human Gate, trajectory ledger, operator interactions, telemetry, and final result. After a process restart it is available as a read-only recovery artifact.
+
+For effectful tools, use `SQLiteExecutionLedger` and stable effect ids. Completed effects replay their stored observation; an unknown crash-window effect fails closed until the real-world outcome is reconciled. Branchpoint does **not** claim that a local receipt store alone can make an arbitrary external side effect exactly-once.
+
+---
+
 ## External models
 
 The `branchpoint` runtime package can use a deterministic proposer, a small local model, or a hosted model.
