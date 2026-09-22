@@ -23,6 +23,17 @@
   <img src="docs/assets/causalrag-hero.svg" alt="CausalRAG places an explicit decision boundary between model proposals and real-world actions" width="100%">
 </p>
 
+### Pick a path
+
+| I want to… | Start here |
+| --- | --- |
+| **see the idea in 30 seconds** | [Live verified replay](https://hippoley.github.io/CausalRAG/) |
+| **see three real decision trajectories** | [Verified examples](https://hippoley.github.io/CausalRAG/examples.html) |
+| **run it locally without an API key** | [60-second quickstart](#60-second-quickstart) |
+| **drop one decision boundary into my code** | [Minimal Python example](#put-one-decision-point-into-existing-code) |
+| **bring my own domain** | [Capability packs](docs/capability-packs.md) |
+| **try to break the runtime** | [Open a failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml) |
+
 ---
 
 ## Why this exists
@@ -183,6 +194,26 @@ The proposer can still rank actions. Canonical tool policy remains in code.
 Typical surfaces:
 
 `tool routing` · `browser actions` · `incident diagnosis` · `device control` · `semantic routing` · `workflow triage` · `code repair` · `agent evaluation`
+
+---
+
+## What CausalRAG is — and is not
+
+CausalRAG is a **runtime decision layer** for bounded choices inside agent workflows.
+
+It is **not**:
+
+- a prompt that asks the model to critique itself;
+- a guarantee that an autonomous agent is safe;
+- a replacement for your model, planner, or orchestration framework;
+- a claim that every task should be Bayesian;
+- a benchmark built from unrelated prompts with cherry-picked outputs.
+
+It is useful when a system must answer questions such as:
+
+> **Should I act now, buy more evidence, wait, ask a human, or stop?**
+
+and you want that answer to be inspectable in code.
 
 ---
 
@@ -356,7 +387,7 @@ That separation matters because it lets you ask useful questions after the run:
 
 ## Capability packs
 
-The workbench does not hard-code one domain.
+The CausalRAG workbench does not hard-code one domain.
 
 A capability pack defines the pieces needed for one decision environment:
 
@@ -540,6 +571,10 @@ If that resonates, try the examples, break a capability pack, add a strange envi
 ---
 
 ## Contributing
+
+**The easiest way to contribute is to bring a failure.**
+
+If an ordinary agent loop takes the wrong branch, open a [Failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml). If you already have a reproducible world + tools + hypotheses, propose a [Capability pack](https://github.com/hippoley/CausalRAG/issues/new?template=capability-pack.yml).
 
 Small, falsifiable contributions are preferred over large speculative rewrites.
 
