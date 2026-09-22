@@ -1,12 +1,12 @@
 <div align="center">
 
-# CausalRAG · Branchpoint
+# Branchpoint
 
 ### Your model can propose. Your software still has to decide.
 
 **A causal decision runtime for agents that need bounded choices, explicit uncertainty, and a defensible execution boundary.**
 
-> **CausalRAG → Branchpoint.** This repository began as CausalRAG experiments around causal structure and retrieval. The causal thread stayed; the runtime grew into a broader agent control layer. **CausalRAG is the project lineage and repository. Branchpoint is the current runtime/API surface.** The benchmarks and claims below describe the code that is in this repository now.
+> **Repository lineage:** CausalRAG began as experiments around causal structure and retrieval. The causal thread stayed; the runtime grew into a broader agent control layer. **Branchpoint is the current runtime/API surface.** The benchmarks and claims below describe the code in this repository now.
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-111?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-111?style=flat-square)
