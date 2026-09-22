@@ -2,8 +2,9 @@
 
 # CausalRAG
 
-### A causal decision runtime for AI agents that must act under uncertainty.
+### From causal retrieval to causal control.
 
+**A decision runtime for AI agents that must act under uncertainty.**  
 **The model proposes. CausalRAG decides what is safe, informative, and worth doing next.**
 
 [![CI](https://github.com/hippoley/CausalRAG/actions/workflows/ci.yml/badge.svg)](https://github.com/hippoley/CausalRAG/actions/workflows/ci.yml)
@@ -15,7 +16,6 @@
 
 [**Live verified replay**](https://hippoley.github.io/CausalRAG/) · [**Verified examples**](https://hippoley.github.io/CausalRAG/examples.html) · [**Quickstart**](#60-second-quickstart) · [**Capability packs**](docs/capability-packs.md)
 
-<sub>Runtime package / CLI: <code>branchpoint</code>. Branchpoint is the execution engine inside CausalRAG, not a separate project.</sub>
 
 </div>
 
@@ -124,6 +124,8 @@ Then open the local workbench:
 ```bash
 branchpoint probe --open
 ```
+
+> The Python package / CLI is still named `branchpoint` for compatibility. The public project and documentation identity is **CausalRAG**.
 
 Surfaces:
 
