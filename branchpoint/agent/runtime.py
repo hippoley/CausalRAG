@@ -324,6 +324,9 @@ def create_agent(
     telemetry: Optional[CausalTelemetry] = None,
     decision_gate: Optional[Any] = None,
     execution_ledger: Optional[Any] = None,
+    authorization_context: Optional[Any] = None,
+    authorization_resolver: Optional[Any] = None,
+    authorization_policy: Optional[Any] = None,
 ) -> CausalAgent:
     """Create a ready-to-run causal agent.
 
@@ -337,6 +340,7 @@ def create_agent(
         decision_preferences=decision_preferences,
         telemetry=telemetry,
         execution_ledger=execution_ledger,
+        authorization_policy=authorization_policy,
     )
     model_state = world_model or CausalWorldModel()
     pipeline = None
@@ -413,6 +417,14 @@ def create_agent(
     if hypothesis_updater is None and llm is not None:
         hypothesis_updater = LLMHypothesisUpdater(llm=llm)
 
+    if authorization_context is not None and authorization_resolver is not None:
+        raise ValueError(
+            "Pass either authorization_context or authorization_resolver, not both."
+        )
+    effective_authorization_resolver = authorization_resolver
+    if effective_authorization_resolver is None and authorization_context is not None:
+        effective_authorization_resolver = lambda _state, _action: authorization_context
+
     loop = CausalAgentLoop(
         reasoner=reasoner,
         tools=registry,
@@ -422,5 +434,6 @@ def create_agent(
         time_driver=time_driver,
         mismatch_policy=mismatch_policy,
         decision_gate=decision_gate,
+        authorization_resolver=effective_authorization_resolver,
     )
     return CausalAgent(loop=loop, pipeline=pipeline, telemetry=telemetry)

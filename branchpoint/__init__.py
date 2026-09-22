@@ -23,6 +23,13 @@ from .agent import (
     VirtualTimeDriver,
 )
 from .agent.runtime import AgentRunResult, CausalAgent, create_agent
+from .authorization import (
+    AuthorizationContext,
+    AuthorizationDecision,
+    AuthorizationDenied,
+    AuthorizationError,
+    CapabilityAuthorizationPolicy,
+)
 from .decision import DecisionResult, decide
 from .decision_io import DecisionPayloadError, arbitrate_payload
 from .execution import (
@@ -117,7 +124,7 @@ def create_pipeline(model_name="gpt-5.6-terra", embedding_model="text-embedding-
 
 
 __all__ = [
-    "CausalAgent", "AgentRunResult", "create_agent", "DecisionResult", "decide", "DecisionPayloadError", "arbitrate_payload", "ExecutionBoundaryError", "EffectIdentityConflict", "ExecutionInProgress", "PreviousExecutionFailed", "NonCanonicalEffect", "ExecutionReceipt", "SQLiteExecutionLedger", "canonical_effect", "effect_hash", "JevError", "JevProposal", "jev_then_branchpoint", "propose_actions_with_jev", "reorder_candidates_from_jev", "scaffold_capability_pack", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
+    "CausalAgent", "AgentRunResult", "create_agent", "AuthorizationContext", "AuthorizationDecision", "AuthorizationDenied", "AuthorizationError", "CapabilityAuthorizationPolicy", "DecisionResult", "decide", "DecisionPayloadError", "arbitrate_payload", "ExecutionBoundaryError", "EffectIdentityConflict", "ExecutionInProgress", "PreviousExecutionFailed", "NonCanonicalEffect", "ExecutionReceipt", "SQLiteExecutionLedger", "canonical_effect", "effect_hash", "JevError", "JevProposal", "jev_then_branchpoint", "propose_actions_with_jev", "reorder_candidates_from_jev", "scaffold_capability_pack", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
     "ActionKind", "ActionScore", "AgentState", "CandidateAction", "CausalAgentLoop", "DecisionRecord", "Observation",
     "TemporalEffectContract", "PendingEffect", "TimeDriver", "VirtualTimeDriver",
     "ToolRegistry", "ToolSpec", "CausalBelief", "CausalWorldModel", "Evidence", "Hypothesis", "ModelMismatch", "Transition",

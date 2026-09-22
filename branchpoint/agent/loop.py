@@ -76,6 +76,7 @@ class CausalAgentLoop:
         mismatch_policy: Optional[ModelMismatchPolicy] = None,
         capabilities: Optional[RuntimeCapabilities] = None,
         decision_gate: Optional[DecisionGate] = None,
+        authorization_resolver: Optional[Callable[[AgentState, CandidateAction], Any]] = None,
     ) -> None:
         self.reasoner = reasoner
         self.tools = tools or ToolRegistry()
@@ -87,6 +88,7 @@ class CausalAgentLoop:
         self.mismatch_policy = mismatch_policy or ModelMismatchPolicy()
         self.capabilities = capabilities or RuntimeCapabilities.full()
         self.decision_gate = decision_gate
+        self.authorization_resolver = authorization_resolver
 
     def _sync_state_time(self, state: AgentState) -> None:
         state.virtual_time_seconds = float(self.time_driver.now_seconds)
@@ -525,10 +527,16 @@ class CausalAgentLoop:
                     effect_id = (
                         f"{state.scratch['execution_run_id']}:{int(state.step)}:{selected.name}"
                     )
+                authorization_context = (
+                    self.authorization_resolver(state, selected)
+                    if self.authorization_resolver is not None
+                    else None
+                )
                 result = self.tools.execute(
                     selected.name,
                     selected.arguments,
                     effect_id=effect_id,
+                    authorization_context=authorization_context,
                 )
 
             self._schedule_temporal_effect(tool_spec, selected, state)
