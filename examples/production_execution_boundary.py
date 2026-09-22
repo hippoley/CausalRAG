@@ -152,6 +152,7 @@ def run_demo(db_path: Optional[str | Path] = None):
         "replayed_submission": replayed,
         "external_submit_calls": service.submit_calls,
         "guest_denied_before_effect": guest_denied,
+        "guest_receipt_created": ledger.get("run-2:submit-form-F-99") is not None,
         "submit_receipt_status": ledger.get("run-1:submit-form-F-42").status,
     }
 
