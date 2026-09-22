@@ -1,6 +1,6 @@
 # Decision recipes
 
-Branchpoint is most useful when a workflow already knows **what kinds of actions are allowed**, but still needs help deciding **which branch to take next**.
+CausalRAG is most useful when a workflow already knows **what kinds of actions are allowed**, but still needs help deciding **which branch to take next**.
 
 This page collects small patterns that map well to a bounded decision runtime.
 
@@ -58,7 +58,7 @@ middle confidence → verify / ask another question
 low confidence    → hand to a human
 ```
 
-In Branchpoint this is represented as runtime policy, not as prose such as “I am fairly confident, so I will continue.”
+In CausalRAG this is represented as runtime policy, not as prose such as “I am fairly confident, so I will continue.”
 
 The distinction matters because the threshold can depend on cost, risk, and reversibility.
 
