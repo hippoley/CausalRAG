@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: branchpoint-playable-probe
+    name: causalrag-playable-probe
     runtime: docker
     plan: free
     autoDeploy: true
