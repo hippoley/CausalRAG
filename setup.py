@@ -75,7 +75,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Branchpoint Team",
-    url="https://github.com/hippoley/branchpoint-runtime",
+    url="https://github.com/hippoley/CausalRAG",
     packages=find_packages(include=["branchpoint", "branchpoint.*"]),
     include_package_data=True,
     python_requires=">=3.10",
@@ -93,10 +93,10 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    keywords="ai-agents decision-runtime probabilistic-decisions typed-decisions confidence-gating bounded-decisions semantic-routing tool-selection tool-routing agent-control-plane uncertainty verification human-in-the-loop world-model bayesian counterfactual agent-evaluation",
+    keywords="causalrag causal-reasoning ai-agents decision-runtime probabilistic-decisions typed-decisions confidence-gating bounded-decisions semantic-routing tool-selection tool-routing agent-control-plane uncertainty verification human-in-the-loop world-model bayesian counterfactual agent-evaluation",
     project_urls={
-        "Documentation": "https://github.com/hippoley/branchpoint-runtime",
-        "Source": "https://github.com/hippoley/branchpoint-runtime",
-        "Tracker": "https://github.com/hippoley/branchpoint-runtime/issues",
+        "Documentation": "https://github.com/hippoley/CausalRAG",
+        "Source": "https://github.com/hippoley/CausalRAG",
+        "Tracker": "https://github.com/hippoley/CausalRAG/issues",
     },
 )
