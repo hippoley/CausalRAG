@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from branchpoint.agent.temporal import TemporalEffectContract
@@ -28,6 +28,7 @@ class ToolSpec:
     temporal_effect_contract: Optional["TemporalEffectContract"] = None
     require_durable_receipt: bool = False
     idempotency_key_argument: Optional[str] = None
+    required_permissions: Tuple[str, ...] = ()
 
 
 class ToolRegistry:
@@ -37,11 +38,13 @@ class ToolRegistry:
         decision_preferences: Optional["DecisionPreferences"] = None,
         telemetry: Optional["CausalTelemetry"] = None,
         execution_ledger: Optional["SQLiteExecutionLedger"] = None,
+        authorization_policy: Optional[Any] = None,
     ) -> None:
         self._tools: Dict[str, ToolSpec] = {}
         self.decision_preferences = decision_preferences
         self.telemetry = telemetry
         self.execution_ledger = execution_ledger
+        self.authorization_policy = authorization_policy
         for tool in tools or []:
             self.register(tool)
 
@@ -79,6 +82,7 @@ class ToolRegistry:
         arguments: Dict[str, Any],
         *,
         effect_id: Optional[str] = None,
+        authorization_context: Optional[Any] = None,
     ) -> Any:
         tool = self.get(name)
         attributes: Dict[str, Any] = {
@@ -90,6 +94,36 @@ class ToolRegistry:
             "branchpoint.tool.reversible": bool(tool.reversible),
             "branchpoint.tool.argument_names": sorted(str(key) for key in arguments),
         }
+
+        from branchpoint.authorization import AuthorizationDenied, CapabilityAuthorizationPolicy
+
+        policy = self.authorization_policy or CapabilityAuthorizationPolicy()
+        authorization = policy.authorize(
+            authorization_context,
+            tool_name=tool.name,
+            required_permissions=tool.required_permissions,
+            arguments=arguments,
+        )
+        if self.telemetry is not None:
+            auth_attributes = {
+                "branchpoint.authorization.allowed": bool(authorization.allowed),
+                "branchpoint.authorization.reason_code": authorization.reason_code,
+                "branchpoint.authorization.policy_id": authorization.policy_id,
+                "branchpoint.authorization.required_permission_count": len(
+                    authorization.required_permissions
+                ),
+                "branchpoint.authorization.missing_permission_count": len(
+                    authorization.missing_permissions
+                ),
+                "gen_ai.tool.name": tool.name,
+            }
+            if self.telemetry.capture_content and authorization.principal_id:
+                auth_attributes["branchpoint.authorization.principal_id"] = (
+                    authorization.principal_id
+                )
+            self.telemetry.event("branchpoint.authorization", auth_attributes)
+        if not authorization.allowed:
+            raise AuthorizationDenied(authorization)
 
         ledger = self.execution_ledger
         if tool.require_durable_receipt and ledger is None:
