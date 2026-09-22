@@ -1,6 +1,6 @@
-# Branchpoint Tests
+# CausalRAG Tests
 
-This directory contains test cases for the Branchpoint system.
+This directory contains test cases for the CausalRAG system.
 
 ## Running Tests
 
