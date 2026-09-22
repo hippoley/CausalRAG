@@ -447,6 +447,32 @@ This is the extension point for incident response, operations, device control, d
 
 ---
 
+## Authorization is not model confidence
+
+Tool permissions are deployment-owned policy.
+
+```python
+from branchpoint import AuthorizationContext, ToolSpec
+
+resident = AuthorizationContext.from_permissions(
+    "resident:alice",
+    ["home.window.open"],
+)
+
+window = ToolSpec(
+    "open_bedroom_window",
+    "Open a bedroom window",
+    handler=open_window,
+    required_permissions=("home.window.open",),
+)
+```
+
+A proposer may suggest `open_bedroom_window` with high confidence. It cannot grant itself `home.window.open` by putting a permission string in its arguments. Authorization is resolved immediately before tool execution, and expired authority fails closed.
+
+For multi-user or voice systems, pass a dynamic `authorization_resolver(state, action)` so the current speaker/session principal is checked at consequence time rather than copied into a prompt.
+
+---
+
 ## Durable sessions and execution receipts
 
 For local or single-node deployments, Branchpoint can persist both **session artifacts** and **effect receipts** in SQLite.
