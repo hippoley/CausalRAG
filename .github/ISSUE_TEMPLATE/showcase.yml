@@ -1,0 +1,39 @@
+name: Showcase
+description: Share a real CausalRAG integration, experiment, or public demo
+title: "[showcase] "
+labels: ["showcase"]
+body:
+  - type: input
+    id: link
+    attributes:
+      label: Public link
+      description: Repository, demo, article, video, or documentation.
+      placeholder: https://...
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What decision does CausalRAG own?
+      description: Describe the bounded choice in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: integration
+    attributes:
+      label: How you integrated it
+      description: Package/CLI/API/capability pack, tools, hypotheses, and execution boundary.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: What changed in the trajectory?
+      description: Share a trace, screenshot, benchmark, or concrete before/after if you have one.
+  - type: checkboxes
+    id: public
+    attributes:
+      label: Permission
+      options:
+        - label: This material is public and may be linked from CausalRAG documentation.
+          required: true
