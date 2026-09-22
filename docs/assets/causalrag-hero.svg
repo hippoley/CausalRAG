@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+<title id="title">CausalRAG</title>
+<desc id="desc">CausalRAG places an explicit causal decision boundary between model proposals and real-world actions.</desc>
+<rect width="1200" height="520" rx="34" fill="#081211"/>
+<g font-family="Inter,Arial,sans-serif">
+  <text x="78" y="86" fill="#78F0BE" font-size="18" font-weight="700" letter-spacing="2">CAUSALRAG</text>
+  <text x="78" y="145" fill="#F0F7F4" font-size="48" font-weight="760" letter-spacing="-1.7">The model proposes.</text>
+  <text x="78" y="198" fill="#F0F7F4" font-size="48" font-weight="760" letter-spacing="-1.7">The runtime decides.</text>
+  <text x="78" y="251" fill="#78F0BE" font-size="48" font-weight="760" letter-spacing="-1.7">The world gets a vote.</text>
+</g>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M92 370 H330" stroke="#49605A" stroke-width="3"/>
+  <path d="M330 370 C452 370 450 306 578 306 H850" stroke="#36514A" stroke-width="3"/>
+  <path d="M330 370 H850" stroke="#78F0BE" stroke-width="5"/>
+  <path d="M330 370 C452 370 450 434 578 434 H850" stroke="#36514A" stroke-width="3"/>
+  <path d="M850 370 C970 370 1002 410 1002 448 C1002 476 958 490 900 490 H276 C190 490 145 462 145 426" stroke="#2F7660" stroke-width="3" stroke-dasharray="8 10"/>
+</g>
+<g font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace">
+  <circle cx="92" cy="370" r="9" fill="#A9BBB5"/>
+  <text x="70" y="344" fill="#839992" font-size="13">STATE</text>
+  <circle cx="330" cy="370" r="16" fill="#78F0BE"/>
+  <circle cx="330" cy="370" r="5" fill="#081211"/>
+  <text x="270" y="335" fill="#D9E7E2" font-size="13">DECISION</text>
+  <circle cx="850" cy="306" r="9" fill="#5C736C"/>
+  <text x="876" y="311" fill="#7E938D" font-size="13">WAIT</text>
+  <circle cx="850" cy="370" r="11" fill="#78F0BE"/>
+  <text x="876" y="375" fill="#D9E7E2" font-size="13">VERIFY</text>
+  <circle cx="850" cy="434" r="9" fill="#5C736C"/>
+  <text x="876" y="439" fill="#7E938D" font-size="13">ACT</text>
+  <text x="78" y="495" fill="#5F7770" font-size="12">BRANCHPOINT RUNTIME · TYPED ACTIONS · RISK · VALUE OF INFORMATION · COUNTERFACTUALS</text>
+</g>
+</svg>
