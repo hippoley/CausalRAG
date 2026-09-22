@@ -21,7 +21,7 @@ PUBLIC_DIRS = [
     ROOT / "branchpoint" / "templates",
 ]
 
-TEXT_SUFFIXES = {".md", ".html", ".yml", ".yaml", ".py", ".cff"}
+TEXT_SUFFIXES = {".md", ".html", ".yml", ".yaml", ".py", ".cff", ".svg"}
 
 # The Python import/CLI remains `branchpoint` for compatibility. What is retired is
 # the old public *brand* and external repository namespace.
