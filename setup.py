@@ -74,7 +74,7 @@ setup(
     description="CausalRAG: causal decision runtime and control plane for AI agents under uncertainty",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Branchpoint Team",
+    author="CausalRAG contributors",
     url="https://github.com/hippoley/CausalRAG",
     packages=find_packages(include=["branchpoint", "branchpoint.*"]),
     include_package_data=True,
