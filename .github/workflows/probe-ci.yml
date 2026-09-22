@@ -24,6 +24,7 @@ on:
       - 'tests/test_proposer_audit.py'
       - 'tests/test_probe_access.py'
       - 'tests/test_cli_embedding_options.py'
+      - 'tests/test_probe_archive.py'
       - '.github/workflows/probe-ci.yml'
   push:
     branches: [main]
@@ -49,6 +50,7 @@ on:
       - 'tests/test_proposer_audit.py'
       - 'tests/test_probe_access.py'
       - 'tests/test_cli_embedding_options.py'
+      - 'tests/test_probe_archive.py'
       - '.github/workflows/probe-ci.yml'
 
 jobs:
@@ -68,10 +70,10 @@ jobs:
           pip install -e '.[api,dev]'
       - name: Compile probe
         run: |
-          python -m py_compile branchpoint/probe/runtime.py branchpoint/probe/session.py branchpoint/probe/compare.py branchpoint/interface/probe_api.py branchpoint/reasoning/llm.py branchpoint/agent/loop.py
+          python -m py_compile branchpoint/probe/archive.py branchpoint/probe/runtime.py branchpoint/probe/session.py branchpoint/probe/compare.py branchpoint/interface/probe_api.py branchpoint/reasoning/llm.py branchpoint/agent/loop.py
       - name: Run real no-key probe tests
         run: |
-          pytest -q tests/test_brand_surface.py tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py tests/test_playable_probe_compare.py tests/test_proposer_audit.py tests/test_probe_access.py tests/test_cli_embedding_options.py
+          pytest -q tests/test_brand_surface.py tests/test_playable_probe.py tests/test_playable_probe_api.py tests/test_playable_probe_hitl.py tests/test_playable_probe_compare.py tests/test_proposer_audit.py tests/test_probe_access.py tests/test_cli_embedding_options.py tests/test_probe_archive.py
       - name: Syntax-check live UI JavaScript
         if: matrix.python-version == '3.12'
         run: |
@@ -107,6 +109,7 @@ jobs:
             -e BRANCHPOINT_REQUIRE_PROBE_AUTH=true \
             -e BRANCHPOINT_PROBE_ACCESS_TOKEN=ci-owner-secret \
             -e BRANCHPOINT_PROBE_COOKIE_SECURE=false \
+            -e BRANCHPOINT_PROBE_SESSION_DB=/tmp/branchpoint-sessions.sqlite3 \
             branchpoint-probe:test
           trap 'docker logs branchpoint-probe-test || true; docker stop branchpoint-probe-test || true' EXIT
           for i in $(seq 1 30); do
@@ -135,6 +138,26 @@ jobs:
             -H 'content-type: application/json' \
             -d '{"hidden_hypothesis":"H2","outcome_mode":"deterministic","proposer_family":"deterministic"}' \
             http://127.0.0.1:8765/api/run >/tmp/public-deterministic.json
+          curl --fail --silent \
+            -H 'content-type: application/json' \
+            -d '{"hidden_hypothesis":"H2","outcome_mode":"deterministic","proposer_family":"deterministic"}' \
+            http://127.0.0.1:8765/api/sessions >/tmp/session.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          session_id = json.loads(Path("/tmp/session.json").read_text())["session_id"]
+          Path("/tmp/session-id").write_text(session_id)
+          PY
+          curl --fail --silent \
+            "http://127.0.0.1:8765/api/sessions/$(cat /tmp/session-id)/archive" \
+            >/tmp/session-archive.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/session-archive.json").read_text())
+          assert payload["session_id"] == Path("/tmp/session-id").read_text()
+          assert payload["status"] in {"running", "waiting_for_human", "completed"}
+          PY
           curl --fail --silent -c /tmp/probe-cookies.txt \
             -H 'content-type: application/json' \
             -d '{"token":"ci-owner-secret"}' \

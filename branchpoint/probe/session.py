@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import math
 import queue
 import threading
 import time
 import uuid
 from dataclasses import asdict, is_dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from branchpoint.agent.actions import ActionKind, CandidateAction, DecisionRecord
 from branchpoint.agent.loop import DecisionGateReplan
@@ -21,6 +22,7 @@ from branchpoint.experiments import (
 )
 
 from .runtime import ProbeRunConfig, build_probe_agent
+from .archive import SQLiteSessionArchive
 from .counterfactual import counterfactual_support, run_trajectory_counterfactual
 
 
@@ -448,9 +450,16 @@ class InteractiveDecisionGate:
     candidate. Candidate overrides still pass through runtime temporal safety.
     """
 
-    def __init__(self, telemetry: CausalTelemetry, *, timeout_seconds: float = 900.0) -> None:
+    def __init__(
+        self,
+        telemetry: CausalTelemetry,
+        *,
+        timeout_seconds: float = 900.0,
+        change_callback: Optional[Callable[[], None]] = None,
+    ) -> None:
         self.telemetry = telemetry
         self.timeout_seconds = max(1.0, float(timeout_seconds))
+        self.change_callback = change_callback
         self._condition = threading.Condition(threading.RLock())
         self._pending: Optional[Dict[str, Any]] = None
         self._decision: Optional[DecisionRecord] = None
@@ -458,6 +467,16 @@ class InteractiveDecisionGate:
         self._state = None
         self._closed = False
         self.tools = None
+
+    def _changed(self) -> None:
+        callback = self.change_callback
+        if callback is None:
+            return
+        try:
+            callback()
+        except Exception:
+            # Persistence must never make the control gate fail open or crash.
+            pass
 
     def __call__(
         self,
@@ -505,6 +524,7 @@ class InteractiveDecisionGate:
             self._state = state
             self._response = None
             self._condition.notify_all()
+        self._changed()
 
         self.telemetry.event(
             "branchpoint.human_gate.waiting",
@@ -539,6 +559,7 @@ class InteractiveDecisionGate:
                     "branchpoint.action.name": decision.selected.name,
                 },
             )
+            self._changed()
             return None
 
         if response["action"] == "approve":
@@ -557,6 +578,7 @@ class InteractiveDecisionGate:
                     "branchpoint.action.name": decision.selected.name,
                 },
             )
+            self._changed()
             return None
 
         if response["action"] == "replan":
@@ -575,6 +597,7 @@ class InteractiveDecisionGate:
                     "branchpoint.action.previous": decision.selected.name,
                 },
             )
+            self._changed()
             raise DecisionGateReplan()
 
         index = int(response["candidate_index"])
@@ -599,6 +622,7 @@ class InteractiveDecisionGate:
                 "branchpoint.human_gate.candidate_index": index,
             },
         )
+        self._changed()
         return candidate
 
     def pending(self) -> Optional[Dict[str, Any]]:
@@ -636,6 +660,7 @@ class InteractiveDecisionGate:
                 response["candidate_index"] = index
             self._response = response
             self._condition.notify_all()
+        self._changed()
 
 
     def add_operator_message(self, message: str, *, replan: bool = True) -> Dict[str, Any]:
@@ -665,20 +690,31 @@ class InteractiveDecisionGate:
                 "branchpoint.human.replan": bool(replan),
             },
         )
+        self._changed()
         return row
 
     def close(self) -> None:
         with self._condition:
             self._closed = True
             self._condition.notify_all()
+        self._changed()
 
 
 class ProbeSession:
-    def __init__(self, config: ProbeRunConfig) -> None:
+    def __init__(
+        self,
+        config: ProbeRunConfig,
+        *,
+        persist_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ) -> None:
         self.session_id = uuid.uuid4().hex
         self.config = config
+        self._persist_callback = persist_callback
         self.telemetry = CausalTelemetry(capture_content=False)
-        self.gate = InteractiveDecisionGate(self.telemetry)
+        self.gate = InteractiveDecisionGate(
+            self.telemetry,
+            change_callback=self._persist,
+        )
         environment, agent, goal, capabilities = build_probe_agent(
             config,
             telemetry=self.telemetry,
@@ -697,6 +733,16 @@ class ProbeSession:
         self._started = False
         self._completed = False
 
+    def _persist(self) -> None:
+        callback = self._persist_callback
+        if callback is None:
+            return
+        try:
+            callback(_jsonable(self.export_payload()))
+        except Exception:
+            # Archival failure must not grant execution authority or kill the run.
+            pass
+
     def start(self) -> None:
         with self._lock:
             if self._started:
@@ -708,6 +754,7 @@ class ProbeSession:
                 daemon=True,
             )
             self._thread.start()
+        self._persist()
 
     def _run(self) -> None:
         self.telemetry.event(
@@ -760,6 +807,7 @@ class ProbeSession:
                     "branchpoint.probe.failed": bool(self._error),
                 },
             )
+            self._persist()
 
     def status(self) -> str:
         if self._completed:
@@ -986,9 +1034,12 @@ class ProbeSession:
 
     def resolve_decision(self, action: str, candidate_index: Optional[int] = None) -> None:
         self.gate.respond(action, candidate_index)
+        self._persist()
 
     def add_operator_message(self, message: str, *, replan: bool = True) -> Dict[str, Any]:
-        return self.gate.add_operator_message(message, replan=replan)
+        row = self.gate.add_operator_message(message, replan=replan)
+        self._persist()
+        return row
 
     def add_hypothesis(
         self,
@@ -1030,16 +1081,19 @@ class ProbeSession:
                 "branchpoint.hypothesis.probability": hypothesis.probability,
             },
         )
+        self._persist()
         return _jsonable(hypothesis)
 
 
 class ProbeSessionManager:
-    def __init__(self) -> None:
+    def __init__(self, archive: Optional[SQLiteSessionArchive] = None) -> None:
         self._sessions: Dict[str, ProbeSession] = {}
         self._lock = threading.RLock()
+        self.archive = archive
 
     def create(self, config: ProbeRunConfig) -> ProbeSession:
-        session = ProbeSession(config)
+        callback = None if self.archive is None else self.archive.save
+        session = ProbeSession(config, persist_callback=callback)
         with self._lock:
             self._sessions[session.session_id] = session
         session.start()
@@ -1052,8 +1106,30 @@ class ProbeSessionManager:
             raise KeyError(session_id)
         return session
 
+    def archived(self, session_id: str) -> Dict[str, Any]:
+        with self._lock:
+            live = self._sessions.get(str(session_id))
+        if live is not None:
+            payload = _jsonable(live.export_payload())
+            if self.archive is not None:
+                self.archive.save(payload)
+            return payload
+        if self.archive is None:
+            raise KeyError(session_id)
+        return self.archive.get(session_id)
 
-SESSION_MANAGER = ProbeSessionManager()
+    def archive_index(self, *, limit: int = 100):
+        if self.archive is None:
+            return []
+        return self.archive.list(limit=limit)
+
+
+def _configured_archive() -> Optional[SQLiteSessionArchive]:
+    path = str(os.getenv("BRANCHPOINT_PROBE_SESSION_DB", "")).strip()
+    return SQLiteSessionArchive(path) if path else None
+
+
+SESSION_MANAGER = ProbeSessionManager(_configured_archive())
 
 
 def sse_stream(session: ProbeSession):

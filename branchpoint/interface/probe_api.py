@@ -366,6 +366,19 @@ def export_session(session_id: str, request: Request):
     return session.export_payload()
 
 
+@app.get("/api/sessions/{session_id}/archive")
+def archived_session(session_id: str, request: Request):
+    """Read the latest durable session artifact, including after process restart."""
+    try:
+        payload = SESSION_MANAGER.archived(session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="probe session archive not found") from exc
+    config = payload.get("config") or {}
+    if str(config.get("proposer_family") or "deterministic") != "deterministic":
+        _require_auth(request)
+    return payload
+
+
 @app.get("/api/sessions/{session_id}/steps/{step}")
 def get_step_context(session_id: str, step: int, request: Request):
     try:
