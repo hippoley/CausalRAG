@@ -34,9 +34,9 @@
 </div>
 
 <section class="demo" id="split" aria-label="Same-world comparison">
-<div class="demo-head"><span>LIVE RECEIPT / BROWSER ACTION GUARD</span><div class="lights"><i></i><i></i><i></i></div></div>
+<div class="demo-head"><span>SAME-WORLD RECEIPT / BROWSER ACTION GUARD</span><div class="lights"><i></i><i></i><i></i></div></div>
 <div class="board">
-<div class="prompt"><small>MODEL PROPOSAL</small><b>"The form looks ready. Submit it."</b><div class="proposal"><code>submit_form</code><span>confidence 0.78</span></div></div>
+<div class="prompt"><small>MODEL PROPOSAL</small><b>"The form looks ready. Submit it."</b><div class="proposal"><code>submit_form</code><span>model proposal</span></div></div>
 <div class="lanes">
 <div class="lane">
 <div class="lane-label">NAIVE LOOP</div>
@@ -91,7 +91,12 @@ const phases=[
 {n:3,b:4,t:'next intervention: reauthenticate',ns:'failed',bs:'success'}
 ];let phase=0;
 function paint(p){naive.forEach((e,i)=>e.classList.toggle('hot',i<p.n));branch.forEach((e,i)=>e.classList.toggle('hot',i<p.b));ticker.textContent=p.t;ns.textContent=p.ns;bs.textContent=p.bs}
-paint(phases[0]);setInterval(()=>{phase=(phase+1)%phases.length;paint(phases[phase])},1800);
+paint(phases[0]);
+if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  setInterval(()=>{phase=(phase+1)%phases.length;paint(phases[phase])},1800);
+}else{
+  paint(phases[phases.length-1]);
+}
 
 fetch('data/runtime.json').then(r=>r.json()).then(data=>{
  const report=data.playable_ab||{},v=report.vanilla||{},q=report.causal||{},cmp=report.comparison||{};
