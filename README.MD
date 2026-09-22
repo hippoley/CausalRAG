@@ -10,7 +10,7 @@
 [![CI](https://github.com/hippoley/CausalRAG/actions/workflows/ci.yml/badge.svg)](https://github.com/hippoley/CausalRAG/actions/workflows/ci.yml)
 [![Pages](https://github.com/hippoley/CausalRAG/actions/workflows/pages.yml/badge.svg)](https://github.com/hippoley/CausalRAG/actions/workflows/pages.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-111?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-111?style=flat-square)
+![License](https://img.shields.io/badge/license-Apache--2.0-111?style=flat-square)
 ![Status](https://img.shields.io/badge/status-beta-111?style=flat-square)
 [![Stars](https://img.shields.io/github/stars/hippoley/CausalRAG?style=flat-square)](https://github.com/hippoley/CausalRAG/stargazers)
 
@@ -593,4 +593,4 @@ See `CONTRIBUTING.md`.
 
 ## License
 
-MIT.
+Apache License 2.0. See [`LICENSE`](LICENSE).
