@@ -75,7 +75,7 @@ def scaffold_capability_pack(
         key=lambda row: float(row.get("probability", 0.0)),
     )["hypothesis_id"]
 
-    return f'''"""Branchpoint capability-pack starter generated from a validated decision.
+    return f'''"""CausalRAG capability-pack starter generated from a validated decision.
 
 The decision contract below is preserved exactly. Replace the placeholder
 environment/tool handlers with real domain I/O before treating this as a live pack.
@@ -144,7 +144,7 @@ class GeneratedEnvironment:
                 ToolSpec(
                     name=row["name"],
                     description=row.get("description") or row["name"],
-                    handler=lambda **kwargs: {{"status": "not_connected", "arguments": kwargs}},
+                    handler=_not_connected,
                     cost=float(row.get("cost", 0.0)),
                     risk=float(row.get("risk", 0.0)),
                     reversible=bool(row.get("reversible", True)),
@@ -199,7 +199,7 @@ def register_pack():
         ProbeScenarioSpec(
             scenario_id=PACK_ID,
             label={_literal(label)},
-            description="Generated from a validated portable Branchpoint decision.",
+            description="Generated from a validated portable CausalRAG decision.",
             hidden_hypotheses={_literal(hypothesis_ids)},
             outcome_modes=("deterministic",),
             recommended_test="Connect real handlers, then add domain regression tests.",
