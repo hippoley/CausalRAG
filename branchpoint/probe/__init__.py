@@ -1,3 +1,4 @@
+from .archive import SQLiteSessionArchive
 from .runtime import ProbeRunConfig, available_probe_config, build_probe_agent, run_probe_episode
 from .compare import run_probe_comparison
 from .ladder import capability_ladder_profiles, run_probe_ladder
@@ -11,6 +12,7 @@ from .scenarios import (
 )
 
 __all__ = [
+    "SQLiteSessionArchive",
     "ProbeRunConfig",
     "available_probe_config",
     "build_probe_agent",
