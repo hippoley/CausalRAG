@@ -27,6 +27,6 @@
   <text x="876" y="375" fill="#D9E7E2" font-size="13">VERIFY</text>
   <circle cx="850" cy="434" r="9" fill="#5C736C"/>
   <text x="876" y="439" fill="#7E938D" font-size="13">ACT</text>
-  <text x="78" y="495" fill="#5F7770" font-size="12">BRANCHPOINT RUNTIME · TYPED ACTIONS · RISK · VALUE OF INFORMATION · COUNTERFACTUALS</text>
+  <text x="78" y="495" fill="#5F7770" font-size="12">TYPED ACTIONS · RISK GATES · VALUE OF INFORMATION · HUMAN APPROVAL · COUNTERFACTUALS</text>
 </g>
 </svg>
