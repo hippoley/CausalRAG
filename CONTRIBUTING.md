@@ -1,6 +1,6 @@
-# Contributing to Branchpoint
+# Contributing to CausalRAG
 
-Branchpoint is easiest to improve with **small, falsifiable additions**.
+CausalRAG is easiest to improve with **small, falsifiable additions**.
 
 The best contribution is usually not “add a new abstraction.” It is one of these:
 
@@ -122,3 +122,17 @@ If you changed the probe surfaces, also run the browser and verify one full traj
 If your idea changes the runtime contract, open an issue first.
 
 If your idea is a concrete failure mode with a reproducible environment, a PR is usually the fastest way to discuss it.
+
+
+## A 10-minute first contribution
+
+You do not need to understand the whole runtime.
+
+1. Run one no-key example.
+2. Change one state, risk, cost, or observation.
+3. See whether the selected action changes.
+4. If the behavior surprises you, capture the smallest reproducible case.
+
+Good contributions often start as: **“I expected branch A, but the runtime chose branch B because…”**
+
+That is more useful than a broad feature proposal.
