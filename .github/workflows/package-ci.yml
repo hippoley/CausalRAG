@@ -1,0 +1,142 @@
+name: package-ci
+
+on:
+  pull_request:
+    paths:
+      - 'branchpoint/**'
+      - 'setup.py'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - 'README.MD'
+      - 'LICENSE'
+      - 'tests/test_release_version.py'
+      - '.github/workflows/package-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'branchpoint/**'
+      - 'setup.py'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - 'README.MD'
+      - 'LICENSE'
+      - 'tests/test_release_version.py'
+      - '.github/workflows/package-ci.yml'
+
+jobs:
+  build-wheel:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Inspect wheel contents
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          wheel = next(Path("dist").glob("branchpoint-*.whl"))
+          with zipfile.ZipFile(wheel) as zf:
+              names = set(zf.namelist())
+
+          required = {
+              "branchpoint/__init__.py",
+              "branchpoint/authorization.py",
+              "branchpoint/execution.py",
+              "branchpoint/jev.py",
+              "branchpoint/templates/probe_landing.html",
+              "branchpoint/templates/agent_workbench.html",
+              "branchpoint/templates/playable_probe.html",
+          }
+          missing = sorted(required - names)
+          assert not missing, f"wheel is missing runtime assets: {missing}"
+          print("wheel contains", len(names), "entries")
+          PY
+
+      - name: Install wheel in clean virtualenv
+        run: |
+          python -m venv /tmp/branchpoint-wheel
+          /tmp/branchpoint-wheel/bin/python -m pip install --upgrade pip
+          /tmp/branchpoint-wheel/bin/python -m pip install dist/branchpoint-*.whl
+
+      - name: Smoke installed artifact outside repository
+        working-directory: /tmp
+        run: |
+          /tmp/branchpoint-wheel/bin/branchpoint --version
+          /tmp/branchpoint-wheel/bin/python - <<'PY'
+          import tempfile
+          from pathlib import Path
+
+          import branchpoint
+          from branchpoint import (
+              AuthorizationContext,
+              AuthorizationDenied,
+              SQLiteExecutionLedger,
+              ToolRegistry,
+              ToolSpec,
+          )
+
+          assert branchpoint.__version__ == "0.3.0"
+
+          db = Path(tempfile.mkdtemp()) / "effects.sqlite3"
+          calls = []
+          registry = ToolRegistry(
+              [
+                  ToolSpec(
+                      "effect",
+                      "effect",
+                      lambda idempotency_key: calls.append(idempotency_key) or {"ok": True},
+                      required_permissions=("effect.write",),
+                      require_durable_receipt=True,
+                      idempotency_key_argument="idempotency_key",
+                  )
+              ],
+              execution_ledger=SQLiteExecutionLedger(db),
+          )
+
+          guest = AuthorizationContext.from_permissions("guest", [])
+          try:
+              registry.execute(
+                  "effect",
+                  {},
+                  effect_id="e-guest",
+                  authorization_context=guest,
+              )
+          except AuthorizationDenied:
+              pass
+          else:
+              raise AssertionError("unauthorized wheel-installed tool call was allowed")
+
+          operator = AuthorizationContext.from_permissions(
+              "operator",
+              ["effect.write"],
+          )
+          first = registry.execute(
+              "effect",
+              {},
+              effect_id="e-1",
+              authorization_context=operator,
+          )
+          second = registry.execute(
+              "effect",
+              {},
+              effect_id="e-1",
+              authorization_context=operator,
+          )
+          assert first == second == {"ok": True}
+          assert calls == ["e-1"]
+          print("installed wheel smoke passed")
+          PY

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Command-line interface for the CausalRAG runtime."""
+"""Command-line interface for the Branchpoint runtime."""
 
 import argparse
 import importlib
@@ -146,7 +146,7 @@ def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="CausalRAG runtime: explicit world models and bounded decisions"
+        description="Branchpoint: explicit execution authority for bounded agent decisions"
     )
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -266,7 +266,7 @@ def main():
     setup_logging()
 
     if args.version:
-        print(f"CausalRAG runtime {__version__} (branchpoint CLI)")
+        print(f"Branchpoint {__version__}")
         return 0
 
     if args.command == "packs":

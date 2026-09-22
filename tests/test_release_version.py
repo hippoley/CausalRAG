@@ -15,4 +15,4 @@ def test_cli_reports_v030():
         capture_output=True,
         text=True,
     )
-    assert completed.stdout.strip() == "CausalRAG runtime 0.3.0 (branchpoint CLI)"
+    assert completed.stdout.strip() == "Branchpoint 0.3.0"
