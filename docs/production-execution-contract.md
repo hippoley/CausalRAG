@@ -49,9 +49,9 @@ Never infer `failed` from “I did not receive a success response.”
 For an external effect:
 
 ```text
-claim effect id
-      ↓
 fresh authorization
+      ↓
+claim effect id
       ↓
 external side effect
       ↓
