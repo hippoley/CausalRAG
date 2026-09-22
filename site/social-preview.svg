@@ -12,7 +12,7 @@
 </g>
 <g font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="16">
   <text x="96" y="500" fill="#90a49e">typed actions · risk gates · value of information · human approval · counterfactual replay</text>
-  <text x="96" y="540" fill="#5f7770">runtime package / CLI: branchpoint</text>
+  <text x="96" y="540" fill="#5f7770">github.com/hippoley/CausalRAG</text>
 </g>
 <circle cx="1012" cy="140" r="18" fill="#78f0be"/>
 <path d="M1012 158 C1012 250 930 258 930 328 C930 398 1012 408 1012 486" fill="none" stroke="#2f7660" stroke-width="4" stroke-dasharray="9 11"/>
