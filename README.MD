@@ -1,55 +1,65 @@
 <div align="center">
 
-# Branchpoint
+# CausalRAG
 
-### Your model can propose. Your software still has to decide.
+### A causal decision runtime for AI agents that must act under uncertainty.
 
-**A causal decision runtime for agents that need bounded choices, explicit uncertainty, and a defensible execution boundary.**
+**The model proposes. CausalRAG decides what is safe, informative, and worth doing next.**
 
-> **Repository lineage:** CausalRAG began as experiments around causal structure and retrieval. The causal thread stayed; the runtime grew into a broader agent control layer. **Branchpoint is the current runtime/API surface.** The benchmarks and claims below describe the code in this repository now.
-
+[![CI](https://github.com/hippoley/CausalRAG/actions/workflows/ci.yml/badge.svg)](https://github.com/hippoley/CausalRAG/actions/workflows/ci.yml)
+[![Pages](https://github.com/hippoley/CausalRAG/actions/workflows/pages.yml/badge.svg)](https://github.com/hippoley/CausalRAG/actions/workflows/pages.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-111?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-111?style=flat-square)
 ![Status](https://img.shields.io/badge/status-beta-111?style=flat-square)
+[![Stars](https://img.shields.io/github/stars/hippoley/CausalRAG?style=flat-square)](https://github.com/hippoley/CausalRAG/stargazers)
 
-Branchpoint turns messy agent state into inspectable next actions: **choose a branch, score its value, gate its risk, execute it, read the world, update state, repeat.**
+[**Live verified replay**](https://hippoley.github.io/CausalRAG/) · [**Verified examples**](https://hippoley.github.io/CausalRAG/examples.html) · [**Quickstart**](#60-second-quickstart) · [**Capability packs**](docs/capability-packs.md)
 
-`typed actions` · `probabilistic decisions` · `confidence gates` · `tool routing` · `verification` · `human approval` · `counterfactuals`
-
-[Verified examples](https://hippoley.github.io/CausalRAG/examples.html) · [Capability packs](docs/capability-packs.md) · [Decision recipes](docs/decision-recipes.md) · [Contributing](CONTRIBUTING.md)
+<sub>Runtime package / CLI: <code>branchpoint</code>. Branchpoint is the execution engine inside CausalRAG, not a separate project.</sub>
 
 </div>
 
 <p align="center">
-  <img src="docs/assets/branchpoint-hero.svg" alt="Branchpoint: state enters a branch, the runtime chooses, world evidence updates the next state" width="100%">
+  <img src="docs/assets/causalrag-hero.svg" alt="CausalRAG places an explicit decision boundary between model proposals and real-world actions" width="100%">
 </p>
 
 ---
 
-## The idea in one screen
+## Why this exists
 
-Generative models are excellent **proposers**. Production software repeatedly needs something narrower:
+Most agent loops collapse **proposal, policy, uncertainty, execution authority, and verification** into one model response:
 
 ```text
-choose one option
-score a risk
-gate an action
-decide whether evidence is enough
-decide whether to continue
-decide whether to ask a human
+model → tool → model → tool → answer
 ```
 
-Those are bounded decisions inside a workflow. They should not disappear inside prose.
+CausalRAG inserts an explicit decision boundary:
 
-Branchpoint keeps them in code, with explicit state, probabilities, costs, risk, timing, and evidence.
+```text
+model proposes
+      ↓
+candidate actions
+      ↓
+risk · probability · information value · cost · timing
+      ↓
+choose / verify / wait / ask / intervene / stop
+      ↓
+world observation
+      ↓
+belief update
+      ↓
+next branch
+```
 
-> **State in. Decision out. World feedback becomes the next state.**
+The point is not to make the model sound more confident.
+
+The point is to let software **inspect why an action is allowed, delay action when evidence is weak, and change course when reality disagrees.**
 
 ---
 
-## A receipt, not a claim
+## Proof before promises
 
-One deterministic CI test runs the **same frozen world twice**:
+A deterministic CI fixture runs the **same frozen world twice**:
 
 ```text
 same hidden mechanism
@@ -62,79 +72,41 @@ same proposer
 
 Only the control layer changes.
 
-```text
-plain tool loop        → fails the task
-full Branchpoint loop  → succeeds
-                         ↑
-                 first divergence recorded
-```
+| same world | proposal-order loop | CausalRAG |
+| --- | --- | --- |
+| first move | `submit_form` | `inspect_submission_state` |
+| execution boundary | crossed immediately | verified first |
+| next step | wrong external action | `reauthenticate` |
+| result | **failed** | **success** |
 
-The repository tests the exact branch where the trajectories separate. It does not compare two unrelated prompts and call that an evaluation.
+The test records the **first trajectory divergence** instead of comparing unrelated prompts and calling that an evaluation.
 
-Run it:
+Run the exact fixture:
 
 ```bash
 pytest -q tests/test_playable_probe_api.py::test_probe_compare_api_runs_same_world_causal_and_vanilla_arms
 ```
 
-A second fixed stochastic suite contains **30 episodes** across three hidden mechanisms and ten seeds:
+A separate seeded suite contains **30 episodes** across three hidden mechanisms and ten seeds:
 
 | policy snapshot | success | mean regret |
 | --- | ---: | ---: |
 | neutral one-step decision value | **0.833** | **0.251** |
 | wrong-action loss = 1.0 | **0.900** | **0.216** |
 
-These are repository benchmark numbers, not claims about arbitrary external tasks. The point is reproducibility: frozen environments, explicit policies, and trajectory-level metrics.
+> These are repository benchmark numbers for fixed environments, **not claims about arbitrary external agent tasks**.
 
 ---
 
-## The 20-second version
+## 60-second quickstart
 
-Most agent loops look like this:
-
-```text
-model → tool → model → tool → answer
-```
-
-Branchpoint inserts a control layer between **what a model proposes** and **what the system actually does**:
-
-```text
-state
-  ↓
-competing hypotheses
-  ↓
-candidate actions
-  ↓
-┌────────────────────────────────────────────┐
-│  score · probability · cost · risk · time │
-└────────────────────────────────────────────┘
-  ↓
-choose / wait / verify / ask / intervene / stop
-  ↓
-world observation
-  ↓
-belief update
-  ↓
-next branch
-```
-
-If the world disagrees, the state changes.
-
-If the current hypothesis set cannot explain the evidence, the hypothesis set can change too.
-
-That is the point.
-
----
-
-## Try it
-
-Start as small as you want: a CLI decision, one Python branch point, the visual Decision Lab, or the full agent loop.
-
-### 1. Reproduce the split
-
-No model key required:
+No model key required.
 
 ```bash
+git clone https://github.com/hippoley/CausalRAG.git
+cd CausalRAG
+pip install -e ".[api]"
+
 python examples/browser_action_guard_demo.py
 ```
 
@@ -147,14 +119,25 @@ proposal-order loop: submit_form -> success= False
 decision runtime: inspect_submission_state -> reauthenticate -> success= True
 ```
 
-Two more no-key examples:
+Then open the local workbench:
 
 ```bash
-python examples/tool_routing_demo.py
-python examples/incident_triage_demo.py
+branchpoint probe --open
 ```
 
-### 2. Put one decision point into existing code
+Surfaces:
+
+```text
+/            product entrance
+/decide      bring-your-own-decision lab
+/demo        verified trajectories
+/workbench   live agent history + human steering
+/research    score / trace / counterfactual console
+```
+
+---
+
+## Put one decision point into existing code
 
 ```python
 from branchpoint import ActionKind, CandidateAction, ToolSpec, decide
@@ -179,142 +162,40 @@ print(decision.selected.name)
 # inspect_submission_state
 ```
 
-The proposer still gets to suggest an order. Registered tool policy remains canonical.
+The proposer can still rank actions. Canonical tool policy remains in code.
 
-### 3. Run the same decision from JSON / CLI
+---
 
-A portable example is included:
+## What CausalRAG gives you
 
-```bash
-branchpoint decide examples/browser_action_guard.json
-```
+| capability | what becomes explicit |
+| --- | --- |
+| **Typed actions** | observe, intervene, wait, ask, stop |
+| **Uncertainty** | probabilities, confidence, model mismatch |
+| **Decision value** | expected utility, information gain, EVSI, cost |
+| **Execution gates** | risk, irreversibility, human approval |
+| **World correction** | observations update beliefs and hypotheses |
+| **Replay** | same-world A/B, first divergence, counterfactual forks |
+| **Observability** | score provenance, traces, telemetry, agent history |
 
-Output:
+Typical surfaces:
 
-```text
-proposer: submit_form
-runtime:  inspect_submission_state
-branch:   changed
-why:
-  - higher runtime utility: ...
-  - canonical tool policy: cost, risk, irreversibility
-```
+`tool routing` · `browser actions` · `incident diagnosis` · `device control` · `semantic routing` · `workflow triage` · `code repair` · `agent evaluation`
 
-Use `--json` for the complete ranking and score provenance, or pipe a payload through stdin:
+---
 
-```bash
-cat decision.json | branchpoint decide - --json
-```
+## One project, one identity
 
-Reproduce runtime-owned Bayesian EIG / EVSI with a second portable decision:
+**CausalRAG is the project, repository, docs, and public brand.**  
+`branchpoint` is the Python package / CLI that implements the current decision runtime.
 
-```bash
-branchpoint decide examples/value_of_information.json --json
-```
-
-That file deliberately sets the model's information-gain estimate to zero. The runtime still selects the diagnostic when the supplied likelihood and intervention contracts make sampling worth more than acting immediately.
-
-The CLI, `/api/decide`, and Decision Lab use the same portable arbitration path.
-
-Promote a validated decision into an application capability-pack starter:
-
-```bash
-branchpoint scaffold examples/value_of_information.json \
-  --pack-id my_domain \
-  --output my_domain_pack.py
-```
-
-The generated file preserves hypotheses, canonical tool policy, ExperimentContracts, and InterventionContracts. Its handlers intentionally raise `NotImplementedError` until you connect real domain I/O; it will not manufacture fake observations.
-
-Load the starter into the registry / Workbench after wiring those handlers:
-
-```bash
-branchpoint packs --load-pack ./my_domain_pack.py:register_pack
-branchpoint probe --load-pack ./my_domain_pack.py:register_pack --open
-```
-
-### 4. Open the Decision Lab
-
-```bash
-pip install -e ".[api]"
-branchpoint probe --open
-```
-
-Open `/decide` to edit proposer order and registered tool policy side by side. The lab performs real runtime scoring but **does not execute arbitrary user-supplied tools or simulate outcomes**.
-
-### 5. Open the live workbench
-
-```bash
-pip install -e ".[api]"
-branchpoint probe --open
-```
-
-Discover the built-in capability packs:
-
-```bash
-branchpoint packs
-```
-
-Or load an application-owned `.py` pack into the same Workbench without editing Branchpoint core:
-
-```bash
-branchpoint probe \
-  --load-pack examples/custom_capability_pack.py:register_pack \
-  --open
-```
-
-Then open:
-
-```text
-/            product entrance
-/decide      bring-your-own-decision lab
-/demo        three verified decision trajectories
-/workbench   live agent history + human steering
-/research    full score / trace / counterfactual console
-```
-
-No model key is required for deterministic examples.
-
-### 6. Run one agent from Python
-
-```python
-from branchpoint import ToolSpec, create_agent
-
-
-def read_co2(room: str):
-    return {"room": room, "co2_ppm": 1180}
-
-
-agent = create_agent(
-    tools=[
-        ToolSpec(
-            name="read_co2",
-            description="Read the current CO₂ concentration in a room.",
-            handler=read_co2,
-            cost=0.01,
-            risk=0.0,
-            reversible=True,
-            metadata={"kind": "observe"},
-        )
-    ]
-)
-
-result = agent.run(
-    "Decide what to verify before changing the ventilation state.",
-    max_steps=6,
-)
-
-print(result.answer)
-print(result.to_dict()["decisions"])
-```
-
-The answer is only one artifact. The runtime also records the candidates, scores, selected action, observations, belief changes, transitions, and trace.
+The repository started with causal retrieval experiments. The durable idea was not “RAG” itself; it was **making hidden assumptions, causal structure, evidence, and decision boundaries explicit enough to test**. The current runtime is that idea pushed into agent execution.
 
 ---
 
 ## Where this fits
 
-Branchpoint is useful anywhere an agent has to make **small, consequential decisions inside otherwise deterministic software**:
+CausalRAG is useful anywhere an agent has to make **small, consequential decisions inside otherwise deterministic software**:
 
 | decision | example |
 | --- | --- |
@@ -334,7 +215,7 @@ The point is to stop making one model response carry **proposal, policy, uncerta
 
 ---
 
-## Why Branchpoint exists
+## Why CausalRAG exists
 
 A fluent model response is not the same thing as a good software decision.
 
@@ -348,9 +229,9 @@ Production agents repeatedly face bounded decisions such as:
 - Did the world just invalidate the model we were using?
 - Is another probe worth its latency, cost, or risk?
 
-Branchpoint makes those decisions explicit.
+CausalRAG makes those decisions explicit.
 
-| Ordinary loop | Branchpoint |
+| Ordinary loop | CausalRAG runtime |
 | --- | --- |
 | State lives mostly in prompt history | Beliefs and hypotheses are first-class runtime state |
 | Model output directly drives the next tool | Model proposes; runtime validates and arbitrates |
@@ -365,7 +246,7 @@ Branchpoint makes those decisions explicit.
 
 ## Six capability packs you can run
 
-The fastest way to understand Branchpoint is to watch one bounded decision change the trajectory.
+The fastest way to understand CausalRAG is to watch one bounded decision change the trajectory.
 
 | pack | the decision |
 | --- | --- |
@@ -383,7 +264,7 @@ A useful starting point is **Browser action guard** because the first divergence
 ```text
 proposer order:  submit_form → inspect_submission_state
 plain loop:      submit_form → wrong external action
-Branchpoint:     inspect_submission_state → reauthenticate → success
+CausalRAG:      inspect_submission_state → reauthenticate → success
 ```
 
 Same goal. Same hidden state. Same candidates. Different execution authority.
@@ -427,7 +308,7 @@ Useful for debugging, teaching, and inspecting every branch.
 
 Low-risk evidence actions can continue automatically.
 
-Branchpoint pauses when the next branch deserves attention, for example:
+The runtime pauses when the next branch deserves attention, for example:
 
 - an intervention is about to execute;
 - risk or irreversibility rises;
@@ -503,7 +384,7 @@ This is the extension point for incident response, operations, device control, d
 
 ## External models
 
-Branchpoint can use a deterministic proposer, a small local model, or a hosted model.
+The `branchpoint` runtime package can use a deterministic proposer, a small local model, or a hosted model.
 
 ```bash
 export OPENAI_API_KEY=...
@@ -584,7 +465,7 @@ This makes “what if we had chosen the other tool?” a runtime operation inste
 
 ## Same-world evaluation
 
-Branchpoint includes paired runs where both policies receive the same:
+CausalRAG includes paired runs where both policies receive the same:
 
 ```text
 hidden mechanism
@@ -646,7 +527,7 @@ pip install -e ".[full]"              # hosted capability layers
 
 > **The model proposes. The runtime decides. The world corrects both.**
 
-Branchpoint is deliberately opinionated about three things:
+CausalRAG is deliberately opinionated about three things:
 
 1. **A probability is more useful than confident prose when software must branch.**
 2. **Execution authority belongs to the runtime, not to the proposer.**
