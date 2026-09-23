@@ -10,6 +10,7 @@ from branchpoint.decision import decide
 from branchpoint.tools import ToolSpec
 from branchpoint.world_model import CausalWorldModel
 
+from .boptest_comparison import BOPTESTControllerSpec
 from .boptest_protocol import BOPTESTControlContext, Controller
 
 
@@ -236,3 +237,37 @@ def temperature_band_proposal_provider(
         return (override, embedded)
 
     return provider
+
+
+
+def temperature_band_controller_specs(
+    config: TemperatureBandProposalConfig,
+    *,
+    world_model: Optional[CausalWorldModel] = None,
+    capabilities: Optional[RuntimeCapabilities] = None,
+) -> Tuple[BOPTESTControllerSpec, BOPTESTControllerSpec]:
+    """Build proposal-order and Branchpoint arms from one shared proposer."""
+
+    provider = temperature_band_proposal_provider(config)
+    proposal_order = ProposalOrderBOPTESTController(provider)
+    branchpoint = BranchpointBOPTESTController(
+        provider,
+        world_model=world_model,
+        capabilities=capabilities,
+    )
+    metadata = {
+        "proposal": "temperature_band.v1",
+        "proposal_config": asdict(config),
+    }
+    return (
+        BOPTESTControllerSpec(
+            "proposal-order",
+            proposal_order,
+            metadata={**metadata, "decision_mode": "proposal_order"},
+        ),
+        BOPTESTControllerSpec(
+            "branchpoint",
+            branchpoint,
+            metadata={**metadata, "decision_mode": "branchpoint"},
+        ),
+    )
