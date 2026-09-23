@@ -12,7 +12,9 @@ from agents.tool_context import ToolContext
 
 from branchpoint import (
     AuthorizationContext,
+    AuthorizationDecision,
     AuthorizationDenied,
+    CapabilityAuthorizationPolicy,
     ExecutionBoundaryError,
     SQLiteExecutionLedger,
     ToolRegistry,
@@ -250,3 +252,111 @@ def test_function_tool_rejects_async_branchpoint_handler():
                 "required": ["value"],
             },
         )
+
+
+def test_bound_durable_tool_bypasses_only_receipt_bypass_guard_not_risk(tmp_path):
+    ledger = SQLiteExecutionLedger(tmp_path / "openai-agents-risk.sqlite3")
+    registry = ToolRegistry(
+        [
+            ToolSpec(
+                "restart_cluster",
+                "Restart a cluster.",
+                lambda cluster: {"cluster": cluster, "restarted": True},
+                risk=0.9,
+                reversible=True,
+                require_durable_receipt=True,
+            )
+        ],
+        execution_ledger=ledger,
+    )
+    adapter = OpenAIAgentsApprovalAdapter(
+        registry,
+        auto_approve_max_risk=0.1,
+    )
+    tool = adapter.function_tool(
+        "restart_cluster",
+        params_json_schema={
+            "type": "object",
+            "properties": {"cluster": {"type": "string"}},
+            "required": ["cluster"],
+            "additionalProperties": False,
+        },
+    )
+
+    assert asyncio.run(
+        tool.needs_approval(None, {"cluster": "prod"}, "call-risk-1")
+    ) is True
+
+    interruption = ToolApprovalItem(
+        agent=DummyAgent(),
+        raw_item={
+            "type": "function_call",
+            "name": "restart_cluster",
+            "arguments": '{"cluster":"prod"}',
+            "call_id": "call-risk-1",
+        },
+        tool_name="restart_cluster",
+    )
+    decision = adapter.decide(interruption)
+    assert decision.outcome is ApprovalOutcome.REQUIRE_HUMAN
+    assert decision.reason_code == "risk_threshold"
+
+
+def test_explicit_adapter_policy_is_reused_at_bound_tool_execution(tmp_path):
+    class DenyPolicy(CapabilityAuthorizationPolicy):
+        def authorize(
+            self,
+            context,
+            *,
+            tool_name,
+            required_permissions,
+            arguments,
+        ):
+            return AuthorizationDecision(
+                allowed=False,
+                principal_id=None,
+                required_permissions=tuple(required_permissions),
+                missing_permissions=tuple(required_permissions),
+                reason_code="deployment_freeze",
+                reason="Deployment freeze is active.",
+                policy_id="test.freeze.v1",
+            )
+
+    ledger = SQLiteExecutionLedger(tmp_path / "openai-agents-policy.sqlite3")
+    registry = ToolRegistry(
+        [
+            ToolSpec(
+                "deploy",
+                "Deploy a service.",
+                lambda service: {"service": service, "deployed": True},
+                risk=0.0,
+                reversible=True,
+            )
+        ],
+        execution_ledger=ledger,
+    )
+    policy = DenyPolicy()
+    adapter = OpenAIAgentsApprovalAdapter(
+        registry,
+        auto_approve_max_risk=1.0,
+        authorization_policy=policy,
+    )
+    tool = adapter.function_tool(
+        "deploy",
+        params_json_schema={
+            "type": "object",
+            "properties": {"service": {"type": "string"}},
+            "required": ["service"],
+            "additionalProperties": False,
+        },
+    )
+    assert registry.authorization_policy is policy
+
+    context = ToolContext(
+        context=None,
+        tool_name="deploy",
+        tool_call_id="call-policy-1",
+        tool_arguments='{"service":"api"}',
+    )
+    with pytest.raises(AuthorizationDenied, match="Deployment freeze"):
+        asyncio.run(tool.on_invoke_tool(context, '{"service":"api"}'))
