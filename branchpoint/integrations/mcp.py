@@ -180,18 +180,18 @@ def create_branchpoint_mcp_server(
         tool_name: str,
         arguments: dict[str, Any],
         effect_id: str,
-        principal: Annotated[
-            ResolvedPrincipal,
-            Resolve(resolve_principal),
-        ],
         approval: Annotated[
             ConfirmExecution,
             Resolve(resolve_approval),
         ],
+        ctx: Context,
     ) -> dict[str, Any]:
         """Execute through Branchpoint authorization and durable receipts."""
 
-        auth = authorization_context(principal)
+        # Do not freeze authority at the approval round. Resolve the trusted
+        # principal again at consequence time, immediately before receipt claim.
+        fresh_principal = await resolve_principal(ctx)
+        auth = authorization_context(fresh_principal)
         decision = execution_gate.preview(
             tool_name,
             arguments,
