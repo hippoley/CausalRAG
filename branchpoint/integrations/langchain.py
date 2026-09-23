@@ -74,6 +74,7 @@ class LangChainBranchpointMiddleware(AgentMiddleware):
         if unknown_tool_policy not in {"deny", "passthrough"}:
             raise ValueError("unknown_tool_policy must be 'deny' or 'passthrough'")
 
+        self.tools = []
         self.registry = tools if isinstance(tools, ToolRegistry) else ToolRegistry(tools)
         registry_policy = self.registry.authorization_policy
         self.authorization_policy = (
