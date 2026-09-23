@@ -98,8 +98,15 @@ class OpenAIAgentsApprovalAdapter:
         self.allow_irreversible_auto_approval = bool(
             allow_irreversible_auto_approval
         )
+        registry_policy = (
+            self.tools.authorization_policy
+            if isinstance(self.tools.authorization_policy, CapabilityAuthorizationPolicy)
+            else None
+        )
         self.authorization_policy = (
-            authorization_policy or CapabilityAuthorizationPolicy()
+            authorization_policy
+            or registry_policy
+            or CapabilityAuthorizationPolicy()
         )
         self.authorization_context = authorization_context
         self.authorization_resolver = authorization_resolver
@@ -249,7 +256,24 @@ class OpenAIAgentsApprovalAdapter:
                 reason=authorization.reason,
                 required_permissions=authorization.required_permissions,
                 missing_permissions=authorization.missing_permissions,
-                risk=float(tool.risk),
+                risk=tool_risk,
+                reversible=bool(tool.reversible),
+            )
+
+        tool_risk = float(tool.risk)
+        if not math.isfinite(tool_risk) or tool_risk < 0.0:
+            return OpenAIAgentsToolDecision(
+                ApprovalOutcome.REQUIRE_HUMAN,
+                tool_name=tool_name,
+                call_id=call_id,
+                arguments=arguments,
+                reason_code="invalid_tool_risk",
+                reason=(
+                    "Canonical ToolSpec risk is not a finite non-negative "
+                    "number; approval remains paused."
+                ),
+                required_permissions=authorization.required_permissions,
+                risk=tool_risk,
                 reversible=bool(tool.reversible),
             )
 
@@ -265,7 +289,7 @@ class OpenAIAgentsApprovalAdapter:
                     "and cannot be executed directly by the approval-only adapter."
                 ),
                 required_permissions=authorization.required_permissions,
-                risk=float(tool.risk),
+                risk=tool_risk,
                 reversible=bool(tool.reversible),
             )
 
@@ -278,11 +302,11 @@ class OpenAIAgentsApprovalAdapter:
                 reason_code="irreversible_action",
                 reason="Irreversible tool calls require human approval.",
                 required_permissions=authorization.required_permissions,
-                risk=float(tool.risk),
+                risk=tool_risk,
                 reversible=False,
             )
 
-        if float(tool.risk) > self.auto_approve_max_risk:
+        if tool_risk > self.auto_approve_max_risk:
             return OpenAIAgentsToolDecision(
                 ApprovalOutcome.REQUIRE_HUMAN,
                 tool_name=tool_name,
@@ -290,11 +314,11 @@ class OpenAIAgentsApprovalAdapter:
                 arguments=arguments,
                 reason_code="risk_threshold",
                 reason=(
-                    f"Tool risk {float(tool.risk):g} exceeds auto-approval "
+                    f"Tool risk {tool_risk:g} exceeds auto-approval "
                     f"threshold {self.auto_approve_max_risk:g}."
                 ),
                 required_permissions=authorization.required_permissions,
-                risk=float(tool.risk),
+                risk=tool_risk,
                 reversible=bool(tool.reversible),
             )
 
@@ -306,7 +330,7 @@ class OpenAIAgentsApprovalAdapter:
             reason_code="auto_approved",
             reason="Canonical Branchpoint policy permits automatic approval.",
             required_permissions=authorization.required_permissions,
-            risk=float(tool.risk),
+            risk=tool_risk,
             reversible=bool(tool.reversible),
         )
 
