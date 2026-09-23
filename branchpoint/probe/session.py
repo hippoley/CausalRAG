@@ -24,6 +24,7 @@ from branchpoint.experiments import (
 from .runtime import ProbeRunConfig, build_probe_agent
 from .archive import SQLiteSessionArchive
 from .counterfactual import counterfactual_support, run_trajectory_counterfactual
+from .replay import build_semantic_replay
 
 
 def _jsonable(value: Any) -> Any:
@@ -465,6 +466,7 @@ class InteractiveDecisionGate:
         self._decision: Optional[DecisionRecord] = None
         self._response: Optional[Dict[str, Any]] = None
         self._state = None
+        self._history: list[Dict[str, Any]] = []
         self._closed = False
         self.tools = None
 
@@ -495,9 +497,11 @@ class InteractiveDecisionGate:
             row = _candidate_payload(candidate, index)
             row["runtime_valid"] = index in valid_indexes
             candidates.append(row)
+        world_before = _jsonable(world_model.snapshot())
         pending = {
             "gate_id": uuid.uuid4().hex,
             "step": int(state.step),
+            "status": "waiting",
             "uncertainty": decision.uncertainty,
             "runtime_selected": _candidate_payload(decision.selected, -1),
             "proposer": _jsonable(state.scratch.get("last_proposer_trace")),
@@ -515,11 +519,18 @@ class InteractiveDecisionGate:
             "action_scores": scores,
             "score_provenance": _score_provenance(decision, self.tools),
             "decision_inspector": _decision_inspector(decision),
-            "hypotheses": world_model.snapshot().get("hypotheses", []),
+            "hypotheses": world_before.get("hypotheses", []),
+            "world_before": world_before,
+            "world_after_gate": None,
+            "human_intervention": None,
+            "human_events": [],
+            "operator_messages": [],
+            "human_hypothesis_events": [],
             "episode_ledger": _episode_ledger(state, world_model, self.tools),
         }
         with self._condition:
             self._pending = pending
+            self._history.append(pending)
             self._decision = decision
             self._state = state
             self._response = None
@@ -546,6 +557,13 @@ class InteractiveDecisionGate:
                     break
                 self._condition.wait(timeout=min(remaining, 1.0))
             response = self._response
+            if response is None:
+                pending["status"] = "released_by_timeout"
+            elif response.get("action") == "replan":
+                pending["status"] = "discarded_before_execution"
+            else:
+                pending["status"] = "released_for_execution"
+            pending["world_after_gate"] = _jsonable(world_model.snapshot())
             self._pending = None
             self._decision = None
             self._state = None
@@ -634,6 +652,11 @@ class InteractiveDecisionGate:
                 return None
             return _jsonable(self._pending) if self._pending is not None else None
 
+    def history(self) -> list[Dict[str, Any]]:
+        with self._condition:
+            return _jsonable(self._history)
+
+
     def live_state(self):
         with self._condition:
             return self._state
@@ -648,6 +671,7 @@ class InteractiveDecisionGate:
             if self._response is not None:
                 raise RuntimeError("human decision has already been submitted")
             response: Dict[str, Any] = {"action": action}
+            intervention: Dict[str, Any] = {"action": action}
             if action == "choose":
                 if candidate_index is None:
                     raise ValueError("candidate_index is required for choose")
@@ -658,6 +682,15 @@ class InteractiveDecisionGate:
                 if candidate_rows and not bool(candidate_rows[index].get("runtime_valid", False)):
                     raise ValueError("candidate was rejected by runtime validation")
                 response["candidate_index"] = index
+                intervention["candidate_index"] = index
+                intervention["candidate"] = _candidate_payload(
+                    self._decision.candidates[index],
+                    index,
+                )
+            self._pending["human_intervention"] = intervention
+            self._pending.setdefault("human_events", []).append(
+                _jsonable(intervention)
+            )
             self._response = response
             self._condition.notify_all()
         self._changed()
@@ -678,6 +711,18 @@ class InteractiveDecisionGate:
                 "message": message,
             }
             self._state.scratch.setdefault("operator_messages", []).append(row)
+            self._pending.setdefault("operator_messages", []).append(
+                _jsonable(row)
+            )
+            event = {
+                "action": "operator_message",
+                "message": message,
+                "replan": bool(replan),
+            }
+            self._pending["human_intervention"] = event
+            self._pending.setdefault("human_events", []).append(
+                _jsonable(event)
+            )
             if replan:
                 self._response = {"action": "replan"}
                 self._condition.notify_all()
@@ -692,6 +737,17 @@ class InteractiveDecisionGate:
         )
         self._changed()
         return row
+
+    def record_hypothesis_added(self, event: Dict[str, Any]) -> None:
+        with self._condition:
+            if self._pending is None:
+                return
+            row = _jsonable(event)
+            self._pending.setdefault("human_hypothesis_events", []).append(row)
+            self._pending.setdefault("human_events", []).append(
+                {"action": "add_hypothesis", **row}
+            )
+        self._changed()
 
     def close(self) -> None:
         with self._condition:
