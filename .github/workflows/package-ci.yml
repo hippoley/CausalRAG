@@ -12,8 +12,7 @@ on:
       - 'tests/test_release_version.py'
       - '.github/workflows/package-ci.yml'
       - '.github/workflows/release.yml'
-      - 'scripts/verify_distribution.py'
-      - 'scripts/build_release_evidence.py'
+      - 'scripts/**'
       - 'tests/test_release_evidence.py'
   push:
     branches: [main]
@@ -27,8 +26,7 @@ on:
       - 'tests/test_release_version.py'
       - '.github/workflows/package-ci.yml'
       - '.github/workflows/release.yml'
-      - 'scripts/verify_distribution.py'
-      - 'scripts/build_release_evidence.py'
+      - 'scripts/**'
       - 'tests/test_release_evidence.py'
 
 jobs:
