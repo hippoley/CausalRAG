@@ -647,6 +647,9 @@ Optional surfaces:
 ```bash
 pip install -e ".[api]"               # FastAPI workbench
 pip install -e ".[observability]"     # OTLP export
+pip install -e ".[postgres]"          # multi-instance durable receipts
+pip install -e ".[openai-agents]"     # OpenAI Agents approval/execution adapter
+pip install -e ".[mcp]"               # MCP v2 consequence boundary
 pip install -e ".[retrieval]"         # document evidence adapters
 pip install -e ".[local-embeddings]"  # local embedding models
 pip install -e ".[faiss]"             # FAISS vector backend
