@@ -233,9 +233,10 @@ earlier does not freeze authority: if the principal loses permission before the
 tool body runs, Branchpoint denies before claiming a receipt or invoking the
 external handler.
 
-Binding fails immediately if a durable ToolSpec has no execution ledger. The
-first integration version also requires synchronous ToolSpec handlers; the SDK
-wrapper moves them off the event loop with `asyncio.to_thread`.
+Binding fails immediately if a durable ToolSpec has no execution ledger. Both
+synchronous and asynchronous ToolSpec handlers are supported. The SDK wrapper
+uses `ToolRegistry.execute_async(...)`: async handlers are awaited directly,
+while synchronous handlers and receipt-store I/O are moved off the event loop.
 
 A no-key executable example is included:
 
