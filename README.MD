@@ -117,8 +117,9 @@ No model key required.
 ```bash
 git clone https://github.com/hippoley/CausalRAG.git
 cd CausalRAG
-pip install -e ".[api]"
+pip install -e .
 
+branchpoint doctor
 python examples/browser_action_guard_demo.py
 ```
 
@@ -131,9 +132,19 @@ proposal-order loop: submit_form -> success= False
 decision runtime: inspect_submission_state -> reauthenticate -> success= True
 ```
 
-Then open the local workbench:
+Expected doctor result:
+
+```text
+Branchpoint doctor 0.3.0: PASS
+  OK        decision_runtime: proposer=submit_form runtime=inspect_submission_state
+  OK        authorization: unauthorized principal denied before handler
+  OK        durable_receipt: same effect id replayed stored result; handler executed once
+```
+
+Then install the UI extra and open the local workbench:
 
 ```bash
+pip install -e ".[api]"
 branchpoint probe --open
 ```
 
@@ -273,7 +284,7 @@ Use Jev for fast semantic judgments when the answer space is bounded. Use Branch
 
 ## Where this fits
 
-CausalRAG is useful anywhere an agent has to make **small, consequential decisions inside otherwise deterministic software**:
+Branchpoint is useful anywhere an agent has to make **small, consequential decisions inside otherwise deterministic software**:
 
 | decision | example |
 | --- | --- |
@@ -295,7 +306,7 @@ The point is to stop making one model response carry **proposal, policy, uncerta
 
 ## Why not a plain agent loop?
 
-| Ordinary loop | CausalRAG |
+| Ordinary loop | Branchpoint |
 | --- | --- |
 | State lives mostly in prompt history | Beliefs and hypotheses are first-class runtime state |
 | Model output directly drives the next tool | Model proposes; runtime validates and arbitrates |
@@ -312,7 +323,7 @@ The goal is not maximum autonomy. It is **explicit execution authority at the br
 
 ## Six capability packs you can run
 
-The fastest way to understand CausalRAG is to watch one bounded decision change the trajectory.
+The fastest way to understand Branchpoint is to watch one bounded decision change the trajectory.
 
 | pack | the decision |
 | --- | --- |
@@ -420,7 +431,7 @@ That separation matters because it lets you ask useful questions after the run:
 
 ## Capability packs
 
-The CausalRAG workbench does not hard-code one domain.
+The Branchpoint workbench does not hard-code one domain.
 
 A capability pack defines the pieces needed for one decision environment:
 
@@ -585,7 +596,7 @@ This makes “what if we had chosen the other tool?” a runtime operation inste
 
 ## Same-world evaluation
 
-CausalRAG includes paired runs where both policies receive the same:
+Branchpoint includes paired runs where both policies receive the same:
 
 ```text
 hidden mechanism
@@ -647,7 +658,7 @@ pip install -e ".[full]"              # hosted capability layers
 
 > **The model proposes. The runtime decides. The world corrects both.**
 
-CausalRAG is deliberately opinionated about three things:
+Branchpoint is deliberately opinionated about three things:
 
 1. **A probability is more useful than confident prose when software must branch.**
 2. **Execution authority belongs to the runtime, not to the proposer.**
