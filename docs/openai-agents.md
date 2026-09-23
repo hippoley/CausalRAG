@@ -146,3 +146,103 @@ core, then verifies:
 
 This keeps SDK churn from silently breaking the adapter while leaving ordinary
 Branchpoint installations framework-independent.
+
+
+## Execute durable tools through Branchpoint
+
+For side effects that require Branchpoint receipts, do not decorate the
+application handler directly with the SDK. Bind the existing canonical
+`ToolSpec` through `adapter.function_tool(...)` instead:
+
+```python
+from branchpoint import (
+    AuthorizationContext,
+    SQLiteExecutionLedger,
+    ToolRegistry,
+    ToolSpec,
+)
+from branchpoint.integrations import OpenAIAgentsApprovalAdapter
+
+
+ledger = SQLiteExecutionLedger("branchpoint-effects.sqlite3")
+
+def charge_card(amount, idempotency_key):
+    return provider.charge(
+        amount=amount,
+        idempotency_key=idempotency_key,
+    )
+
+registry = ToolRegistry(
+    [
+        ToolSpec(
+            "charge_card",
+            "Charge a card",
+            charge_card,
+            risk=0.7,
+            reversible=False,
+            require_durable_receipt=True,
+            idempotency_key_argument="idempotency_key",
+            required_permissions=("payments.charge",),
+        )
+    ],
+    execution_ledger=ledger,
+)
+
+principal = AuthorizationContext.from_permissions(
+    "billing:alice",
+    ["payments.charge"],
+)
+
+adapter = OpenAIAgentsApprovalAdapter(
+    registry,
+    auto_approve_max_risk=0.1,
+    authorization_context=principal,
+)
+
+charge_tool = adapter.function_tool(
+    "charge_card",
+    params_json_schema={
+        "type": "object",
+        "properties": {
+            "amount": {"type": "number"},
+        },
+        "required": ["amount"],
+        "additionalProperties": False,
+    },
+)
+```
+
+`charge_tool` is a real OpenAI Agents `FunctionTool`. The SDK still owns the
+run and the approval interruption, but its `on_invoke_tool` crosses
+`ToolRegistry.execute(...)` immediately before the application handler.
+
+For a durable tool, the SDK's `tool_call_id` becomes part of a stable effect
+identity:
+
+```text
+openai-agents:<qualified-tool-name>:<tool-call-id>
+```
+
+That means a resumed or replayed SDK invocation with the same call id returns
+the stored Branchpoint receipt instead of performing the external side effect
+again. If `idempotency_key_argument` is configured, the same effect id is also
+propagated to the downstream provider.
+
+Authorization is evaluated again at execution time. An approval that was valid
+earlier does not freeze authority: if the principal loses permission before the
+tool body runs, Branchpoint denies before claiming a receipt or invoking the
+external handler.
+
+Binding fails immediately if a durable ToolSpec has no execution ledger. The
+first integration version also requires synchronous ToolSpec handlers; the SDK
+wrapper moves them off the event loop with `asyncio.to_thread`.
+
+A no-key executable example is included:
+
+```bash
+python examples/openai_agents_durable_tool.py
+```
+
+It invokes the same SDK FunctionTool twice with one call id and demonstrates
+that the external handler runs once while the second invocation replays the
+stored result.

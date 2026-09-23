@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import math
 from dataclasses import dataclass, field
@@ -67,10 +69,14 @@ AuthorizationResolver = Callable[
 class OpenAIAgentsApprovalAdapter:
     """Map OpenAI Agents SDK approval interruptions onto Branchpoint policy.
 
-    This adapter owns only the pre-execution approval decision. Tool execution
-    remains owned by the OpenAI Agents SDK. Tools that require Branchpoint's
-    durable execution receipt boundary therefore fail closed here instead of
-    being auto-approved through a path that would bypass that boundary.
+    By default this adapter owns only the pre-execution approval decision.
+    Existing SDK tools continue to execute through the SDK and durable
+    Branchpoint tools fail closed if that path would bypass the receipt ledger.
+
+    ``function_tool(...)`` is the explicit exception: it builds an SDK
+    FunctionTool whose invocation crosses the Branchpoint ToolRegistry boundary
+    immediately before the application handler, so authorization, durable
+    receipts, replay, and downstream idempotency remain enforced.
     """
 
     def __init__(
@@ -98,18 +104,20 @@ class OpenAIAgentsApprovalAdapter:
         self.allow_irreversible_auto_approval = bool(
             allow_irreversible_auto_approval
         )
-        registry_policy = (
-            self.tools.authorization_policy
-            if isinstance(self.tools.authorization_policy, CapabilityAuthorizationPolicy)
-            else None
-        )
+        registry_policy = self.tools.authorization_policy
         self.authorization_policy = (
             authorization_policy
             or registry_policy
             or CapabilityAuthorizationPolicy()
         )
+        # Approval and execution must consult one policy source. When callers
+        # explicitly override the adapter policy, bind the same object to the
+        # registry used by Branchpoint-bound FunctionTools.
+        if authorization_policy is not None or registry_policy is None:
+            self.tools.authorization_policy = self.authorization_policy
         self.authorization_context = authorization_context
         self.authorization_resolver = authorization_resolver
+        self._branchpoint_execution_tools: set[str] = set()
 
     @staticmethod
     def _tool_name(interruption: Any) -> Optional[str]:
@@ -280,7 +288,10 @@ class OpenAIAgentsApprovalAdapter:
                 reversible=bool(tool.reversible),
             )
 
-        if tool.require_durable_receipt:
+        if (
+            tool.require_durable_receipt
+            and tool_name not in self._branchpoint_execution_tools
+        ):
             return OpenAIAgentsToolDecision(
                 ApprovalOutcome.DENY,
                 tool_name=tool_name,
@@ -336,6 +347,111 @@ class OpenAIAgentsApprovalAdapter:
             risk=tool_risk,
             reversible=bool(tool.reversible),
         )
+
+    def function_tool(
+        self,
+        tool_name: str,
+        *,
+        params_json_schema: Mapping[str, Any],
+        strict_json_schema: bool = True,
+        authorization_context: Optional[AuthorizationContext] = None,
+    ):
+        """Create an OpenAI Agents FunctionTool executed through Branchpoint.
+
+        The SDK still owns model/run orchestration. Invocation crosses the
+        Branchpoint ToolRegistry boundary immediately before the application
+        handler. Durable tools derive a stable effect id from the SDK tool call
+        id so resumed/replayed calls converge on one execution receipt.
+        """
+
+        normalized = str(tool_name).strip()
+        if not normalized:
+            raise ValueError("tool_name must be non-empty")
+        tool = self.tools.get(normalized)
+        if tool.require_durable_receipt and self.tools.execution_ledger is None:
+            from branchpoint.execution import ExecutionBoundaryError
+
+            raise ExecutionBoundaryError(
+                f"Tool {normalized!r} requires a durable execution receipt, "
+                "but no execution_ledger is configured."
+            )
+        if inspect.iscoroutinefunction(tool.handler):
+            raise TypeError(
+                "OpenAI Agents Branchpoint-bound tools currently require a "
+                "synchronous ToolSpec handler"
+            )
+
+        schema = dict(params_json_schema)
+        if schema.get("type") != "object":
+            raise ValueError("params_json_schema must define an object schema")
+
+        try:
+            from agents import FunctionTool
+        except ImportError as exc:
+            raise RuntimeError(
+                "OpenAI Agents integration requires the optional SDK. "
+                "Install this repository with: pip install -e \".[openai-agents]\""
+            ) from exc
+
+        async def on_invoke_tool(run_context: Any, raw_arguments: str) -> Any:
+            synthetic = _SyntheticApprovalItem(
+                tool_name=normalized,
+                call_id=str(getattr(run_context, "tool_call_id", "") or ""),
+                arguments=raw_arguments,
+            )
+            arguments, error = self._arguments(synthetic)
+            if arguments is None:
+                raise ValueError(
+                    f"Invalid arguments for {normalized!r}: {error}"
+                )
+
+            call_id = str(
+                getattr(run_context, "tool_call_id", "") or ""
+            ).strip()
+            effect_id = None
+            if tool.require_durable_receipt:
+                if not call_id:
+                    raise ValueError(
+                        "Durable OpenAI Agents tools require a non-empty "
+                        "tool_call_id"
+                    )
+                qualified_name = str(
+                    getattr(run_context, "qualified_tool_name", normalized)
+                    or normalized
+                )
+                effect_id = (
+                    f"openai-agents:{qualified_name}:{call_id}"
+                )
+
+            context = self._context(
+                run_context=run_context,
+                tool_name=normalized,
+                arguments=arguments,
+                call_id=call_id,
+                override=authorization_context,
+            )
+
+            return await asyncio.to_thread(
+                self.tools.execute,
+                normalized,
+                arguments,
+                effect_id=effect_id,
+                authorization_context=context,
+            )
+
+        function_tool = FunctionTool(
+            name=normalized,
+            description=tool.description,
+            params_json_schema=schema,
+            on_invoke_tool=on_invoke_tool,
+            strict_json_schema=bool(strict_json_schema),
+            needs_approval=self.needs_approval(
+                normalized,
+                authorization_context=authorization_context,
+            ),
+        )
+        self._branchpoint_execution_tools.add(normalized)
+        return function_tool
 
     def needs_approval(
         self,
