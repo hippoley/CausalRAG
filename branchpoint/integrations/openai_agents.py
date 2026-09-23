@@ -375,12 +375,6 @@ class OpenAIAgentsApprovalAdapter:
                 f"Tool {normalized!r} requires a durable execution receipt, "
                 "but no execution_ledger is configured."
             )
-        if inspect.iscoroutinefunction(tool.handler):
-            raise TypeError(
-                "OpenAI Agents Branchpoint-bound tools currently require a "
-                "synchronous ToolSpec handler"
-            )
-
         schema = dict(params_json_schema)
         if schema.get("type") != "object":
             raise ValueError("params_json_schema must define an object schema")
@@ -433,7 +427,7 @@ class OpenAIAgentsApprovalAdapter:
 
             ledger = self.tools.execution_ledger
             prior_receipt = (
-                ledger.get(effect_id)
+                await asyncio.to_thread(ledger.get, effect_id)
                 if effect_id is not None and ledger is not None
                 else None
             )
@@ -442,8 +436,7 @@ class OpenAIAgentsApprovalAdapter:
                 and prior_receipt.status == "succeeded"
             )
 
-            result = await asyncio.to_thread(
-                self.tools.execute,
+            result = await self.tools.execute_async(
                 normalized,
                 arguments,
                 effect_id=effect_id,
@@ -451,7 +444,7 @@ class OpenAIAgentsApprovalAdapter:
             )
 
             receipt = (
-                ledger.get(effect_id)
+                await asyncio.to_thread(ledger.get, effect_id)
                 if effect_id is not None and ledger is not None
                 else None
             )
