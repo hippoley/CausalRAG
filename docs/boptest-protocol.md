@@ -49,3 +49,42 @@ This infrastructure does **not** establish that Branchpoint improves BOPTEST
 outcomes. A performance claim requires repeated episodes with frozen manifests,
 explicit baselines, retained failures, and statistical summaries over the
 resulting KPI artifacts.
+
+
+## Paired controller comparisons
+
+Use `run_boptest_comparison` when comparing controllers. Every controller is
+run in a fresh BOPTEST worker against the same manifest.
+
+```python
+from branchpoint.benchmarks import (
+    BOPTESTControllerSpec,
+    constant_controller,
+    no_op_controller,
+    run_boptest_comparison,
+)
+
+report = run_boptest_comparison(
+    [manifest],
+    [
+        BOPTESTControllerSpec("embedded", no_op_controller),
+        BOPTESTControllerSpec(
+            "constant-heat",
+            constant_controller({"oveHea_u": 0.25, "oveHea_activate": 1}),
+        ),
+    ],
+    reference_controller_id="embedded",
+)
+```
+
+The report stores each complete episode plus raw KPI deltas
+(`controller - reference`). It does not label a controller better or worse,
+because KPI direction and trade-offs belong to the experiment protocol.
+
+By default the comparison also requires one BOPTEST service version across the
+entire suite. If the public service changes version between arms or manifests,
+the run is invalidated instead of silently mixing environments.
+
+Aggregate output currently reports count, mean, minimum, and maximum paired
+delta. That is descriptive evidence only. Confidence intervals and stronger
+claims require a repeated seeded protocol defined before final tuning.

@@ -1,3 +1,11 @@
+from .boptest_comparison import (
+    BOPTESTComparisonError,
+    BOPTESTComparisonReport,
+    BOPTESTControllerSpec,
+    BOPTESTPairedEpisode,
+    constant_controller,
+    run_boptest_comparison,
+)
 from .boptest_protocol import (
     BOPTESTControlContext,
     BOPTESTControlError,
@@ -56,6 +64,12 @@ from .temporal_suite import (
 )
 
 __all__ = [
+    "BOPTESTComparisonError",
+    "BOPTESTComparisonReport",
+    "BOPTESTControllerSpec",
+    "BOPTESTPairedEpisode",
+    "constant_controller",
+    "run_boptest_comparison",
     "BOPTESTControlContext",
     "BOPTESTControlError",
     "BOPTESTEpisodeResult",
