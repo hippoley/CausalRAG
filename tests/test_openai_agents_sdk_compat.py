@@ -6,8 +6,15 @@ import inspect
 from agents import function_tool
 from agents.items import ToolApprovalItem
 from agents.run_state import RunState
+from agents.tool_context import ToolContext
 
-from branchpoint import ToolSpec
+from branchpoint import (
+    AuthorizationContext,
+    ExecutionBoundaryError,
+    SQLiteExecutionLedger,
+    ToolRegistry,
+    ToolSpec,
+)
 from branchpoint.integrations import ApprovalOutcome, OpenAIAgentsApprovalAdapter
 
 
@@ -61,3 +68,189 @@ def test_current_function_tool_accepts_branchpoint_needs_approval_callback():
     assert asyncio.run(
         lookup_order.needs_approval(None, {"order_id": "O-9"}, "call-sdk-2")
     ) is False
+
+
+def test_branchpoint_bound_function_tool_uses_durable_receipt_and_call_id(tmp_path):
+    calls = []
+    ledger = SQLiteExecutionLedger(tmp_path / "openai-agents.sqlite3")
+
+    def charge_card(amount, idempotency_key):
+        calls.append((amount, idempotency_key))
+        return {
+            "charge_id": "ch_sdk_1",
+            "amount": amount,
+            "idempotency_key": idempotency_key,
+        }
+
+    registry = ToolRegistry(
+        [
+            ToolSpec(
+                "charge_card",
+                "Charge a card exactly once.",
+                charge_card,
+                risk=0.0,
+                reversible=True,
+                require_durable_receipt=True,
+                idempotency_key_argument="idempotency_key",
+                required_permissions=("payments.charge",),
+            )
+        ],
+        execution_ledger=ledger,
+    )
+    principal = AuthorizationContext.from_permissions(
+        "billing:alice",
+        ["payments.charge"],
+    )
+    adapter = OpenAIAgentsApprovalAdapter(
+        registry,
+        auto_approve_max_risk=0.0,
+        authorization_context=principal,
+    )
+    tool = adapter.function_tool(
+        "charge_card",
+        params_json_schema={
+            "type": "object",
+            "properties": {
+                "amount": {"type": "number"},
+            },
+            "required": ["amount"],
+            "additionalProperties": False,
+        },
+    )
+
+    needs_approval = asyncio.run(
+        tool.needs_approval(None, {"amount": 25}, "call-durable-1")
+    )
+    assert needs_approval is False
+
+    context = ToolContext(
+        context=None,
+        tool_name="charge_card",
+        tool_call_id="call-durable-1",
+        tool_arguments='{"amount":25}',
+    )
+    first = asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+    second = asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+
+    effect_id = "openai-agents:charge_card:call-durable-1"
+    assert first == second
+    assert calls == [(25, effect_id)]
+    receipt = ledger.get(effect_id)
+    assert receipt is not None
+    assert receipt.status == "succeeded"
+    assert receipt.result == first
+
+
+def test_bound_durable_tool_still_rechecks_authorization_at_execution(tmp_path):
+    ledger = SQLiteExecutionLedger(tmp_path / "openai-agents-auth.sqlite3")
+    registry = ToolRegistry(
+        [
+            ToolSpec(
+                "charge_card",
+                "Charge a card.",
+                lambda amount, idempotency_key: {"ok": True},
+                risk=0.0,
+                reversible=True,
+                require_durable_receipt=True,
+                idempotency_key_argument="idempotency_key",
+                required_permissions=("payments.charge",),
+            )
+        ],
+        execution_ledger=ledger,
+    )
+    allowed = AuthorizationContext.from_permissions(
+        "billing:alice",
+        ["payments.charge"],
+    )
+    denied = AuthorizationContext.from_permissions("billing:alice", [])
+
+    current = {"context": allowed}
+
+    def authority(_run_context, _tool_name, _arguments, _call_id):
+        return current["context"]
+
+    adapter = OpenAIAgentsApprovalAdapter(
+        registry,
+        auto_approve_max_risk=0.0,
+        authorization_resolver=authority,
+    )
+    tool = adapter.function_tool(
+        "charge_card",
+        params_json_schema={
+            "type": "object",
+            "properties": {"amount": {"type": "number"}},
+            "required": ["amount"],
+            "additionalProperties": False,
+        },
+    )
+
+    assert asyncio.run(
+        tool.needs_approval(None, {"amount": 25}, "call-auth-1")
+    ) is False
+
+    current["context"] = denied
+    context = ToolContext(
+        context=None,
+        tool_name="charge_card",
+        tool_call_id="call-auth-1",
+        tool_arguments='{"amount":25}',
+    )
+
+    with pytest.raises(Exception, match="lacks permission"):
+        asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+
+    assert ledger.get("openai-agents:charge_card:call-auth-1") is None
+
+
+def test_bound_durable_tool_requires_configured_execution_ledger():
+    adapter = OpenAIAgentsApprovalAdapter(
+        [
+            ToolSpec(
+                "charge_card",
+                "Charge a card.",
+                lambda amount, idempotency_key: {"ok": True},
+                risk=0.0,
+                reversible=True,
+                require_durable_receipt=True,
+                idempotency_key_argument="idempotency_key",
+            )
+        ],
+        auto_approve_max_risk=0.0,
+    )
+    tool = adapter.function_tool(
+        "charge_card",
+        params_json_schema={
+            "type": "object",
+            "properties": {"amount": {"type": "number"}},
+            "required": ["amount"],
+            "additionalProperties": False,
+        },
+    )
+    context = ToolContext(
+        context=None,
+        tool_name="charge_card",
+        tool_call_id="call-no-ledger",
+        tool_arguments='{"amount":25}',
+    )
+
+    with pytest.raises(ExecutionBoundaryError, match="durable execution receipt"):
+        asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+
+
+def test_function_tool_rejects_async_branchpoint_handler():
+    async def async_handler(value):
+        return value
+
+    adapter = OpenAIAgentsApprovalAdapter(
+        [ToolSpec("async_tool", "async", async_handler)]
+    )
+
+    with pytest.raises(TypeError, match="synchronous ToolSpec handler"):
+        adapter.function_tool(
+            "async_tool",
+            params_json_schema={
+                "type": "object",
+                "properties": {"value": {"type": "string"}},
+                "required": ["value"],
+            },
+        )
