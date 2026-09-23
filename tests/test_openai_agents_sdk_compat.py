@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import inspect
 
+import pytest
+
 from agents import function_tool
 from agents.items import ToolApprovalItem
 from agents.run_state import RunState
@@ -10,6 +12,7 @@ from agents.tool_context import ToolContext
 
 from branchpoint import (
     AuthorizationContext,
+    AuthorizationDenied,
     ExecutionBoundaryError,
     SQLiteExecutionLedger,
     ToolRegistry,
@@ -196,7 +199,7 @@ def test_bound_durable_tool_still_rechecks_authorization_at_execution(tmp_path):
         tool_arguments='{"amount":25}',
     )
 
-    with pytest.raises(Exception, match="lacks permission"):
+    with pytest.raises(AuthorizationDenied, match="lacks permission"):
         asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
 
     assert ledger.get("openai-agents:charge_card:call-auth-1") is None
