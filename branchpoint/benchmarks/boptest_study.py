@@ -30,20 +30,33 @@ class BOPTESTStudyPlanError(ValueError):
 @dataclass(frozen=True)
 class BOPTESTStudyPeriod:
     period_id: str
-    start_time: float
+    day_index: int
+    start_hour: float = 0.0
 
     def __post_init__(self) -> None:
         period_id = str(self.period_id).strip()
         if not period_id:
             raise BOPTESTStudyPlanError("period_id must be non-empty")
-        if float(self.start_time) < 0:
-            raise BOPTESTStudyPlanError("period start_time must be non-negative")
+        day_index = int(self.day_index)
+        start_hour = float(self.start_hour)
+        if day_index < 0 or day_index > 365:
+            raise BOPTESTStudyPlanError("day_index must be between 0 and 365")
+        if not 0.0 <= start_hour < 24.0:
+            raise BOPTESTStudyPlanError("start_hour must be in [0, 24)")
         object.__setattr__(self, "period_id", period_id)
+        object.__setattr__(self, "day_index", day_index)
+        object.__setattr__(self, "start_hour", start_hour)
+
+    @property
+    def start_time(self) -> float:
+        return float(self.day_index * 86400) + self.start_hour * 3600.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "period_id": self.period_id,
-            "start_time": float(self.start_time),
+            "day_index": self.day_index,
+            "start_hour": self.start_hour,
+            "start_time": self.start_time,
         }
 
 
@@ -131,10 +144,12 @@ class BOPTESTArbitrationStudyPlan:
         proposal_config = TemperatureBandProposalConfig(
             **dict(data.pop("proposal_config"))
         )
-        periods = tuple(
-            BOPTESTStudyPeriod(**dict(row))
-            for row in data.pop("periods")
-        )
+        periods = []
+        for raw in data.pop("periods"):
+            row = dict(raw)
+            row.pop("start_time", None)
+            periods.append(BOPTESTStudyPeriod(**row))
+        periods = tuple(periods)
         return cls(
             base_manifest=base_manifest,
             periods=periods,
