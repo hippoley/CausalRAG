@@ -208,3 +208,5 @@ jobs:
           cat /tmp/openai-agents-durable.txt
           grep -q "external_calls: 1" /tmp/openai-agents-durable.txt
           grep -q "receipt_status: succeeded" /tmp/openai-agents-durable.txt
+          grep -q "first_replayed: False" /tmp/openai-agents-durable.txt
+          grep -q "replay_replayed: True" /tmp/openai-agents-durable.txt

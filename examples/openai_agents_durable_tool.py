@@ -73,7 +73,9 @@ def main() -> None:
     )
 
     first = asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+    first_trace = dict(context._custom_data["branchpoint"])
     replay = asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+    replay_trace = dict(context._custom_data["branchpoint"])
 
     effect_id = f"openai-agents:charge_card:{call_id}"
     receipt = ledger.get(effect_id)
@@ -83,6 +85,9 @@ def main() -> None:
     print("external_calls:", len(calls))
     print("effect_id:", effect_id)
     print("receipt_status:", None if receipt is None else receipt.status)
+    print("first_replayed:", first_trace["replayed"])
+    print("replay_replayed:", replay_trace["replayed"])
+    print("effect_hash:", replay_trace["effect_hash"])
 
 
 if __name__ == "__main__":

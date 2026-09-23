@@ -6,7 +6,7 @@ import inspect
 import pytest
 
 from agents import function_tool
-from agents.items import ToolApprovalItem
+from agents.items import ToolApprovalItem, ToolCallOutputItem
 from agents.run_state import RunState
 from agents.tool_context import ToolContext
 
@@ -135,7 +135,9 @@ def test_branchpoint_bound_function_tool_uses_durable_receipt_and_call_id(tmp_pa
         tool_arguments='{"amount":25}',
     )
     first = asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+    first_custom_data = dict(context._custom_data)
     second = asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+    second_custom_data = dict(context._custom_data)
 
     effect_id = "openai-agents:charge_card:call-durable-1"
     assert first == second
@@ -144,6 +146,17 @@ def test_branchpoint_bound_function_tool_uses_durable_receipt_and_call_id(tmp_pa
     assert receipt is not None
     assert receipt.status == "succeeded"
     assert receipt.result == first
+
+    first_trace = first_custom_data["branchpoint"]
+    second_trace = second_custom_data["branchpoint"]
+    assert first_trace["schema_version"] == "branchpoint.openai-agents.execution.v1"
+    assert first_trace["execution_boundary"] == "branchpoint"
+    assert first_trace["effect_id"] == effect_id
+    assert first_trace["receipt_status"] == "succeeded"
+    assert first_trace["replayed"] is False
+    assert first_trace["effect_hash"] == receipt.effect_hash
+    assert first_trace["authorization_rechecked"] is True
+    assert second_trace["replayed"] is True
 
 
 def test_bound_durable_tool_still_rechecks_authorization_at_execution(tmp_path):
@@ -360,3 +373,28 @@ def test_explicit_adapter_policy_is_reused_at_bound_tool_execution(tmp_path):
     )
     with pytest.raises(AuthorizationDenied, match="Deployment freeze"):
         asyncio.run(tool.on_invoke_tool(context, '{"service":"api"}'))
+
+
+def test_sdk_only_custom_data_is_not_replayed_to_model_input():
+    output = ToolCallOutputItem(
+        agent=DummyAgent(),
+        raw_item={
+            "type": "function_call_output",
+            "call_id": "call-custom-data-1",
+            "output": "ok",
+        },
+        output="ok",
+        custom_data={
+            "branchpoint": {
+                "effect_id": "effect-1",
+                "receipt_status": "succeeded",
+                "replayed": True,
+            }
+        },
+    )
+
+    input_item = output.to_input_item()
+
+    assert input_item["type"] == "function_call_output"
+    assert input_item["call_id"] == "call-custom-data-1"
+    assert "custom_data" not in input_item

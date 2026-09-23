@@ -246,3 +246,38 @@ python examples/openai_agents_durable_tool.py
 It invokes the same SDK FunctionTool twice with one call id and demonstrates
 that the external handler runs once while the second invocation replays the
 stored result.
+
+
+## SDK-only receipt evidence
+
+A Branchpoint-bound FunctionTool attaches execution metadata to the Agents SDK
+tool output as `custom_data["branchpoint"]`:
+
+```json
+{
+  "schema_version": "branchpoint.openai-agents.execution.v1",
+  "execution_boundary": "branchpoint",
+  "tool_name": "charge_card",
+  "call_id": "call-...",
+  "durable": true,
+  "effect_id": "openai-agents:charge_card:call-...",
+  "replayed": false,
+  "receipt_status": "succeeded",
+  "effect_hash": "...",
+  "authorization_rechecked": true,
+  "authorization_policy_id": "branchpoint.capability.v1"
+}
+```
+
+On a replay of the same successful SDK call id, `replayed` becomes `true`.
+The receipt result still comes from Branchpoint's ledger and the application
+handler is not invoked again.
+
+This metadata is SDK-only. The Agents SDK stores it on `ToolCallOutputItem`
+rather than inside the raw tool result replayed to the model. Branchpoint's
+compatibility test explicitly verifies that `to_input_item()` does not include
+`custom_data`.
+
+The audit payload intentionally omits tool arguments, tool output content, and
+principal identity. Those remain application-owned data rather than default
+trace content.
