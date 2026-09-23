@@ -87,3 +87,17 @@ def test_release_evidence_rejects_version_mismatch(tmp_path):
                 version="9.9.9",
             ),
         )
+
+
+def test_release_evidence_rejects_distribution_filename_version_mismatch(tmp_path):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "branchpoint-9.9.9-py3-none-any.whl").write_bytes(b"wheel")
+    (dist / "branchpoint-0.3.0.tar.gz").write_bytes(b"sdist")
+
+    with pytest.raises(SystemExit, match="filename/version mismatch"):
+        build_release_evidence(
+            repository_root=ROOT,
+            dist_dir=dist,
+            doctor_path=_doctor(tmp_path / "doctor.json"),
+        )
