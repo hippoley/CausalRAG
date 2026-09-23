@@ -220,24 +220,17 @@ def test_bound_durable_tool_requires_configured_execution_ledger():
         ],
         auto_approve_max_risk=0.0,
     )
-    tool = adapter.function_tool(
-        "charge_card",
-        params_json_schema={
-            "type": "object",
-            "properties": {"amount": {"type": "number"}},
-            "required": ["amount"],
-            "additionalProperties": False,
-        },
-    )
-    context = ToolContext(
-        context=None,
-        tool_name="charge_card",
-        tool_call_id="call-no-ledger",
-        tool_arguments='{"amount":25}',
-    )
 
     with pytest.raises(ExecutionBoundaryError, match="durable execution receipt"):
-        asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+        adapter.function_tool(
+            "charge_card",
+            params_json_schema={
+                "type": "object",
+                "properties": {"amount": {"type": "number"}},
+                "required": ["amount"],
+                "additionalProperties": False,
+            },
+        )
 
 
 def test_function_tool_rejects_async_branchpoint_handler():
