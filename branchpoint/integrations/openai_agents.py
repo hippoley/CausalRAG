@@ -104,16 +104,17 @@ class OpenAIAgentsApprovalAdapter:
         self.allow_irreversible_auto_approval = bool(
             allow_irreversible_auto_approval
         )
-        registry_policy = (
-            self.tools.authorization_policy
-            if isinstance(self.tools.authorization_policy, CapabilityAuthorizationPolicy)
-            else None
-        )
+        registry_policy = self.tools.authorization_policy
         self.authorization_policy = (
             authorization_policy
             or registry_policy
             or CapabilityAuthorizationPolicy()
         )
+        # Approval and execution must consult one policy source. When callers
+        # explicitly override the adapter policy, bind the same object to the
+        # registry used by Branchpoint-bound FunctionTools.
+        if authorization_policy is not None or registry_policy is None:
+            self.tools.authorization_policy = self.authorization_policy
         self.authorization_context = authorization_context
         self.authorization_resolver = authorization_resolver
         self._branchpoint_execution_tools: set[str] = set()
