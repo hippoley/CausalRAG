@@ -45,6 +45,7 @@ from .execution import (
     effect_hash,
 )
 from .postgres_execution import PostgresExecutionLedger
+from .gateway import ExecutionGateDecision, ExecutionGateOutcome, ToolExecutionGate
 from .jev import JevError, JevProposal, jev_then_branchpoint, propose_actions_with_jev, reorder_candidates_from_jev
 from .scaffold import scaffold_capability_pack
 from .experiments import (
@@ -126,7 +127,7 @@ def create_pipeline(model_name="gpt-5.6-terra", embedding_model="text-embedding-
 
 
 __all__ = [
-    "CausalAgent", "AgentRunResult", "create_agent", "AuthorizationContext", "AuthorizationDecision", "AuthorizationDenied", "AuthorizationError", "CapabilityAuthorizationPolicy", "DecisionResult", "decide", "DecisionPayloadError", "arbitrate_payload", "ExecutionBoundaryError", "ExecutionLedger", "EffectIdentityConflict", "ExecutionInProgress", "PreviousExecutionFailed", "NonCanonicalEffect", "ExecutionReceipt", "SQLiteExecutionLedger", "PostgresExecutionLedger", "canonical_effect", "effect_hash", "JevError", "JevProposal", "jev_then_branchpoint", "propose_actions_with_jev", "reorder_candidates_from_jev", "scaffold_capability_pack", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
+    "CausalAgent", "AgentRunResult", "create_agent", "AuthorizationContext", "AuthorizationDecision", "AuthorizationDenied", "AuthorizationError", "CapabilityAuthorizationPolicy", "DecisionResult", "decide", "DecisionPayloadError", "arbitrate_payload", "ExecutionBoundaryError", "ExecutionLedger", "EffectIdentityConflict", "ExecutionInProgress", "PreviousExecutionFailed", "NonCanonicalEffect", "ExecutionReceipt", "SQLiteExecutionLedger", "PostgresExecutionLedger", "ExecutionGateDecision", "ExecutionGateOutcome", "ToolExecutionGate", "canonical_effect", "effect_hash", "JevError", "JevProposal", "jev_then_branchpoint", "propose_actions_with_jev", "reorder_candidates_from_jev", "scaffold_capability_pack", "LLMCausalReasoner", "LLMHypothesisUpdater", "HypothesisProposal", "create_pipeline",
     "ActionKind", "ActionScore", "AgentState", "CandidateAction", "CausalAgentLoop", "DecisionRecord", "Observation",
     "TemporalEffectContract", "PendingEffect", "TimeDriver", "VirtualTimeDriver",
     "ToolRegistry", "ToolSpec", "CausalBelief", "CausalWorldModel", "Evidence", "Hypothesis", "ModelMismatch", "Transition",
