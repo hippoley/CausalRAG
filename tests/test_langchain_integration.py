@@ -21,6 +21,7 @@ from branchpoint.integrations import (
     LangChainBranchpointMiddleware,
     langchain_branchpoint_stack,
     langchain_human_in_the_loop,
+    langchain_tool_schema,
 )
 
 
@@ -328,3 +329,73 @@ def test_stack_factory_places_human_gate_before_execution_boundary():
     ]
     assert isinstance(execution, LangChainBranchpointMiddleware)
     assert execution.registry is registry
+
+
+def test_schema_only_langchain_tool_fails_closed_without_middleware():
+    spec = ToolSpec(
+        "charge",
+        "Charge a card.",
+        lambda amount: {"amount": amount},
+    )
+    tool = langchain_tool_schema(
+        spec,
+        args_schema={
+            "type": "object",
+            "properties": {"amount": {"type": "number"}},
+            "required": ["amount"],
+            "additionalProperties": False,
+        },
+    )
+
+    assert tool.name == "charge"
+    assert tool.description == "Charge a card."
+    with pytest.raises(
+        LangChainBranchpointError,
+        match="must execute through LangChainBranchpointMiddleware",
+    ):
+        tool.invoke({"amount": 25})
+
+
+def test_schema_only_tool_and_middleware_share_one_canonical_handler(tmp_path):
+    calls = []
+    spec = ToolSpec(
+        "charge",
+        "Charge a card.",
+        lambda amount: calls.append(amount) or {"amount": amount},
+        require_durable_receipt=True,
+    )
+    registry = ToolRegistry(
+        [spec],
+        execution_ledger=SQLiteExecutionLedger(
+            tmp_path / "schema-middleware.sqlite3"
+        ),
+    )
+    tool = langchain_tool_schema(
+        spec,
+        args_schema={
+            "type": "object",
+            "properties": {"amount": {"type": "number"}},
+            "required": ["amount"],
+        },
+    )
+    middleware = LangChainBranchpointMiddleware(registry)
+
+    result = middleware.wrap_tool_call(
+        ToolCallRequest(
+            tool_call={
+                "name": "charge",
+                "args": {"amount": 25},
+                "id": "call-schema-1",
+                "type": "tool_call",
+            },
+            tool=tool,
+            state={"messages": []},
+            runtime=SimpleNamespace(context=None),
+        ),
+        lambda _request: (_ for _ in ()).throw(
+            AssertionError("LangChain tool stub must not execute")
+        ),
+    )
+
+    assert result.status == "success"
+    assert calls == [25]
