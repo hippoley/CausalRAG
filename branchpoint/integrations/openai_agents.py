@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Iterable, Mapping, Optional, Tuple
@@ -87,8 +88,10 @@ class OpenAIAgentsApprovalAdapter:
                 "Pass authorization_context or authorization_resolver, not both."
             )
         max_risk = float(auto_approve_max_risk)
-        if max_risk < 0.0:
-            raise ValueError("auto_approve_max_risk must be non-negative")
+        if not math.isfinite(max_risk) or max_risk < 0.0:
+            raise ValueError(
+                "auto_approve_max_risk must be finite and non-negative"
+            )
 
         self.tools = tools if isinstance(tools, ToolRegistry) else ToolRegistry(tools)
         self.auto_approve_max_risk = max_risk
@@ -145,8 +148,13 @@ class OpenAIAgentsApprovalAdapter:
         if not isinstance(value, str) or not value.strip():
             return None, "missing_arguments"
         try:
-            parsed = json.loads(value)
-        except json.JSONDecodeError:
+            parsed = json.loads(
+                value,
+                parse_constant=lambda constant: (_ for _ in ()).throw(
+                    ValueError(f"non-standard JSON constant: {constant}")
+                ),
+            )
+        except (json.JSONDecodeError, ValueError):
             return None, "malformed_arguments"
         if not isinstance(parsed, dict):
             return None, "non_object_arguments"
@@ -338,6 +346,7 @@ class OpenAIAgentsApprovalAdapter:
         run_result: Any,
         *,
         authorization_context: Optional[AuthorizationContext] = None,
+        run_context: Any = None,
     ) -> OpenAIAgentsResolution:
         """Resolve policy-decidable interruptions without resuming the run.
 
@@ -358,6 +367,7 @@ class OpenAIAgentsApprovalAdapter:
             decision = self.decide(
                 interruption,
                 authorization_context=authorization_context,
+                run_context=run_context,
             )
             decisions.append(decision)
             if decision.outcome is ApprovalOutcome.ALLOW:
