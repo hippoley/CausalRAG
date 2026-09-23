@@ -59,7 +59,7 @@ def create_branchpoint_mcp_server(
     except ImportError as exc:
         raise RuntimeError(
             "MCP integration requires the optional SDK. "
-            "Install this repository with: pip install -e ".[mcp]""
+            "Install this repository with: pip install -e \".[mcp]\""
         ) from exc
 
     execution_gate = gate or ToolExecutionGate(registry)
