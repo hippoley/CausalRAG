@@ -913,7 +913,7 @@ def test_probe_semantic_replay_keeps_replanned_preview_that_never_executed():
         if row["gate_id"] == first_gate
     )
     assert discarded["outcome"] == "discarded_before_execution"
-    assert discarded["canonical_episode"] if "canonical_episode" in discarded else True
+    assert "canonical_episode" not in discarded
     assert discarded["observation"] is None
 
     executed_same_step = [
