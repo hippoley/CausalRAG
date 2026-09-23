@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable, Dict, Mapping, Tuple
 
 from branchpoint.environments import BOPTESTClient
@@ -15,7 +15,6 @@ from .boptest_comparison import (
     BOPTESTBootstrapReport,
     BOPTESTComparisonReport,
     bootstrap_paired_kpi_intervals,
-    expand_seeded_manifests,
     run_boptest_comparison,
 )
 from .boptest_protocol import BOPTESTScenarioManifest
@@ -29,9 +28,29 @@ class BOPTESTStudyPlanError(ValueError):
 
 
 @dataclass(frozen=True)
+class BOPTESTStudyPeriod:
+    period_id: str
+    start_time: float
+
+    def __post_init__(self) -> None:
+        period_id = str(self.period_id).strip()
+        if not period_id:
+            raise BOPTESTStudyPlanError("period_id must be non-empty")
+        if float(self.start_time) < 0:
+            raise BOPTESTStudyPlanError("period start_time must be non-negative")
+        object.__setattr__(self, "period_id", period_id)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "period_id": self.period_id,
+            "start_time": float(self.start_time),
+        }
+
+
+@dataclass(frozen=True)
 class BOPTESTArbitrationStudyPlan:
     base_manifest: BOPTESTScenarioManifest
-    seeds: Tuple[int, ...]
+    periods: Tuple[BOPTESTStudyPeriod, ...]
     proposal_config: TemperatureBandProposalConfig
     reference_controller_id: str = "proposal-order"
     confidence: float = 0.95
@@ -40,16 +59,27 @@ class BOPTESTArbitrationStudyPlan:
     protocol_version: str = STUDY_PROTOCOL_VERSION
 
     def __post_init__(self) -> None:
-        seeds = tuple(int(seed) for seed in self.seeds)
-        if len(seeds) < 2:
-            raise BOPTESTStudyPlanError("study requires at least two seeds")
-        if len(set(seeds)) != len(seeds):
-            raise BOPTESTStudyPlanError("study seeds must be unique")
-        object.__setattr__(self, "seeds", seeds)
+        periods = tuple(self.periods)
+        if len(periods) < 2:
+            raise BOPTESTStudyPlanError("study requires at least two periods")
+        ids = [period.period_id for period in periods]
+        if len(set(ids)) != len(ids):
+            raise BOPTESTStudyPlanError("study period ids must be unique")
+        starts = [float(period.start_time) for period in periods]
+        if len(set(starts)) != len(starts):
+            raise BOPTESTStudyPlanError("study period start times must be unique")
+        object.__setattr__(self, "periods", periods)
 
         if self.base_manifest.seed is not None:
             raise BOPTESTStudyPlanError(
-                "base_manifest.seed must be null; study seeds are declared separately"
+                "base_manifest.seed must be null for this non-forecast controller study"
+            )
+        if (
+            self.base_manifest.temperature_uncertainty is not None
+            or self.base_manifest.solar_uncertainty is not None
+        ):
+            raise BOPTESTStudyPlanError(
+                "forecast uncertainty must be disabled because this proposer does not consume forecasts"
             )
 
         reference = str(self.reference_controller_id).strip()
@@ -101,10 +131,13 @@ class BOPTESTArbitrationStudyPlan:
         proposal_config = TemperatureBandProposalConfig(
             **dict(data.pop("proposal_config"))
         )
-        seeds = tuple(data.pop("seeds"))
+        periods = tuple(
+            BOPTESTStudyPeriod(**dict(row))
+            for row in data.pop("periods")
+        )
         return cls(
             base_manifest=base_manifest,
-            seeds=seeds,
+            periods=periods,
             proposal_config=proposal_config,
             **data,
         )
@@ -113,7 +146,7 @@ class BOPTESTArbitrationStudyPlan:
         return {
             "protocol_version": self.protocol_version,
             "base_manifest": self.base_manifest.to_dict(),
-            "seeds": list(self.seeds),
+            "periods": [period.to_dict() for period in self.periods],
             "proposal_config": {
                 "lower_kelvin": float(self.proposal_config.lower_kelvin),
                 "upper_kelvin": float(self.proposal_config.upper_kelvin),
@@ -150,6 +183,16 @@ class BOPTESTArbitrationStudyPlan:
         ).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
 
+    def manifests(self) -> Tuple[BOPTESTScenarioManifest, ...]:
+        return tuple(
+            replace(
+                self.base_manifest,
+                start_time=float(period.start_time),
+                seed=None,
+            )
+            for period in self.periods
+        )
+
 
 @dataclass(frozen=True)
 class BOPTESTArbitrationStudyResult:
@@ -158,11 +201,23 @@ class BOPTESTArbitrationStudyResult:
     uncertainty: BOPTESTBootstrapReport
 
     def to_dict(self) -> Dict[str, Any]:
+        manifests = self.plan.manifests()
         return {
             "study_plan": self.plan.to_dict(),
             "study_hash": self.plan.study_hash,
+            "period_manifest_hashes": {
+                period.period_id: manifest.manifest_hash
+                for period, manifest in zip(self.plan.periods, manifests)
+            },
             "comparison": self.comparison.to_dict(),
-            "uncertainty": self.uncertainty.to_dict(),
+            "uncertainty": {
+                **self.uncertainty.to_dict(),
+                "interpretation": (
+                    "descriptive robustness interval over a purposively selected "
+                    "set of official BESTEST Air regimes; not a random-sampling "
+                    "population confidence interval"
+                ),
+            },
         }
 
 
@@ -171,15 +226,11 @@ def run_boptest_arbitration_study(
     *,
     client_factory: Callable[[], BOPTESTClient] = BOPTESTClient,
 ) -> BOPTESTArbitrationStudyResult:
-    manifests = expand_seeded_manifests(
-        plan.base_manifest,
-        plan.seeds,
-    )
     controllers = temperature_band_controller_specs(
         plan.proposal_config,
     )
     comparison = run_boptest_comparison(
-        manifests,
+        plan.manifests(),
         controllers,
         reference_controller_id=plan.reference_controller_id,
         client_factory=client_factory,
