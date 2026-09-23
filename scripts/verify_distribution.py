@@ -113,11 +113,15 @@ def verify_wheel(dist_dir: Path, repository_root: Path) -> Path:
 
     requirements = all_metadata_values(metadata, "Requires-Dist")
     for extra, dependency in REQUIRED_OPTIONAL_DEPENDENCIES.items():
+        marker = re.compile(
+            rf"""extra\s*==\s*["']{re.escape(extra)}["']""",
+            re.IGNORECASE,
+        )
         matching = [
             requirement
             for requirement in requirements
             if requirement.lower().startswith(dependency.lower())
-            and f'extra == "{extra}"' in requirement
+            and marker.search(requirement)
         ]
         if not matching:
             raise SystemExit(
