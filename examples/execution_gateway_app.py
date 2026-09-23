@@ -56,6 +56,8 @@ registry = ToolRegistry(
 
 
 def principal_resolver(request: Request):
+    # Demo only. Production must derive identity from a trusted session/JWT,
+    # mTLS identity, or headers injected by an authenticated reverse proxy.
     principal = request.headers.get("x-principal")
     if not principal:
         return None
