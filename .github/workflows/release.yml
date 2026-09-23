@@ -180,6 +180,8 @@ jobs:
             dist/*.whl \
             dist/*.tar.gz \
             dist/SHA256SUMS \
+            evidence/release-evidence.json \
+            evidence/doctor.json \
             --verify-tag \
             --generate-notes \
             --title "Branchpoint $GITHUB_REF_NAME"
