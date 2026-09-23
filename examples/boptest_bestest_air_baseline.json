@@ -1,0 +1,18 @@
+{
+  "protocol_version": "branchpoint.boptest.v1",
+  "testcase": "bestest_air",
+  "start_time": 0,
+  "warmup_period": 86400,
+  "step_seconds": 300,
+  "horizon_seconds": 3600,
+  "scenario": {},
+  "controlled_inputs": [],
+  "measurement_points": [],
+  "required_kpis": [
+    "ener_tot",
+    "cost_tot",
+    "tdis_tot",
+    "idis_tot",
+    "time_rat"
+  ]
+}
