@@ -93,17 +93,13 @@ BRAND_IDENTITY_FILES = [
 
 
 def _strip_compatibility_paths(text: str) -> str:
-    text = re.sub(
-        r"https://github\.com/hippoley/CausalRAG[^\s)\]"']*",
+    text = text.replace(
+        "https://github.com/hippoley/CausalRAG",
         "<github-repository-url>",
-        text,
-        flags=re.IGNORECASE,
     )
-    text = re.sub(
-        r"https://hippoley\.github\.io/CausalRAG[^\s)\]"']*",
+    text = text.replace(
+        "https://hippoley.github.io/CausalRAG",
         "<github-pages-url>",
-        text,
-        flags=re.IGNORECASE,
     )
     text = re.sub(
         r"\bcd\s+CausalRAG\b",
