@@ -57,8 +57,8 @@ def _client(tmp_path):
         ]
         return AuthorizationContext.from_permissions(principal, permissions)
 
-    def approval_validator(_request, decision, token):
-        return token == f"approved:{decision.proposal_hash}"
+    def approval_validator(_request, decision, effect_id, token):
+        return token == f"approved:{decision.proposal_hash}:{effect_id}"
 
     app = create_execution_gateway_app(
         registry,
@@ -154,7 +154,7 @@ def test_high_risk_call_requires_trusted_approval_then_executes_once(tmp_path):
         headers=headers,
         json={
             **base,
-            "approval_token": f"approved:{decision['proposal_hash']}",
+            "approval_token": f"approved:{decision['proposal_hash']}:http-charge-1",
         },
     )
     replay = client.post(
@@ -162,7 +162,7 @@ def test_high_risk_call_requires_trusted_approval_then_executes_once(tmp_path):
         headers=headers,
         json={
             **base,
-            "approval_token": f"approved:{decision['proposal_hash']}",
+            "approval_token": f"approved:{decision['proposal_hash']}:http-charge-1",
         },
     )
 
@@ -198,7 +198,7 @@ def test_preview_hash_prevents_approved_payload_from_being_swapped(tmp_path):
             "arguments": {"amount": 2500},
             "effect_id": "swapped-1",
             "expected_proposal_hash": preview["proposal_hash"],
-            "approval_token": f"approved:{preview['proposal_hash']}",
+            "approval_token": f"approved:{preview['proposal_hash']}:swapped-1",
         },
     )
 
@@ -252,3 +252,27 @@ def test_gateway_refuses_to_start_without_durable_ledger():
         assert "requires an execution_ledger" in str(exc)
     else:
         raise AssertionError("gateway started without a durable ledger")
+
+
+def test_high_risk_execute_requires_a_matching_preview_hash(tmp_path):
+    client, registry, calls = _client(tmp_path)
+    headers = {
+        "x-principal": "billing:alice",
+        "x-permissions": "payments.charge",
+    }
+
+    response = client.post(
+        "/v1/execute",
+        headers=headers,
+        json={
+            "tool_name": "charge_card",
+            "arguments": {"amount": 25},
+            "effect_id": "no-preview-1",
+            "approval_token": "approved:anything:no-preview-1",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "preview_required_for_approval"
+    assert registry.execution_ledger.get("no-preview-1") is None
+    assert calls == []
