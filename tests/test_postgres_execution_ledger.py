@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -169,3 +170,47 @@ def test_postgres_reconcile_can_record_authoritative_failure():
     assert receipt.status == "failed"
     assert receipt.error_type == "ReconciledFailure"
     assert "no charge" in receipt.error_message
+
+
+def test_async_tool_registry_replays_through_postgres_receipt():
+    calls = []
+
+    async def charge(amount, idempotency_key):
+        await asyncio.sleep(0)
+        calls.append((amount, idempotency_key))
+        return {"charge_id": "ch_pg_async_1", "amount": amount}
+
+    effect_id = "postgres-async-replay-1"
+    registry = ToolRegistry(
+        [
+            ToolSpec(
+                "charge_async",
+                "charge",
+                charge,
+                require_durable_receipt=True,
+                idempotency_key_argument="idempotency_key",
+            )
+        ],
+        execution_ledger=_ledger(),
+    )
+
+    async def scenario():
+        first = await registry.execute_async(
+            "charge_async",
+            {"amount": 25},
+            effect_id=effect_id,
+        )
+        second = await registry.execute_async(
+            "charge_async",
+            {"amount": 25},
+            effect_id=effect_id,
+        )
+        return first, second
+
+    first, second = asyncio.run(scenario())
+
+    assert first == second == {"charge_id": "ch_pg_async_1", "amount": 25}
+    assert calls == [(25, effect_id)]
+    receipt = _ledger().get(effect_id)
+    assert receipt.status == "succeeded"
+    assert receipt.result == first
