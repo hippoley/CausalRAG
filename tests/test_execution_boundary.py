@@ -309,3 +309,83 @@ def test_execute_async_moves_sync_handler_off_event_loop(tmp_path):
 
     assert result == {"value": "ok"}
     assert calls == ["ok"]
+
+
+class _CompletionFailingLedger(SQLiteExecutionLedger):
+    def complete(self, effect_id, result):
+        raise RuntimeError("receipt store unavailable")
+
+
+def test_sync_completion_failure_keeps_receipt_in_flight_for_reconciliation(tmp_path):
+    calls = []
+    ledger = _CompletionFailingLedger(tmp_path / "completion-failure-sync.sqlite3")
+
+    def external_effect():
+        calls.append("executed")
+        return {"ok": True}
+
+    registry = ToolRegistry(
+        [ToolSpec("external_effect", "effect", external_effect)],
+        execution_ledger=ledger,
+    )
+
+    with pytest.raises(RuntimeError, match="receipt store unavailable"):
+        registry.execute(
+            "external_effect",
+            {},
+            effect_id="completion-failure-sync-1",
+        )
+
+    receipt = ledger.get("completion-failure-sync-1")
+    assert receipt is not None
+    assert receipt.status == "in_flight"
+    assert calls == ["executed"]
+
+    with pytest.raises(ExecutionInProgress):
+        registry.execute(
+            "external_effect",
+            {},
+            effect_id="completion-failure-sync-1",
+        )
+    assert calls == ["executed"]
+
+
+def test_async_completion_failure_keeps_receipt_in_flight_for_reconciliation(tmp_path):
+    calls = []
+    ledger = _CompletionFailingLedger(tmp_path / "completion-failure-async.sqlite3")
+
+    async def external_effect():
+        await asyncio.sleep(0)
+        calls.append("executed")
+        return {"ok": True}
+
+    registry = ToolRegistry(
+        [ToolSpec("external_effect_async", "effect", external_effect)],
+        execution_ledger=ledger,
+    )
+
+    async def first_attempt():
+        with pytest.raises(RuntimeError, match="receipt store unavailable"):
+            await registry.execute_async(
+                "external_effect_async",
+                {},
+                effect_id="completion-failure-async-1",
+            )
+
+    asyncio.run(first_attempt())
+
+    receipt = ledger.get("completion-failure-async-1")
+    assert receipt is not None
+    assert receipt.status == "in_flight"
+    assert calls == ["executed"]
+
+    async def replay_attempt():
+        with pytest.raises(ExecutionInProgress):
+            await registry.execute_async(
+                "external_effect_async",
+                {},
+                effect_id="completion-failure-async-1",
+            )
+
+    asyncio.run(replay_attempt())
+    assert calls == ["executed"]
