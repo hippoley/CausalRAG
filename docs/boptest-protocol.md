@@ -127,3 +127,42 @@ The runtime deliberately does not convert an interval into a winner,
 "significance" label, or product claim. KPI direction, multiple-comparison
 policy, seed selection, and minimum sample size belong to the benchmark
 protocol and should be frozen before final tuning.
+
+
+## Isolating the runtime from the proposer
+
+The first Branchpoint-vs-baseline experiment deliberately avoids changing the
+proposal generator between arms.
+
+`temperature_band_controller_specs` creates two controllers from one shared
+BESTEST Air proposal provider:
+
+- `proposal-order`: executes the first proposed control unchanged;
+- `branchpoint`: sends the same ordered candidates through Branchpoint
+  arbitration before returning BOPTEST controls.
+
+The default BESTEST Air signal names are
+`zon_reaTRooAir_y`, `con_oveTSetHea_u`, and `con_oveTSetCoo_u`.
+The proposer is intentionally transparent: outside the configured temperature
+band it proposes an explicit setpoint override first and leaving the embedded
+controller in charge second. Branchpoint may preserve or reverse that order
+based on the canonical cost/risk/reversibility metadata supplied with the
+candidate.
+
+Every step records controller metadata into the episode trajectory, including
+the proposer-first action, selected action, whether Branchpoint changed the
+order, and the runtime scores used for arbitration.
+
+A live single-seed comparison can be run with:
+
+```bash
+python examples/boptest_branchpoint_vs_proposer.py \
+  --seed 11 \
+  --hours 6 \
+  --output boptest_branchpoint_vs_proposer.json
+```
+
+This is an ablation of **decision arbitration**, not a claim that the shared
+temperature-band proposer is an optimal controller. The next evidence step is
+to predeclare several seeds and compare paired KPI deltas with the bootstrap
+procedure above.

@@ -1,3 +1,13 @@
+from .boptest_branchpoint import (
+    BOPTESTArbitrationRecord,
+    BOPTESTControlCandidate,
+    BOPTESTDecisionAdapterError,
+    BranchpointBOPTESTController,
+    ProposalOrderBOPTESTController,
+    TemperatureBandProposalConfig,
+    temperature_band_controller_specs,
+    temperature_band_proposal_provider,
+)
 from .boptest_comparison import (
     BOPTESTBootstrapInterval,
     BOPTESTBootstrapReport,
@@ -12,6 +22,7 @@ from .boptest_comparison import (
 )
 from .boptest_protocol import (
     BOPTESTControlContext,
+    BOPTESTControlDecision,
     BOPTESTControlError,
     BOPTESTEpisodeResult,
     BOPTESTExperimentError,
@@ -68,6 +79,14 @@ from .temporal_suite import (
 )
 
 __all__ = [
+    "BOPTESTArbitrationRecord",
+    "BOPTESTControlCandidate",
+    "BOPTESTDecisionAdapterError",
+    "BranchpointBOPTESTController",
+    "ProposalOrderBOPTESTController",
+    "TemperatureBandProposalConfig",
+    "temperature_band_controller_specs",
+    "temperature_band_proposal_provider",
     "BOPTESTBootstrapInterval",
     "BOPTESTBootstrapReport",
     "BOPTESTComparisonError",
@@ -79,6 +98,7 @@ __all__ = [
     "expand_seeded_manifests",
     "run_boptest_comparison",
     "BOPTESTControlContext",
+    "BOPTESTControlDecision",
     "BOPTESTControlError",
     "BOPTESTEpisodeResult",
     "BOPTESTExperimentError",

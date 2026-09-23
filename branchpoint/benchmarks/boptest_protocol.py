@@ -156,7 +156,33 @@ class BOPTESTControlContext:
     manifest: BOPTESTScenarioManifest
 
 
-Controller = Callable[[BOPTESTControlContext], Mapping[str, Any]]
+@dataclass(frozen=True)
+class BOPTESTControlDecision:
+    controls: Mapping[str, Any]
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.controls, Mapping):
+            raise BOPTESTControlError("decision controls must be a mapping")
+        if not isinstance(self.metadata, Mapping):
+            raise BOPTESTControlError("decision metadata must be a mapping")
+        try:
+            json.dumps(
+                dict(self.metadata),
+                ensure_ascii=False,
+                sort_keys=True,
+                allow_nan=False,
+            )
+        except (TypeError, ValueError) as exc:
+            raise BOPTESTControlError(
+                "decision metadata must be JSON-serializable"
+            ) from exc
+
+
+Controller = Callable[
+    [BOPTESTControlContext],
+    Mapping[str, Any] | BOPTESTControlDecision,
+]
 
 
 @dataclass(frozen=True)
@@ -165,6 +191,7 @@ class BOPTESTStepRecord:
     elapsed_seconds: float
     controls: Mapping[str, Any]
     observation: Mapping[str, Any]
+    controller_metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -172,6 +199,7 @@ class BOPTESTStepRecord:
             "elapsed_seconds": float(self.elapsed_seconds),
             "controls": dict(self.controls),
             "observation": dict(self.observation),
+            "controller_metadata": dict(self.controller_metadata),
         }
 
 
@@ -363,10 +391,18 @@ def run_boptest_episode(
                 manifest=manifest,
             )
             proposed = controller(context)
-            if not isinstance(proposed, Mapping):
-                raise BOPTESTControlError("controller must return a mapping of controls")
+            controller_metadata: Mapping[str, Any] = {}
+            if isinstance(proposed, BOPTESTControlDecision):
+                controller_metadata = proposed.metadata
+                proposed_controls = proposed.controls
+            elif isinstance(proposed, Mapping):
+                proposed_controls = proposed
+            else:
+                raise BOPTESTControlError(
+                    "controller must return controls or BOPTESTControlDecision"
+                )
             controls = _validate_controls(
-                proposed,
+                proposed_controls,
                 manifest=manifest,
                 input_metadata=input_metadata,
             )
@@ -378,6 +414,7 @@ def run_boptest_episode(
                     elapsed_seconds=(step_index + 1) * float(manifest.step_seconds),
                     controls=controls,
                     observation=observation,
+                    controller_metadata=controller_metadata,
                 )
             )
 
