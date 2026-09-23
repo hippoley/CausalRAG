@@ -799,6 +799,29 @@ class ProbeSession:
             # Archival failure must not grant execution authority or kill the run.
             pass
 
+    def semantic_replay(self) -> Dict[str, Any]:
+        live_state = self.gate.live_state()
+        state = live_state or self._agent_state
+        with self._lock:
+            result = _jsonable(self._result) or {}
+
+        if state is not None:
+            ledger = _episode_ledger(
+                state,
+                self.agent.world_model,
+                self.agent.loop.tools,
+            )
+            decisions = _jsonable(state.decisions)
+        else:
+            ledger = result.get("episode_ledger") or []
+            decisions = result.get("decisions") or []
+
+        return build_semantic_replay(
+            self.gate.history(),
+            ledger,
+            final_decisions=decisions,
+        )
+
     def start(self) -> None:
         with self._lock:
             if self._started:
@@ -826,6 +849,16 @@ class ProbeSession:
             self._agent_state = result.state
             metrics = self.environment.metrics(result)
             payload = result.to_dict()
+            episode_ledger = _episode_ledger(
+                result.state,
+                result.world_model,
+                self.agent.loop.tools,
+            )
+            semantic_replay = build_semantic_replay(
+                self.gate.history(),
+                episode_ledger,
+                final_decisions=payload["decisions"],
+            )
             final = {
                 "config": self.config.to_dict(),
                 "metrics": metrics.to_dict(),
@@ -839,7 +872,8 @@ class ProbeSession:
                 "causal_trace": payload["causal_trace"],
                 "runtime_capabilities": self.capabilities.to_dict(),
                 "proposer_traces": _jsonable(result.state.scratch.get("proposer_traces", [])),
-                "episode_ledger": _episode_ledger(result.state, result.world_model, self.agent.loop.tools),
+                "episode_ledger": episode_ledger,
+                "semantic_replay": semantic_replay,
             }
             with self._lock:
                 self._result = final
@@ -882,6 +916,7 @@ class ProbeSession:
             "config": self.config.to_dict(),
             "goal": self.goal,
             "pending_decision": self.gate.pending(),
+            "semantic_replay": self.semantic_replay(),
             "hypotheses": self.agent.world_model.snapshot().get("hypotheses", []),
             "open_world": self.agent.world_model.snapshot().get("open_world", {}),
             "result": result,
@@ -914,7 +949,17 @@ class ProbeSession:
             "proposer_traces": _jsonable(scratch.get("proposer_traces", [])),
             "pending_decision": self.gate.pending(),
             "world_model": _jsonable(self.agent.world_model.snapshot()),
+            "gate_history": self.gate.history(),
             "episode_ledger": _jsonable(ledger),
+            "semantic_replay": build_semantic_replay(
+                self.gate.history(),
+                ledger,
+                final_decisions=(
+                    _jsonable(state.decisions)
+                    if state is not None
+                    else ((result or {}).get("decisions") or [])
+                ),
+            ),
             "interactions": {
                 "human_gate_history": _jsonable(
                     scratch.get("human_gate_history", [])
@@ -1122,14 +1167,17 @@ class ProbeSession:
             validated=False,
         )
         if self.gate._state is not None:
-            self.gate._state.scratch.setdefault("human_hypothesis_events", []).append(
-                {
-                    "step": int(self.gate._state.step),
-                    "hypothesis_id": hypothesis_id,
-                    "statement": statement,
-                    "probability": hypothesis.probability,
-                }
-            )
+            hypothesis_event = {
+                "step": int(self.gate._state.step),
+                "hypothesis_id": hypothesis_id,
+                "statement": statement,
+                "probability": hypothesis.probability,
+            }
+            self.gate._state.scratch.setdefault(
+                "human_hypothesis_events",
+                [],
+            ).append(hypothesis_event)
+            self.gate.record_hypothesis_added(hypothesis_event)
         self.telemetry.event(
             "branchpoint.human.hypothesis_added",
             {
