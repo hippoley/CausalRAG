@@ -33,6 +33,7 @@
 | **drop one decision boundary into my code** | [Minimal Python example](#put-one-decision-point-into-existing-code) |
 | **plug into an OpenAI Agents approval flow** | [OpenAI Agents adapter](docs/openai-agents.md) |
 | **protect any framework over HTTP** | [Execution gateway](docs/execution-gateway.md) |
+| **expose the boundary to MCP hosts** | [MCP execution boundary](docs/mcp.md) |
 | **bring my own domain** | [Capability packs](docs/capability-packs.md) |
 | **try to break the runtime** | [Open a failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml) |
 
