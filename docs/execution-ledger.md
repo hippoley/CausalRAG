@@ -57,3 +57,38 @@ fail-closed semantics.
 CI runs the SQLite contract in the normal suite and a live PostgreSQL 16 service
 for cross-connection claim, replay, identity-conflict, failure, and
 reconciliation tests.
+
+
+## Async execution
+
+`ToolRegistry.execute_async(...)` uses the same authorization, canonical
+effect identity, receipt, replay, failure, idempotency, and reconciliation
+contract as `execute(...)`.
+
+Async handlers are awaited directly. Synchronous handlers are executed in a
+worker thread, and synchronous receipt-store operations are also moved off the
+event loop.
+
+Calling the synchronous `execute(...)` API with an async handler fails before
+any durable receipt is claimed. Applications therefore do not get a stranded
+`in_flight` receipt merely because they chose the wrong execution API.
+
+Explicit downstream idempotency keys are also validated before claiming a
+receipt. If the caller supplies a value that conflicts with Branchpoint's
+`effect_id`, the call fails before the ledger is mutated.
+
+## Completion persistence failure
+
+The external handler and the receipt completion write are separate failure
+domains.
+
+If the handler itself raises, Branchpoint records a `failed` receipt.
+
+If the handler returns successfully but persisting `succeeded` fails,
+Branchpoint leaves the receipt `in_flight`. At that point the external effect
+may already have happened, so marking it failed would be false certainty. A
+later retry fails closed and requires authoritative reconciliation before the
+effect can move to a terminal state.
+
+This is the same crash-window rule used for process death after an external
+side effect and before durable acknowledgement.
