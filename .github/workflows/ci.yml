@@ -38,7 +38,7 @@ jobs:
           PY
       - name: Compile runtime
         run: |
-          python -m py_compile branchpoint/__init__.py branchpoint/authorization.py branchpoint/execution.py branchpoint/postgres_execution.py branchpoint/gateway.py branchpoint/integrations/openai_agents.py branchpoint/decision.py branchpoint/decision_io.py branchpoint/cli.py branchpoint/agent/temporal.py branchpoint/environments/boptest.py branchpoint/observability/telemetry.py branchpoint/benchmarks/temporal_hidden_world.py branchpoint/benchmarks/temporal_suite.py branchpoint/benchmarks/boptest_protocol.py branchpoint/benchmarks/boptest_comparison.py branchpoint/benchmarks/boptest_branchpoint.py branchpoint/benchmarks/boptest_study.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/browser_action_guard_demo.py examples/production_execution_boundary.py examples/tool_routing_demo.py examples/incident_triage_demo.py examples/custom_capability_pack.py examples/boptest_live_smoke.py examples/boptest_protocol_run.py examples/boptest_branchpoint_vs_proposer.py examples/boptest_branchpoint_regime_study.py examples/openai_agents_durable_tool.py
+          python -m py_compile branchpoint/__init__.py branchpoint/authorization.py branchpoint/execution.py branchpoint/postgres_execution.py branchpoint/gateway.py branchpoint/integrations/openai_agents.py branchpoint/integrations/mcp.py branchpoint/decision.py branchpoint/decision_io.py branchpoint/cli.py branchpoint/agent/temporal.py branchpoint/environments/boptest.py branchpoint/observability/telemetry.py branchpoint/benchmarks/temporal_hidden_world.py branchpoint/benchmarks/temporal_suite.py branchpoint/benchmarks/boptest_protocol.py branchpoint/benchmarks/boptest_comparison.py branchpoint/benchmarks/boptest_branchpoint.py branchpoint/benchmarks/boptest_study.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/browser_action_guard_demo.py examples/production_execution_boundary.py examples/tool_routing_demo.py examples/incident_triage_demo.py examples/custom_capability_pack.py examples/boptest_live_smoke.py examples/boptest_protocol_run.py examples/boptest_branchpoint_vs_proposer.py examples/boptest_branchpoint_regime_study.py examples/openai_agents_durable_tool.py
           python -m compileall -q branchpoint/agent branchpoint/world_model branchpoint/reasoning branchpoint/experiments branchpoint/environments branchpoint/observability branchpoint/benchmarks branchpoint/tools branchpoint/generator branchpoint/utils
       - name: Core import and CLI smoke
         run: |
@@ -220,3 +220,20 @@ jobs:
           grep -q "external_calls_before_approval: 0" /tmp/openai-agents-runner-e2e.txt
           grep -q "external_calls_after_resume: 1" /tmp/openai-agents-runner-e2e.txt
           grep -q "receipt_status: succeeded" /tmp/openai-agents-runner-e2e.txt
+
+  mcp-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tested MCP v2 integration
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[mcp,dev]"
+      - name: Compile MCP boundary example
+        run: |
+          python -m py_compile             branchpoint/integrations/mcp.py             examples/mcp_execution_boundary.py
+      - name: Verify MCP schema, MRTR approval and durable execution
+        run: pytest -q tests/test_mcp_execution_boundary.py
