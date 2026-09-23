@@ -19,6 +19,7 @@ from branchpoint import (
 from branchpoint.integrations import (
     LangChainBranchpointError,
     LangChainBranchpointMiddleware,
+    langchain_branchpoint_stack,
     langchain_human_in_the_loop,
 )
 
@@ -309,3 +310,21 @@ def test_branchpoint_registry_does_not_overwrite_langchain_middleware_tools_slot
 
     assert middleware.tools == []
     assert "read" in middleware.registry.specs()
+
+
+def test_stack_factory_places_human_gate_before_execution_boundary():
+    registry = ToolRegistry(
+        [ToolSpec("restart", "restart", lambda: None, risk=0.8)]
+    )
+
+    hitl, execution = langchain_branchpoint_stack(
+        registry,
+        auto_approve_max_risk=0.1,
+    )
+
+    assert hitl.interrupt_on["restart"]["allowed_decisions"] == [
+        "approve",
+        "reject",
+    ]
+    assert isinstance(execution, LangChainBranchpointMiddleware)
+    assert execution.registry is registry
