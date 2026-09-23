@@ -69,10 +69,14 @@ AuthorizationResolver = Callable[
 class OpenAIAgentsApprovalAdapter:
     """Map OpenAI Agents SDK approval interruptions onto Branchpoint policy.
 
-    This adapter owns only the pre-execution approval decision. Tool execution
-    remains owned by the OpenAI Agents SDK. Tools that require Branchpoint's
-    durable execution receipt boundary therefore fail closed here instead of
-    being auto-approved through a path that would bypass that boundary.
+    By default this adapter owns only the pre-execution approval decision.
+    Existing SDK tools continue to execute through the SDK and durable
+    Branchpoint tools fail closed if that path would bypass the receipt ledger.
+
+    ``function_tool(...)`` is the explicit exception: it builds an SDK
+    FunctionTool whose invocation crosses the Branchpoint ToolRegistry boundary
+    immediately before the application handler, so authorization, durable
+    receipts, replay, and downstream idempotency remain enforced.
     """
 
     def __init__(
