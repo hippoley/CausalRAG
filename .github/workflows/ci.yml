@@ -38,7 +38,7 @@ jobs:
           PY
       - name: Compile runtime
         run: |
-          python -m py_compile branchpoint/__init__.py branchpoint/authorization.py branchpoint/execution.py branchpoint/postgres_execution.py branchpoint/integrations/openai_agents.py branchpoint/decision.py branchpoint/decision_io.py branchpoint/cli.py branchpoint/agent/temporal.py branchpoint/environments/boptest.py branchpoint/observability/telemetry.py branchpoint/benchmarks/temporal_hidden_world.py branchpoint/benchmarks/temporal_suite.py branchpoint/benchmarks/boptest_protocol.py branchpoint/benchmarks/boptest_comparison.py branchpoint/benchmarks/boptest_branchpoint.py branchpoint/benchmarks/boptest_study.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/browser_action_guard_demo.py examples/production_execution_boundary.py examples/tool_routing_demo.py examples/incident_triage_demo.py examples/custom_capability_pack.py examples/boptest_live_smoke.py examples/boptest_protocol_run.py examples/boptest_branchpoint_vs_proposer.py examples/boptest_branchpoint_regime_study.py
+          python -m py_compile branchpoint/__init__.py branchpoint/authorization.py branchpoint/execution.py branchpoint/postgres_execution.py branchpoint/integrations/openai_agents.py branchpoint/decision.py branchpoint/decision_io.py branchpoint/cli.py branchpoint/agent/temporal.py branchpoint/environments/boptest.py branchpoint/observability/telemetry.py branchpoint/benchmarks/temporal_hidden_world.py branchpoint/benchmarks/temporal_suite.py branchpoint/benchmarks/boptest_protocol.py branchpoint/benchmarks/boptest_comparison.py branchpoint/benchmarks/boptest_branchpoint.py branchpoint/benchmarks/boptest_study.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/browser_action_guard_demo.py examples/production_execution_boundary.py examples/tool_routing_demo.py examples/incident_triage_demo.py examples/custom_capability_pack.py examples/boptest_live_smoke.py examples/boptest_protocol_run.py examples/boptest_branchpoint_vs_proposer.py examples/boptest_branchpoint_regime_study.py examples/openai_agents_durable_tool.py
           python -m compileall -q branchpoint/agent branchpoint/world_model branchpoint/reasoning branchpoint/experiments branchpoint/environments branchpoint/observability branchpoint/benchmarks branchpoint/tools branchpoint/generator branchpoint/utils
       - name: Core import and CLI smoke
         run: |
@@ -199,4 +199,12 @@ jobs:
           pip install -e ".[openai-agents,dev]"
       - name: Verify Branchpoint policy and SDK compatibility
         run: |
-          pytest -q             tests/test_openai_agents_approval.py             tests/test_openai_agents_sdk_compat.py
+          pytest -q \
+            tests/test_openai_agents_approval.py \
+            tests/test_openai_agents_sdk_compat.py
+      - name: Run durable SDK tool example
+        run: |
+          python examples/openai_agents_durable_tool.py > /tmp/openai-agents-durable.txt
+          cat /tmp/openai-agents-durable.txt
+          grep -q "external_calls: 1" /tmp/openai-agents-durable.txt
+          grep -q "receipt_status: succeeded" /tmp/openai-agents-durable.txt
