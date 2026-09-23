@@ -1,6 +1,6 @@
-# Contributing to CausalRAG
+# Contributing to Branchpoint
 
-CausalRAG is easiest to improve with **small, falsifiable additions**.
+Branchpoint is easiest to improve with **small, falsifiable additions**.
 
 The best contribution is usually not “add a new abstraction.” It is one of these:
 
