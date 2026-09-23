@@ -241,3 +241,16 @@ def test_needs_approval_callback_uses_same_policy_before_sdk_execution():
 def test_auto_approval_threshold_must_be_finite_and_non_negative(value):
     with pytest.raises(ValueError, match="finite and non-negative"):
         OpenAIAgentsApprovalAdapter([], auto_approve_max_risk=value)
+
+
+@pytest.mark.parametrize("risk", [float("nan"), float("inf"), -0.1])
+def test_invalid_canonical_tool_risk_requires_human(risk):
+    adapter = OpenAIAgentsApprovalAdapter(
+        [ToolSpec("unsafe_metadata", "test", lambda: None, risk=risk)],
+        auto_approve_max_risk=1.0,
+    )
+
+    decision = adapter.decide(FakeInterruption("unsafe_metadata", "{}"))
+
+    assert decision.outcome is ApprovalOutcome.REQUIRE_HUMAN
+    assert decision.reason_code == "invalid_tool_risk"
