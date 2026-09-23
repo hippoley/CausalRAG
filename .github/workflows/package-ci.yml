@@ -12,6 +12,7 @@ on:
       - 'tests/test_release_version.py'
       - '.github/workflows/package-ci.yml'
       - '.github/workflows/release.yml'
+      - 'scripts/verify_distribution.py'
   push:
     branches: [main]
     paths:
@@ -24,6 +25,7 @@ on:
       - 'tests/test_release_version.py'
       - '.github/workflows/package-ci.yml'
       - '.github/workflows/release.yml'
+      - 'scripts/verify_distribution.py'
 
 jobs:
   build-wheel:
@@ -44,29 +46,8 @@ jobs:
           python -m build
           python -m twine check dist/*
 
-      - name: Inspect wheel contents
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import zipfile
-
-          wheel = next(Path("dist").glob("branchpoint-*.whl"))
-          with zipfile.ZipFile(wheel) as zf:
-              names = set(zf.namelist())
-
-          required = {
-              "branchpoint/__init__.py",
-              "branchpoint/authorization.py",
-              "branchpoint/execution.py",
-              "branchpoint/jev.py",
-              "branchpoint/templates/probe_landing.html",
-              "branchpoint/templates/agent_workbench.html",
-              "branchpoint/templates/playable_probe.html",
-          }
-          missing = sorted(required - names)
-          assert not missing, f"wheel is missing runtime assets: {missing}"
-          print("wheel contains", len(names), "entries")
-          PY
+      - name: Verify release wheel surface
+        run: python scripts/verify_distribution.py dist
 
       - name: Install wheel in clean virtualenv
         run: |
