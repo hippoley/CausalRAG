@@ -33,9 +33,9 @@ The gate:
    receipts, and replay from the installed wheel.
 
 The distribution verifier checks the package name/version, required runtime
-files, the PostgreSQL execution backend, the OpenAI Agents integration module,
-advertised extras, and the dependency linkage for `postgres` and
-`openai-agents`.
+files, the PostgreSQL execution backend, the OpenAI Agents and MCP integration
+modules, advertised extras, and the dependency linkage for `postgres`,
+`openai-agents`, and `mcp`.
 
 This catches failures that editable installs cannot: missing package data, stale
 entry points, metadata errors, or imports that accidentally depend on the
@@ -107,8 +107,10 @@ build distributions
 → verify tag commit is on main
 → verify tag == package version
 → clean-wheel install smoke
-→ upload GitHub artifact
-→ artifact attestation
+→ branchpoint doctor --json
+→ bind doctor + wheel/sdist hashes into release evidence
+→ upload distributions + evidence
+→ attest distributions + evidence
 → PyPI Trusted Publishing
 → SHA256SUMS
 → GitHub Release
@@ -119,6 +121,47 @@ The GitHub Release is created only after PyPI publishing succeeds.
 The workflow refuses a release tag whose commit is not an ancestor of
 `origin/main`, and refuses a tag whose version does not exactly match
 `branchpoint.__version__`.
+
+## Release evidence
+
+Every packaging run creates machine-readable proof from the **installed wheel**,
+not from the editable repository checkout.
+
+`branchpoint doctor --json` proves the required core invariants used by the
+release gate:
+
+- runtime arbitration can diverge from proposer order under canonical policy;
+- authorization denies an unprivileged principal before the handler runs;
+- a repeated durable effect id replays the stored result and executes the
+  external handler once.
+
+`scripts/build_release_evidence.py` then binds that doctor result to:
+
+- the Branchpoint package version;
+- the GitHub commit and ref when available;
+- the Python implementation/version used for the check;
+- the exact version-matched wheel and source-distribution filenames;
+- SHA-256 and byte length for both distribution artifacts.
+
+The envelope schema is `branchpoint.release-evidence.v1`.
+
+Package CI uploads separate evidence artifacts for Python 3.10 and 3.12. A
+tagged release generates the Python 3.12 release envelope, attests both the
+distribution files and evidence JSON through GitHub artifact attestations, and
+attaches these files to the GitHub Release:
+
+```text
+branchpoint-<version>-*.whl
+branchpoint-<version>.tar.gz
+SHA256SUMS
+release-evidence.json
+doctor.json
+```
+
+The evidence proves Branchpoint's clean-wheel **core** execution invariants. It
+does not claim that optional integration stacks were installed in that release
+smoke environment. PostgreSQL, OpenAI Agents, MCP, API, and observability have
+their own dedicated CI jobs.
 
 ## Dry run without publishing
 
@@ -147,6 +190,7 @@ Optional integrations then become:
 
 ```bash
 pip install "branchpoint[openai-agents]"
+pip install "branchpoint[mcp]"
 pip install "branchpoint[postgres]"
 ```
 
