@@ -1,3 +1,14 @@
+from .boptest_protocol import (
+    BOPTESTControlContext,
+    BOPTESTControlError,
+    BOPTESTEpisodeResult,
+    BOPTESTExperimentError,
+    BOPTESTManifestError,
+    BOPTESTScenarioManifest,
+    BOPTESTStepRecord,
+    no_op_controller,
+    run_boptest_episode,
+)
 from .ablation import (
     AblationArm,
     AblationEpisode,
@@ -45,6 +56,15 @@ from .temporal_suite import (
 )
 
 __all__ = [
+    "BOPTESTControlContext",
+    "BOPTESTControlError",
+    "BOPTESTEpisodeResult",
+    "BOPTESTExperimentError",
+    "BOPTESTManifestError",
+    "BOPTESTScenarioManifest",
+    "BOPTESTStepRecord",
+    "no_op_controller",
+    "run_boptest_episode",
     "AblationArm",
     "AblationEpisode",
     "AblationReport",
