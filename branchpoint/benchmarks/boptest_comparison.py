@@ -37,6 +37,18 @@ class BOPTESTControllerSpec:
         object.__setattr__(self, "controller_id", controller_id)
         if not callable(self.controller):
             raise BOPTESTComparisonError("controller must be callable")
+        try:
+            json.dumps(
+                dict(self.metadata),
+                ensure_ascii=False,
+                sort_keys=True,
+                allow_nan=False,
+                default=None,
+            )
+        except (TypeError, ValueError) as exc:
+            raise BOPTESTComparisonError(
+                "controller metadata must be JSON-serializable"
+            ) from exc
 
 
 @dataclass(frozen=True)
@@ -76,7 +88,7 @@ class BOPTESTComparisonReport:
     paired_episodes: Tuple[BOPTESTPairedEpisode, ...]
     protocol_version: str = COMPARISON_PROTOCOL_VERSION
 
-    def aggregate_paired_deltas(self) -> Dict[str, Dict[str, Dict[str, float]]]:
+    def aggregate_paired_deltas(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         collected: Dict[str, Dict[str, list[float]]] = {}
         for pair in self.paired_episodes:
             for controller_id, deltas in pair.kpi_deltas().items():
@@ -89,7 +101,7 @@ class BOPTESTComparisonReport:
             summary[controller_id] = {}
             for kpi, values in kpis.items():
                 summary[controller_id][kpi] = {
-                    "count": float(len(values)),
+                    "count": len(values),
                     "mean_delta": float(statistics.fmean(values)),
                     "min_delta": float(min(values)),
                     "max_delta": float(max(values)),
@@ -153,9 +165,9 @@ def run_boptest_comparison(
     paired = []
     controller_metadata = {spec.controller_id: dict(spec.metadata) for spec in controllers}
 
+    version_fingerprint: Optional[str] = None
     for manifest in manifests:
         episodes: Dict[str, BOPTESTEpisodeResult] = {}
-        version_fingerprint: Optional[str] = None
         for spec in controllers:
             client = client_factory()
             result = run_boptest_episode(
@@ -173,7 +185,7 @@ def run_boptest_comparison(
                     version_fingerprint = current
                 elif current != version_fingerprint:
                     raise BOPTESTComparisonError(
-                        "BOPTEST service version changed between paired controller arms"
+                        "BOPTEST service version changed between comparison episodes"
                     )
             episodes[spec.controller_id] = result
 
