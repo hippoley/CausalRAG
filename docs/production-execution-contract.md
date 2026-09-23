@@ -18,7 +18,7 @@ Do not encode permissions only in prompts.
 
 ### 3. Effect identity is durable
 
-`SQLiteExecutionLedger` binds an `effect_id` to the canonical tool + arguments envelope. Reusing the same id for another effect is rejected.
+`SQLiteExecutionLedger` and `PostgresExecutionLedger` bind an `effect_id` to the canonical tool + arguments envelope. Reusing the same id for another effect is rejected.
 
 ### 4. Completed effects are replayed, not re-executed
 
@@ -34,7 +34,7 @@ For APIs that accept idempotency keys, set `ToolSpec.idempotency_key_argument`. 
 
 ## What your deployment must still provide
 
-- a durable database appropriate to your availability requirements (SQLite is the reference single-node implementation);
+- a durable database appropriate to your availability requirements (SQLite for local/single-node use; PostgreSQL for coordinated multi-instance receipts);
 - an authoritative identity / permission source and a fresh `AuthorizationContext` or resolver;
 - downstream idempotency for high-value external APIs whenever available;
 - reconciliation/read-back for side effects whose outcome can become unknown after a crash;
@@ -105,3 +105,22 @@ It also attempts the same external action as a guest principal and proves the ha
 **Needs additional infrastructure:** payments, production deploys, access-control changes, physical security, safety-critical devices, or any workflow where the external system cannot be queried or made idempotent.
 
 Branchpoint should make those requirements explicit rather than hide them behind model confidence.
+
+
+## Framework-neutral HTTP boundary
+
+Applications that do not import Branchpoint directly can use
+`create_execution_gateway_app(...)`.
+
+The gateway keeps identity and policy server-owned:
+
+- clients submit tool name, JSON arguments, and a stable effect id;
+- the application resolves the current principal from a trusted request/session
+  source;
+- preview returns a canonical proposal hash without executing;
+- high-risk or irreversible calls require an application-owned approval
+  validator;
+- human-approved execution must present the same proposal hash;
+- execution rechecks current authorization and always uses a durable receipt.
+
+See [Framework-neutral execution gateway](execution-gateway.md).

@@ -32,6 +32,7 @@
 | **run it locally without an API key** | [60-second quickstart](#60-second-quickstart) |
 | **drop one decision boundary into my code** | [Minimal Python example](#put-one-decision-point-into-existing-code) |
 | **plug into an OpenAI Agents approval flow** | [OpenAI Agents adapter](docs/openai-agents.md) |
+| **protect any framework over HTTP** | [Execution gateway](docs/execution-gateway.md) |
 | **bring my own domain** | [Capability packs](docs/capability-packs.md) |
 | **try to break the runtime** | [Open a failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml) |
 
@@ -501,7 +502,7 @@ For multi-user or voice systems, pass a dynamic `authorization_resolver(state, a
 
 ## Durable sessions and execution receipts
 
-For local or single-node deployments, Branchpoint can persist both **session artifacts** and **effect receipts** in SQLite.
+For local or single-node deployments, Branchpoint can persist **session artifacts** and **effect receipts** in SQLite. Multi-instance execution receipts can use PostgreSQL.
 
 ```bash
 export BRANCHPOINT_PROBE_SESSION_DB=./data/probe-sessions.sqlite3
