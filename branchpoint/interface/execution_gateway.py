@@ -29,7 +29,7 @@ PrincipalResolver = Callable[
     AuthorizationContext | None | Awaitable[AuthorizationContext | None],
 ]
 ApprovalValidator = Callable[
-    [Request, ExecutionGateDecision, str],
+    [Request, ExecutionGateDecision, str, str],
     bool | Awaitable[bool],
 ]
 
@@ -38,6 +38,9 @@ class GatewayPreviewRequest(BaseModel):
     tool_name: str = Field(..., min_length=1, max_length=120)
     arguments: Dict[str, Any] = Field(default_factory=dict)
 
+    class Config:
+        extra = "forbid"
+
 
 class GatewayExecuteRequest(BaseModel):
     tool_name: str = Field(..., min_length=1, max_length=120)
@@ -45,6 +48,9 @@ class GatewayExecuteRequest(BaseModel):
     effect_id: str = Field(..., min_length=1, max_length=500)
     expected_proposal_hash: Optional[str] = Field(default=None, max_length=128)
     approval_token: Optional[str] = Field(default=None, max_length=4096)
+
+    class Config:
+        extra = "forbid"
 
 
 async def _resolve(value):
@@ -157,6 +163,14 @@ def create_execution_gateway_app(
 
         approval_verified = False
         if decision.outcome is ExecutionGateOutcome.REQUIRE_HUMAN:
+            if payload.expected_proposal_hash is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "preview_required_for_approval",
+                        "decision": decision.to_dict(),
+                    },
+                )
             if approval_validator is None or not payload.approval_token:
                 raise HTTPException(
                     status_code=409,
@@ -171,6 +185,7 @@ def create_execution_gateway_app(
                         approval_validator(
                             request,
                             decision,
+                            payload.effect_id,
                             payload.approval_token,
                         )
                     )
