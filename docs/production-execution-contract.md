@@ -124,3 +124,21 @@ The gateway keeps identity and policy server-owned:
 - execution rechecks current authorization and always uses a durable receipt.
 
 See [Framework-neutral execution gateway](execution-gateway.md).
+
+
+## Protocol-native MCP boundary
+
+MCP hosts can use `create_branchpoint_mcp_server(...)` instead of the HTTP
+gateway. The server exposes preview and execute tools while injecting principal
+authority and human approval through hidden MCP resolver dependencies.
+
+High-risk or irreversible execution uses MCP-native elicitation. Those
+principal/approval dependencies are absent from the model-facing tool schema,
+so the model cannot grant itself authority or fabricate an approval argument.
+
+The tool body resolves the trusted principal again after any approval
+round-trip, immediately before Branchpoint's durable execution boundary. An
+approval therefore does not freeze authority if permissions are revoked before
+the side effect.
+
+See [MCP execution boundary](mcp.md).

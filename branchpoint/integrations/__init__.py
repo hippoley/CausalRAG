@@ -10,4 +10,7 @@ __all__ = [
     "OpenAIAgentsApprovalAdapter",
     "OpenAIAgentsResolution",
     "OpenAIAgentsToolDecision",
+    "create_branchpoint_mcp_server",
 ]
+
+from .mcp import create_branchpoint_mcp_server

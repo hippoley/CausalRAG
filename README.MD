@@ -33,6 +33,7 @@
 | **drop one decision boundary into my code** | [Minimal Python example](#put-one-decision-point-into-existing-code) |
 | **plug into an OpenAI Agents approval flow** | [OpenAI Agents adapter](docs/openai-agents.md) |
 | **protect any framework over HTTP** | [Execution gateway](docs/execution-gateway.md) |
+| **expose the boundary to MCP hosts** | [MCP execution boundary](docs/mcp.md) |
 | **bring my own domain** | [Capability packs](docs/capability-packs.md) |
 | **try to break the runtime** | [Open a failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml) |
 
@@ -646,6 +647,9 @@ Optional surfaces:
 ```bash
 pip install -e ".[api]"               # FastAPI workbench
 pip install -e ".[observability]"     # OTLP export
+pip install -e ".[postgres]"          # multi-instance durable receipts
+pip install -e ".[openai-agents]"     # OpenAI Agents approval/execution adapter
+pip install -e ".[mcp]"               # MCP v2 consequence boundary
 pip install -e ".[retrieval]"         # document evidence adapters
 pip install -e ".[local-embeddings]"  # local embedding models
 pip install -e ".[faiss]"             # FAISS vector backend
