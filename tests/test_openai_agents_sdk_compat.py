@@ -248,23 +248,66 @@ def test_bound_durable_tool_requires_configured_execution_ledger():
         )
 
 
-def test_function_tool_rejects_async_branchpoint_handler():
-    async def async_handler(value):
-        return value
+def test_function_tool_supports_async_branchpoint_handler_with_durable_replay(tmp_path):
+    calls = []
+    ledger = SQLiteExecutionLedger(tmp_path / "openai-agents-async.sqlite3")
 
+    async def async_charge(amount, idempotency_key):
+        await asyncio.sleep(0)
+        calls.append((amount, idempotency_key))
+        return {
+            "charge_id": "ch_sdk_async_1",
+            "amount": amount,
+        }
+
+    registry = ToolRegistry(
+        [
+            ToolSpec(
+                "async_charge",
+                "Async durable charge.",
+                async_charge,
+                risk=0.0,
+                reversible=True,
+                require_durable_receipt=True,
+                idempotency_key_argument="idempotency_key",
+            )
+        ],
+        execution_ledger=ledger,
+    )
     adapter = OpenAIAgentsApprovalAdapter(
-        [ToolSpec("async_tool", "async", async_handler)]
+        registry,
+        auto_approve_max_risk=0.0,
+    )
+    tool = adapter.function_tool(
+        "async_charge",
+        params_json_schema={
+            "type": "object",
+            "properties": {"amount": {"type": "number"}},
+            "required": ["amount"],
+            "additionalProperties": False,
+        },
+    )
+    context = ToolContext(
+        context=None,
+        tool_name="async_charge",
+        tool_call_id="call-async-1",
+        tool_arguments='{"amount":25}',
     )
 
-    with pytest.raises(TypeError, match="synchronous ToolSpec handler"):
-        adapter.function_tool(
-            "async_tool",
-            params_json_schema={
-                "type": "object",
-                "properties": {"value": {"type": "string"}},
-                "required": ["value"],
-            },
-        )
+    first = asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+    first_trace = dict(context._custom_data["branchpoint"])
+    replay = asyncio.run(tool.on_invoke_tool(context, '{"amount":25}'))
+    replay_trace = dict(context._custom_data["branchpoint"])
+
+    effect_id = "openai-agents:async_charge:call-async-1"
+    assert first == replay == {
+        "charge_id": "ch_sdk_async_1",
+        "amount": 25,
+    }
+    assert calls == [(25, effect_id)]
+    assert ledger.get(effect_id).status == "succeeded"
+    assert first_trace["replayed"] is False
+    assert replay_trace["replayed"] is True
 
 
 def test_bound_durable_tool_bypasses_only_receipt_bypass_guard_not_risk(tmp_path):
