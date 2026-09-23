@@ -321,3 +321,70 @@ def test_mcp_principal_resolver_must_return_trusted_context(tmp_path):
 
     assert result.is_error is True
     assert registry.execution_ledger.get("anything") is None
+
+
+def test_mcp_rechecks_authority_after_human_approval_before_effect(tmp_path):
+    server, registry, calls, current = _fixture(tmp_path)
+
+    async def approve_then_revoke(
+        _context: ClientRequestContext,
+        _params: ElicitRequestParams,
+    ) -> ElicitResult:
+        current["principal"] = AuthorizationContext.from_permissions(
+            "operator:alice",
+            [],
+        )
+        return ElicitResult(
+            action="accept",
+            content={"approve": True},
+        )
+
+    async def scenario():
+        async with Client(
+            server,
+            elicitation_callback=approve_then_revoke,
+        ) as client:
+            return await client.call_tool(
+                "branchpoint_execute",
+                {
+                    "tool_name": "restart_service",
+                    "arguments": {"service": "api"},
+                    "effect_id": "mcp-revoked-after-approval-1",
+                },
+            )
+
+    result = asyncio.run(scenario())
+
+    assert result.is_error is not True
+    assert result.structured_content["executed"] is False
+    assert result.structured_content["reason"] == "execution_denied"
+    assert result.structured_content["decision"]["reason_code"] == "missing_permission"
+    assert registry.execution_ledger.get("mcp-revoked-after-approval-1") is None
+    assert calls == []
+
+
+def test_mcp_declined_elicitation_never_enters_tool_body(tmp_path):
+    server, registry, calls, _current = _fixture(tmp_path)
+
+    async def decline(
+        _context: ClientRequestContext,
+        _params: ElicitRequestParams,
+    ) -> ElicitResult:
+        return ElicitResult(action="decline")
+
+    async def scenario():
+        async with Client(server, elicitation_callback=decline) as client:
+            return await client.call_tool(
+                "branchpoint_execute",
+                {
+                    "tool_name": "restart_service",
+                    "arguments": {"service": "api"},
+                    "effect_id": "mcp-declined-1",
+                },
+            )
+
+    result = asyncio.run(scenario())
+
+    assert result.is_error is True
+    assert registry.execution_ledger.get("mcp-declined-1") is None
+    assert calls == []
