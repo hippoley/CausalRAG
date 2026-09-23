@@ -431,13 +431,56 @@ class OpenAIAgentsApprovalAdapter:
                 override=authorization_context,
             )
 
-            return await asyncio.to_thread(
+            ledger = self.tools.execution_ledger
+            prior_receipt = (
+                ledger.get(effect_id)
+                if effect_id is not None and ledger is not None
+                else None
+            )
+            replayed = bool(
+                prior_receipt is not None
+                and prior_receipt.status == "succeeded"
+            )
+
+            result = await asyncio.to_thread(
                 self.tools.execute,
                 normalized,
                 arguments,
                 effect_id=effect_id,
                 authorization_context=context,
             )
+
+            receipt = (
+                ledger.get(effect_id)
+                if effect_id is not None and ledger is not None
+                else None
+            )
+            custom_data = dict(
+                getattr(run_context, "_custom_data", None) or {}
+            )
+            custom_data["branchpoint"] = {
+                "schema_version": "branchpoint.openai-agents.execution.v1",
+                "execution_boundary": "branchpoint",
+                "tool_name": normalized,
+                "call_id": call_id or None,
+                "durable": bool(tool.require_durable_receipt),
+                "effect_id": effect_id,
+                "replayed": replayed,
+                "receipt_status": (
+                    receipt.status if receipt is not None else "not_required"
+                ),
+                "effect_hash": (
+                    receipt.effect_hash if receipt is not None else None
+                ),
+                "authorization_rechecked": True,
+                "authorization_policy_id": getattr(
+                    self.authorization_policy,
+                    "policy_id",
+                    None,
+                ),
+            }
+            setattr(run_context, "_custom_data", custom_data)
+            return result
 
         function_tool = FunctionTool(
             name=normalized,
