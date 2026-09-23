@@ -201,7 +201,8 @@ jobs:
         run: |
           pytest -q \
             tests/test_openai_agents_approval.py \
-            tests/test_openai_agents_sdk_compat.py
+            tests/test_openai_agents_sdk_compat.py \
+            tests/test_openai_agents_runner_e2e.py
       - name: Run durable SDK tool example
         run: |
           python examples/openai_agents_durable_tool.py > /tmp/openai-agents-durable.txt
@@ -210,3 +211,12 @@ jobs:
           grep -q "receipt_status: succeeded" /tmp/openai-agents-durable.txt
           grep -q "first_replayed: False" /tmp/openai-agents-durable.txt
           grep -q "replay_replayed: True" /tmp/openai-agents-durable.txt
+      - name: Run full Runner interruption/resume proof
+        run: |
+          python examples/openai_agents_runner_e2e.py > /tmp/openai-agents-runner-e2e.txt
+          cat /tmp/openai-agents-runner-e2e.txt
+          grep -q "paused: True" /tmp/openai-agents-runner-e2e.txt
+          grep -q "branchpoint_decision: require_human" /tmp/openai-agents-runner-e2e.txt
+          grep -q "external_calls_before_approval: 0" /tmp/openai-agents-runner-e2e.txt
+          grep -q "external_calls_after_resume: 1" /tmp/openai-agents-runner-e2e.txt
+          grep -q "receipt_status: succeeded" /tmp/openai-agents-runner-e2e.txt
