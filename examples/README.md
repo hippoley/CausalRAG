@@ -1,4 +1,4 @@
-# CausalRAG examples
+# Branchpoint examples
 
 Start with an example that matches the question you care about. The deterministic examples do **not** require a model key.
 
@@ -47,7 +47,7 @@ branchpoint probe \
 
 This repository started as causal retrieval experiments. Files such as `basic_usage.py`, `causal_extraction_demo.py`, and `evaluate_pipeline.py` preserve that lineage.
 
-They are useful for understanding where CausalRAG came from, but the **current primary surface is the causal decision runtime**.
+They are useful for understanding where Branchpoint came from, but the **current primary surface is the causal decision runtime**.
 
 ## Install
 

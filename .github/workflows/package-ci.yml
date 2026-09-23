@@ -59,6 +59,7 @@ jobs:
         working-directory: /tmp
         run: |
           /tmp/branchpoint-wheel/bin/branchpoint --version
+          /tmp/branchpoint-wheel/bin/branchpoint doctor
           /tmp/branchpoint-wheel/bin/python - <<'PY'
           import tempfile
           from pathlib import Path

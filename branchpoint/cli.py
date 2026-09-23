@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import threading
 import webbrowser
 from pathlib import Path
@@ -144,12 +145,225 @@ def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+
+def _doctor_report():
+    """Run no-key checks across Branchpoint's minimum trustworthy boundary."""
+
+    from branchpoint import (
+        ActionKind,
+        AuthorizationContext,
+        AuthorizationDenied,
+        CandidateAction,
+        SQLiteExecutionLedger,
+        ToolRegistry,
+        ToolSpec,
+        decide,
+    )
+
+    checks = []
+
+    def record(name, status, detail, **extra):
+        row = {"name": name, "status": status, "detail": detail}
+        row.update(extra)
+        checks.append(row)
+
+    try:
+        decision = decide(
+            [
+                CandidateAction(
+                    ActionKind.INTERVENE,
+                    "submit_form",
+                    expected_goal_gain=0.95,
+                ),
+                CandidateAction(
+                    ActionKind.OBSERVE,
+                    "inspect_submission_state",
+                    expected_goal_gain=0.15,
+                    expected_information_gain=0.70,
+                ),
+            ],
+            tools=[
+                ToolSpec(
+                    "submit_form",
+                    "Submit an external form",
+                    lambda: None,
+                    risk=0.72,
+                    reversible=False,
+                ),
+                ToolSpec(
+                    "inspect_submission_state",
+                    "Read current submission state",
+                    lambda: None,
+                    cost=0.02,
+                ),
+            ],
+        )
+        passed = (
+            decision.proposer_first.name == "submit_form"
+            and decision.selected.name == "inspect_submission_state"
+            and decision.changed_proposer_order
+        )
+        record(
+            "decision_runtime",
+            "ok" if passed else "failed",
+            (
+                "proposer=submit_form runtime=inspect_submission_state"
+                if passed
+                else "runtime did not produce the expected policy divergence"
+            ),
+            proposer_first=decision.proposer_first.name,
+            selected=decision.selected.name,
+            changed_proposer_order=bool(decision.changed_proposer_order),
+        )
+    except Exception as exc:
+        record("decision_runtime", "failed", f"{type(exc).__name__}: {exc}")
+
+    authorization_calls = []
+    try:
+        guarded = ToolRegistry(
+            [
+                ToolSpec(
+                    "protected_effect",
+                    "Protected effect",
+                    lambda: authorization_calls.append("executed") or {"ok": True},
+                    required_permissions=("effect.write",),
+                )
+            ]
+        )
+        guest = AuthorizationContext.from_permissions("doctor:guest", [])
+        denied = False
+        try:
+            guarded.execute(
+                "protected_effect",
+                {},
+                authorization_context=guest,
+            )
+        except AuthorizationDenied:
+            denied = True
+        passed = denied and authorization_calls == []
+        record(
+            "authorization",
+            "ok" if passed else "failed",
+            (
+                "unauthorized principal denied before handler"
+                if passed
+                else "authorization boundary did not fail closed"
+            ),
+        )
+    except Exception as exc:
+        record("authorization", "failed", f"{type(exc).__name__}: {exc}")
+
+    durable_calls = []
+    try:
+        with tempfile.TemporaryDirectory(prefix="branchpoint-doctor-") as tmp:
+            ledger = SQLiteExecutionLedger(
+                Path(tmp) / "execution-receipts.sqlite3"
+            )
+
+            def effect(idempotency_key):
+                durable_calls.append(idempotency_key)
+                return {"ok": True, "idempotency_key": idempotency_key}
+
+            registry = ToolRegistry(
+                [
+                    ToolSpec(
+                        "durable_effect",
+                        "Durable effect",
+                        effect,
+                        required_permissions=("effect.write",),
+                        require_durable_receipt=True,
+                        idempotency_key_argument="idempotency_key",
+                    )
+                ],
+                execution_ledger=ledger,
+            )
+            operator = AuthorizationContext.from_permissions(
+                "doctor:operator",
+                ["effect.write"],
+            )
+            effect_id = "doctor-effect-1"
+            first = registry.execute(
+                "durable_effect",
+                {},
+                effect_id=effect_id,
+                authorization_context=operator,
+            )
+            replay = registry.execute(
+                "durable_effect",
+                {},
+                effect_id=effect_id,
+                authorization_context=operator,
+            )
+            receipt = ledger.get(effect_id)
+            passed = (
+                first == replay
+                and durable_calls == [effect_id]
+                and receipt is not None
+                and receipt.status == "succeeded"
+            )
+            record(
+                "durable_receipt",
+                "ok" if passed else "failed",
+                (
+                    "same effect id replayed stored result; handler executed once"
+                    if passed
+                    else "durable replay invariant failed"
+                ),
+                effect_id=effect_id,
+                handler_calls=len(durable_calls),
+                receipt_status=(None if receipt is None else receipt.status),
+            )
+    except Exception as exc:
+        record("durable_receipt", "failed", f"{type(exc).__name__}: {exc}")
+
+    optional_modules = (
+        ("openai_agents", "agents"),
+        ("postgres_driver", "psycopg"),
+        ("observability_sdk", "opentelemetry.sdk"),
+    )
+    for name, module_name in optional_modules:
+        try:
+            installed = importlib.util.find_spec(module_name) is not None
+        except ModuleNotFoundError:
+            installed = False
+        record(
+            name,
+            "available" if installed else "optional",
+            (
+                f"{module_name} is installed"
+                if installed
+                else f"{module_name} not installed; core runtime unaffected"
+            ),
+            required=False,
+        )
+
+    required_checks = [
+        row for row in checks if row.get("required", True)
+    ]
+    ok = all(row["status"] == "ok" for row in required_checks)
+    return {
+        "schema_version": "branchpoint.doctor.v1",
+        "branchpoint_version": __version__,
+        "ok": ok,
+        "checks": checks,
+    }
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Branchpoint: explicit execution authority for bounded agent decisions"
     )
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
+
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Run no-key runtime, authorization, and durable-replay checks",
+    )
+    doctor_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print machine-readable diagnostic output.",
+    )
 
     packs_parser = subparsers.add_parser(
         "packs",
@@ -268,6 +482,18 @@ def main():
     if args.version:
         print(f"Branchpoint {__version__}")
         return 0
+
+    if args.command == "doctor":
+        report = _doctor_report()
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+        else:
+            overall = "PASS" if report["ok"] else "FAIL"
+            print(f"Branchpoint doctor {report['branchpoint_version']}: {overall}")
+            for row in report["checks"]:
+                status = row["status"].upper()
+                print(f"  {status:<9} {row['name']}: {row['detail']}")
+        return 0 if report["ok"] else 1
 
     if args.command == "packs":
         try:

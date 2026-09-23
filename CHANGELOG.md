@@ -2,7 +2,7 @@
 
 ## 0.3.0 — 2026-09-16
 
-CausalRAG v0.3 moves the project from causal retrieval toward a causal decision runtime with explicit uncertainty, experiments, interventions, and behavioral evaluation.
+Branchpoint v0.3 moves the project from causal retrieval toward a causal decision runtime with explicit uncertainty, experiments, interventions, and behavioral evaluation.
 
 ### Added
 

@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
-<title id="title">CausalRAG</title>
-<desc id="desc">CausalRAG places an explicit causal decision boundary between model proposals and real-world actions.</desc>
+<title id="title">Branchpoint</title>
+<desc id="desc">Branchpoint places an explicit causal decision boundary between model proposals and real-world actions.</desc>
 <rect width="1200" height="520" rx="34" fill="#081211"/>
 <g font-family="Inter,Arial,sans-serif">
-  <text x="78" y="86" fill="#78F0BE" font-size="18" font-weight="700" letter-spacing="2">CAUSALRAG</text>
+  <text x="78" y="86" fill="#78F0BE" font-size="18" font-weight="700" letter-spacing="2">BRANCHPOINT</text>
   <text x="78" y="145" fill="#F0F7F4" font-size="48" font-weight="760" letter-spacing="-1.7">The model proposes.</text>
   <text x="78" y="198" fill="#F0F7F4" font-size="48" font-weight="760" letter-spacing="-1.7">The runtime decides.</text>
   <text x="78" y="251" fill="#78F0BE" font-size="48" font-weight="760" letter-spacing="-1.7">The world gets a vote.</text>

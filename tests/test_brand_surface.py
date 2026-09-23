@@ -69,3 +69,56 @@ def test_primary_surfaces_name_branchpoint():
     assert "<title>Branchpoint" in examples
     assert "<title>Branchpoint · Live Workbench" in workbench
     assert "https://hippoley.github.io/CausalRAG/" in landing
+
+
+LEGACY_PRODUCT_NAME = re.compile(r"\bCausalRAG\b", re.IGNORECASE)
+
+BRAND_IDENTITY_FILES = [
+    ROOT / "README.MD",
+    ROOT / "SECURITY.md",
+    ROOT / "CONTRIBUTING.md",
+    ROOT / "CITATION.cff",
+    ROOT / "examples" / "README.md",
+    ROOT / "tests" / "README.md",
+    ROOT / ".github" / "ISSUE_TEMPLATE" / "showcase.yml",
+    ROOT / ".github" / "ISSUE_TEMPLATE" / "failure-case.yml",
+    ROOT / "docs" / "capability-packs.md",
+    ROOT / "docs" / "decision-recipes.md",
+    ROOT / "docs" / "runtime-discrimination.md",
+    ROOT / "docs" / "v0.3-experiment-contracts.md",
+    ROOT / "docs" / "v0.3-hypothesis-falsification.md",
+    ROOT / "docs" / "assets" / "causalrag-hero.svg",
+    ROOT / "branchpoint" / "scaffold.py",
+]
+
+
+def _strip_compatibility_paths(text: str) -> str:
+    text = text.replace(
+        "https://github.com/hippoley/CausalRAG",
+        "<github-repository-url>",
+    )
+    text = text.replace(
+        "https://hippoley.github.io/CausalRAG",
+        "<github-pages-url>",
+    )
+    text = re.sub(
+        r"\bcd\s+CausalRAG\b",
+        "cd <repository-directory>",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = text.replace("/CausalRAG", "/<repository-path>")
+    return text
+
+
+def test_legacy_product_name_is_only_a_compatibility_path():
+    violations = []
+    for path in BRAND_IDENTITY_FILES:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        visible_identity = _strip_compatibility_paths(text)
+        if LEGACY_PRODUCT_NAME.search(visible_identity):
+            violations.append(str(path.relative_to(ROOT)))
+    assert not violations, (
+        "Legacy product identity leaked back into public surfaces:\n"
+        + "\n".join(violations)
+    )

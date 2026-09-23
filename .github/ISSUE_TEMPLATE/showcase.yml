@@ -1,5 +1,5 @@
 name: Showcase
-description: Share a real CausalRAG integration, experiment, or public demo
+description: Share a real Branchpoint integration, experiment, or public demo
 title: "[showcase] "
 labels: ["showcase"]
 body:
@@ -14,7 +14,7 @@ body:
   - type: textarea
     id: problem
     attributes:
-      label: What decision does CausalRAG own?
+      label: What decision does Branchpoint own?
       description: Describe the bounded choice in one or two sentences.
     validations:
       required: true
@@ -35,5 +35,5 @@ body:
     attributes:
       label: Permission
       options:
-        - label: This material is public and may be linked from CausalRAG documentation.
+        - label: This material is public and may be linked from Branchpoint documentation.
           required: true
