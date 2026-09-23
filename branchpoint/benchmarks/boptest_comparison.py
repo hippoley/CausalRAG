@@ -150,6 +150,8 @@ class BOPTESTBootstrapInterval:
 
 @dataclass(frozen=True)
 class BOPTESTBootstrapReport:
+    reference_controller_id: str
+    manifest_hashes: Tuple[str, ...]
     confidence: float
     resamples: int
     bootstrap_seed: int
@@ -159,6 +161,8 @@ class BOPTESTBootstrapReport:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "method": "paired_percentile_bootstrap",
+            "reference_controller_id": self.reference_controller_id,
+            "manifest_hashes": list(self.manifest_hashes),
             "confidence": self.confidence,
             "resamples": self.resamples,
             "bootstrap_seed": self.bootstrap_seed,
@@ -270,6 +274,10 @@ def bootstrap_paired_kpi_intervals(
             intervals[controller_id][kpi] = interval
 
     return BOPTESTBootstrapReport(
+        reference_controller_id=report.reference_controller_id,
+        manifest_hashes=tuple(
+            pair.manifest.manifest_hash for pair in report.paired_episodes
+        ),
         confidence=confidence,
         resamples=resamples,
         bootstrap_seed=int(seed),
