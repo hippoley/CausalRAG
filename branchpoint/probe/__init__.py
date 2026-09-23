@@ -29,4 +29,8 @@ __all__ = [
     "get_probe_scenario",
     "register_probe_scenario",
     "unregister_probe_scenario",
+    "SEMANTIC_REPLAY_SCHEMA",
+    "build_semantic_replay",
 ]
+
+from .replay import SEMANTIC_REPLAY_SCHEMA, build_semantic_replay
