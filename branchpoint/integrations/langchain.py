@@ -368,3 +368,41 @@ def langchain_branchpoint_stack(
         unknown_tool_policy=unknown_tool_policy,
     )
     return (hitl, execution)
+
+
+def langchain_tool_schema(
+    tool: ToolSpec,
+    *,
+    args_schema: Mapping[str, Any],
+):
+    """Expose a ToolSpec schema to LangChain without duplicating execution code.
+
+    Direct invocation fails closed. The real handler is reachable only through
+    LangChainBranchpointMiddleware, which executes the canonical ToolSpec.
+    """
+
+    schema = dict(args_schema)
+    if schema.get("type") != "object":
+        raise ValueError("args_schema must define an object schema")
+
+    from langchain_core.tools import StructuredTool
+
+    def blocked(**_kwargs):
+        raise LangChainBranchpointError(
+            f"Tool {tool.name!r} must execute through "
+            "LangChainBranchpointMiddleware"
+        )
+
+    async def ablocked(**_kwargs):
+        raise LangChainBranchpointError(
+            f"Tool {tool.name!r} must execute through "
+            "LangChainBranchpointMiddleware"
+        )
+
+    return StructuredTool(
+        name=tool.name,
+        description=tool.description,
+        args_schema=schema,
+        func=blocked,
+        coroutine=ablocked,
+    )
