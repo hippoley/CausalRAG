@@ -1,0 +1,39 @@
+name: boptest-evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: branchpoint-boptest-evidence
+  cancel-in-progress: false
+
+jobs:
+  bestest-air-arbitration-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Branchpoint
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Run preregistered BOPTEST study
+        run: |
+          mkdir -p artifacts
+          python examples/boptest_branchpoint_regime_study.py             examples/boptest_bestest_air_arbitration_study.json             --output artifacts/boptest_bestest_air_arbitration_study_result.json
+
+      - name: Upload evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: boptest-bestest-air-arbitration-study
+          path: artifacts/boptest_bestest_air_arbitration_study_result.json
+          if-no-files-found: error

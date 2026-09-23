@@ -1,0 +1,68 @@
+{
+  "protocol_version": "branchpoint.boptest-study.v1",
+  "base_manifest": {
+    "protocol_version": "branchpoint.boptest.v1",
+    "testcase": "bestest_air",
+    "start_time": 0,
+    "warmup_period": 604800,
+    "step_seconds": 900,
+    "horizon_seconds": 86400,
+    "electricity_price": "constant",
+    "controlled_inputs": [
+      "con_oveTSetHea_u",
+      "con_oveTSetCoo_u"
+    ],
+    "measurement_points": [
+      "zon_reaTRooAir_y"
+    ],
+    "required_kpis": [
+      "ener_tot",
+      "cost_tot",
+      "tdis_tot",
+      "idis_tot",
+      "time_rat"
+    ]
+  },
+  "periods": [
+    {
+      "period_id": "peak_heat_center",
+      "day_index": 341,
+      "start_hour": 0
+    },
+    {
+      "period_id": "typical_heat_center",
+      "day_index": 51,
+      "start_hour": 0
+    },
+    {
+      "period_id": "peak_cool_center",
+      "day_index": 289,
+      "start_hour": 0
+    },
+    {
+      "period_id": "typical_cool_center",
+      "day_index": 153,
+      "start_hour": 0
+    },
+    {
+      "period_id": "mix_center",
+      "day_index": 21,
+      "start_hour": 0
+    }
+  ],
+  "proposal_config": {
+    "lower_kelvin": 294.15,
+    "upper_kelvin": 297.15,
+    "temperature_measurement": "zon_reaTRooAir_y",
+    "heating_setpoint_input": "con_oveTSetHea_u",
+    "cooling_setpoint_input": "con_oveTSetCoo_u",
+    "intervention_goal_gain": 0.7,
+    "embedded_goal_gain": 0.2,
+    "intervention_risk": 0.9,
+    "intervention_cost": 0.02
+  },
+  "reference_controller_id": "proposal-order",
+  "confidence": 0.95,
+  "resamples": 5000,
+  "bootstrap_seed": 20260923
+}

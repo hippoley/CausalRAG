@@ -1,3 +1,10 @@
+from .boptest_study import (
+    BOPTESTArbitrationStudyPlan,
+    BOPTESTArbitrationStudyResult,
+    BOPTESTStudyPeriod,
+    BOPTESTStudyPlanError,
+    run_boptest_arbitration_study,
+)
 from .boptest_branchpoint import (
     BOPTESTArbitrationRecord,
     BOPTESTControlCandidate,
@@ -79,6 +86,11 @@ from .temporal_suite import (
 )
 
 __all__ = [
+    "BOPTESTArbitrationStudyPlan",
+    "BOPTESTArbitrationStudyResult",
+    "BOPTESTStudyPeriod",
+    "BOPTESTStudyPlanError",
+    "run_boptest_arbitration_study",
     "BOPTESTArbitrationRecord",
     "BOPTESTControlCandidate",
     "BOPTESTDecisionAdapterError",
