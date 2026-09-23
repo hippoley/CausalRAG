@@ -88,3 +88,42 @@ the run is invalidated instead of silently mixing environments.
 Aggregate output currently reports count, mean, minimum, and maximum paired
 delta. That is descriptive evidence only. Confidence intervals and stronger
 claims require a repeated seeded protocol defined before final tuning.
+
+
+## Repeated seeded evidence
+
+For uncertainty-aware comparisons, expand one base manifest into explicit seeded
+manifests and bootstrap the **paired** KPI deltas.
+
+```python
+from branchpoint.benchmarks import (
+    bootstrap_paired_kpi_intervals,
+    expand_seeded_manifests,
+)
+
+manifests = expand_seeded_manifests(base_manifest, [11, 12, 13, 14, 15])
+comparison = run_boptest_comparison(
+    manifests,
+    controllers,
+    reference_controller_id="embedded",
+)
+uncertainty = bootstrap_paired_kpi_intervals(
+    comparison,
+    confidence=0.95,
+    resamples=5000,
+    seed=20260923,
+)
+```
+
+The bootstrap resamples manifest-level paired deltas, not unpaired controller
+outcomes. The artifact records the reference controller, manifest hashes,
+confidence level, resample count, master seed, and a deterministic derived seed
+for each controller/KPI series.
+
+If fewer than the configured minimum number of pairs are available, the
+interval is recorded as `insufficient_pairs` with no fabricated bounds.
+
+The runtime deliberately does not convert an interval into a winner,
+"significance" label, or product claim. KPI direction, multiple-comparison
+policy, seed selection, and minimum sample size belong to the benchmark
+protocol and should be frozen before final tuning.

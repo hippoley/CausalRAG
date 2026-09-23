@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import math
+import random
 import statistics
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
 from branchpoint.environments import BOPTESTClient
@@ -116,6 +119,171 @@ class BOPTESTComparisonReport:
             "aggregate_paired_kpi_deltas": self.aggregate_paired_deltas(),
         }
 
+
+@dataclass(frozen=True)
+class BOPTESTBootstrapInterval:
+    controller_id: str
+    kpi: str
+    count: int
+    mean_delta: float
+    confidence: float
+    lower: Optional[float]
+    upper: Optional[float]
+    resamples: int
+    bootstrap_seed: int
+    status: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "controller_id": self.controller_id,
+            "kpi": self.kpi,
+            "count": self.count,
+            "mean_delta": self.mean_delta,
+            "confidence": self.confidence,
+            "lower": self.lower,
+            "upper": self.upper,
+            "resamples": self.resamples,
+            "bootstrap_seed": self.bootstrap_seed,
+            "status": self.status,
+        }
+
+
+@dataclass(frozen=True)
+class BOPTESTBootstrapReport:
+    reference_controller_id: str
+    manifest_hashes: Tuple[str, ...]
+    confidence: float
+    resamples: int
+    bootstrap_seed: int
+    min_pairs: int
+    intervals: Mapping[str, Mapping[str, BOPTESTBootstrapInterval]]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "method": "paired_percentile_bootstrap",
+            "reference_controller_id": self.reference_controller_id,
+            "manifest_hashes": list(self.manifest_hashes),
+            "confidence": self.confidence,
+            "resamples": self.resamples,
+            "bootstrap_seed": self.bootstrap_seed,
+            "min_pairs": self.min_pairs,
+            "intervals": {
+                controller_id: {kpi: interval.to_dict() for kpi, interval in kpis.items()}
+                for controller_id, kpis in self.intervals.items()
+            },
+        }
+
+
+def expand_seeded_manifests(
+    base: BOPTESTScenarioManifest,
+    seeds: Sequence[int],
+) -> Tuple[BOPTESTScenarioManifest, ...]:
+    normalized = tuple(int(seed) for seed in seeds)
+    if not normalized:
+        raise BOPTESTComparisonError("at least one seed is required")
+    if len(set(normalized)) != len(normalized):
+        raise BOPTESTComparisonError("seed list must be unique")
+    return tuple(replace(base, seed=seed) for seed in normalized)
+
+
+def _percentile(values: Sequence[float], q: float) -> float:
+    ordered = sorted(float(value) for value in values)
+    if not ordered:
+        raise BOPTESTComparisonError("cannot compute percentile of empty values")
+    position = (len(ordered) - 1) * float(q)
+    lower_index = int(math.floor(position))
+    upper_index = int(math.ceil(position))
+    if lower_index == upper_index:
+        return ordered[lower_index]
+    fraction = position - lower_index
+    return ordered[lower_index] + fraction * (ordered[upper_index] - ordered[lower_index])
+
+
+def _series_seed(master_seed: int, controller_id: str, kpi: str) -> int:
+    material = f"{int(master_seed)}:{controller_id}:{kpi}".encode("utf-8")
+    return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
+
+
+def bootstrap_paired_kpi_intervals(
+    report: BOPTESTComparisonReport,
+    *,
+    confidence: float = 0.95,
+    resamples: int = 5000,
+    seed: int = 0,
+    min_pairs: int = 2,
+) -> BOPTESTBootstrapReport:
+    """Estimate uncertainty over manifest-level paired KPI deltas."""
+
+    confidence = float(confidence)
+    resamples = int(resamples)
+    min_pairs = int(min_pairs)
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between 0 and 1")
+    if resamples < 100:
+        raise ValueError("resamples must be at least 100")
+    if min_pairs < 2:
+        raise ValueError("min_pairs must be at least 2")
+
+    collected: Dict[str, Dict[str, list[float]]] = {}
+    for pair in report.paired_episodes:
+        for controller_id, deltas in pair.kpi_deltas().items():
+            bucket = collected.setdefault(controller_id, {})
+            for kpi, value in deltas.items():
+                bucket.setdefault(kpi, []).append(float(value))
+
+    alpha = (1.0 - confidence) / 2.0
+    intervals: Dict[str, Dict[str, BOPTESTBootstrapInterval]] = {}
+    for controller_id in sorted(collected):
+        intervals[controller_id] = {}
+        for kpi in sorted(collected[controller_id]):
+            values = collected[controller_id][kpi]
+            mean_delta = float(statistics.fmean(values))
+            series_seed = _series_seed(seed, controller_id, kpi)
+            if len(values) < min_pairs:
+                interval = BOPTESTBootstrapInterval(
+                    controller_id=controller_id,
+                    kpi=kpi,
+                    count=len(values),
+                    mean_delta=mean_delta,
+                    confidence=confidence,
+                    lower=None,
+                    upper=None,
+                    resamples=resamples,
+                    bootstrap_seed=series_seed,
+                    status="insufficient_pairs",
+                )
+            else:
+                rng = random.Random(series_seed)
+                sample_means = []
+                count = len(values)
+                for _ in range(resamples):
+                    sample = [values[rng.randrange(count)] for _ in range(count)]
+                    sample_means.append(float(statistics.fmean(sample)))
+                interval = BOPTESTBootstrapInterval(
+                    controller_id=controller_id,
+                    kpi=kpi,
+                    count=count,
+                    mean_delta=mean_delta,
+                    confidence=confidence,
+                    lower=float(_percentile(sample_means, alpha)),
+                    upper=float(_percentile(sample_means, 1.0 - alpha)),
+                    resamples=resamples,
+                    bootstrap_seed=series_seed,
+                    status="ok",
+                )
+            intervals[controller_id][kpi] = interval
+
+    return BOPTESTBootstrapReport(
+        reference_controller_id=report.reference_controller_id,
+        manifest_hashes=tuple(
+            pair.manifest.manifest_hash for pair in report.paired_episodes
+        ),
+        confidence=confidence,
+        resamples=resamples,
+        bootstrap_seed=int(seed),
+        min_pairs=min_pairs,
+        intervals=intervals,
+    )
 
 def constant_controller(controls: Mapping[str, Any]) -> Controller:
     """Return a controller that emits the same explicit controls every step."""
