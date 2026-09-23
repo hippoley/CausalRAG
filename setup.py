@@ -45,6 +45,7 @@ extra_requirements = {
     "faiss": ["faiss-cpu>=1.7.0"],
     "api": api_requirements,
     "observability": observability_requirements,
+    "postgres": ["psycopg[binary]>=3.1,<4"],
     "evaluation": ["pandas>=1.3.0"],
     "dev": [
         "pytest>=7.0",
@@ -58,12 +59,12 @@ extra_requirements = {
     "anthropic": ["anthropic>=0.25.0"],
     "visualization": ["matplotlib>=3.4.0", "plotly>=5.3.0", "pyvis>=0.2.0"],
 }
-# "full" stays portable: local ML runtimes and FAISS remain explicit choices.
+# "full" stays portable: local ML runtimes, FAISS, and database drivers remain explicit choices.
 extra_requirements["full"] = sorted(
     {
         req
         for key, reqs in extra_requirements.items()
-        if key not in {"dev", "full", "local-embeddings", "faiss"}
+        if key not in {"dev", "full", "local-embeddings", "faiss", "postgres"}
         for req in reqs
     }
 )

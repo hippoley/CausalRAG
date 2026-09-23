@@ -9,7 +9,7 @@ import time
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Protocol, Tuple, runtime_checkable
 
 
 class ExecutionBoundaryError(RuntimeError):
@@ -30,6 +30,42 @@ class PreviousExecutionFailed(ExecutionBoundaryError):
 
 class NonCanonicalEffect(ExecutionBoundaryError):
     """The effect cannot be represented by the strict canonical envelope."""
+
+
+@runtime_checkable
+class ExecutionLedger(Protocol):
+    """Storage contract for durable execution receipts."""
+
+    def get(self, effect_id: str) -> Optional["ExecutionReceipt"]:
+        ...
+
+    def claim(
+        self,
+        effect_id: str,
+        tool_name: str,
+        arguments: Mapping[str, Any],
+    ) -> Tuple["ExecutionReceipt", bool]:
+        ...
+
+    def complete(self, effect_id: str, result: Any) -> "ExecutionReceipt":
+        ...
+
+    def fail(
+        self,
+        effect_id: str,
+        exc: BaseException,
+    ) -> "ExecutionReceipt":
+        ...
+
+    def reconcile(
+        self,
+        effect_id: str,
+        *,
+        succeeded: bool,
+        result: Any = None,
+        note: str = "",
+    ) -> "ExecutionReceipt":
+        ...
 
 
 @dataclass(frozen=True)

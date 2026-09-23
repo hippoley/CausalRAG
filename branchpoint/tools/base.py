@@ -11,7 +11,7 @@ if TYPE_CHECKING:
         InterventionContract,
     )
     from branchpoint.observability import CausalTelemetry
-    from branchpoint.execution import SQLiteExecutionLedger
+    from branchpoint.execution import ExecutionLedger
 
 
 @dataclass
@@ -37,7 +37,7 @@ class ToolRegistry:
         tools: Optional[Iterable[ToolSpec]] = None,
         decision_preferences: Optional["DecisionPreferences"] = None,
         telemetry: Optional["CausalTelemetry"] = None,
-        execution_ledger: Optional["SQLiteExecutionLedger"] = None,
+        execution_ledger: Optional["ExecutionLedger"] = None,
         authorization_policy: Optional[Any] = None,
     ) -> None:
         self._tools: Dict[str, ToolSpec] = {}

@@ -38,11 +38,11 @@ jobs:
           PY
       - name: Compile runtime
         run: |
-          python -m py_compile branchpoint/__init__.py branchpoint/authorization.py branchpoint/execution.py branchpoint/decision.py branchpoint/decision_io.py branchpoint/cli.py branchpoint/agent/temporal.py branchpoint/environments/boptest.py branchpoint/observability/telemetry.py branchpoint/benchmarks/temporal_hidden_world.py branchpoint/benchmarks/temporal_suite.py branchpoint/benchmarks/boptest_protocol.py branchpoint/benchmarks/boptest_comparison.py branchpoint/benchmarks/boptest_branchpoint.py branchpoint/benchmarks/boptest_study.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/browser_action_guard_demo.py examples/production_execution_boundary.py examples/tool_routing_demo.py examples/incident_triage_demo.py examples/custom_capability_pack.py examples/boptest_live_smoke.py examples/boptest_protocol_run.py examples/boptest_branchpoint_vs_proposer.py examples/boptest_branchpoint_regime_study.py
+          python -m py_compile branchpoint/__init__.py branchpoint/authorization.py branchpoint/execution.py branchpoint/postgres_execution.py branchpoint/decision.py branchpoint/decision_io.py branchpoint/cli.py branchpoint/agent/temporal.py branchpoint/environments/boptest.py branchpoint/observability/telemetry.py branchpoint/benchmarks/temporal_hidden_world.py branchpoint/benchmarks/temporal_suite.py branchpoint/benchmarks/boptest_protocol.py branchpoint/benchmarks/boptest_comparison.py branchpoint/benchmarks/boptest_branchpoint.py branchpoint/benchmarks/boptest_study.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/browser_action_guard_demo.py examples/production_execution_boundary.py examples/tool_routing_demo.py examples/incident_triage_demo.py examples/custom_capability_pack.py examples/boptest_live_smoke.py examples/boptest_protocol_run.py examples/boptest_branchpoint_vs_proposer.py examples/boptest_branchpoint_regime_study.py
           python -m compileall -q branchpoint/agent branchpoint/world_model branchpoint/reasoning branchpoint/experiments branchpoint/environments branchpoint/observability branchpoint/benchmarks branchpoint/tools branchpoint/generator branchpoint/utils
       - name: Core import and CLI smoke
         run: |
-          python -c "import branchpoint; assert branchpoint.__version__ == '0.3.0'; from branchpoint import CausalAgent, CausalTelemetry, DecisionPreferences, Hypothesis, ExperimentContract, ModelMismatchPolicy, TemporalEffectContract, VirtualTimeDriver, arbitrate_payload, create_agent, decide; from branchpoint.environments import BOPTESTClient; from branchpoint.experiments import InterventionContract, experiment_decision_value; from branchpoint.benchmarks import DecisionValuePolicy, compare_hidden_world_policies, compare_risk_sensitivity, compare_temporal_guard, compare_temporal_suite; print(branchpoint.__version__)"
+          python -c "import branchpoint; assert branchpoint.__version__ == '0.3.0'; from branchpoint import CausalAgent, CausalTelemetry, DecisionPreferences, ExecutionLedger, PostgresExecutionLedger, Hypothesis, ExperimentContract, ModelMismatchPolicy, TemporalEffectContract, VirtualTimeDriver, arbitrate_payload, create_agent, decide; from branchpoint.environments import BOPTESTClient; from branchpoint.experiments import InterventionContract, experiment_decision_value; from branchpoint.benchmarks import DecisionValuePolicy, compare_hidden_world_policies, compare_risk_sensitivity, compare_temporal_guard, compare_temporal_suite; print(branchpoint.__version__)"
           branchpoint --version
           branchpoint --help
       - name: Agent, causal trace, hypothesis, open-world, environment, temporal, decision, benchmark, policy and CLI tests
@@ -155,3 +155,33 @@ jobs:
           python -c "from branchpoint import create_pipeline; from branchpoint.embeddings import OpenAIEmbeddingProvider; print('lightweight retrieval surface available')"
       - name: Embedding and retrieval tests
         run: pytest -q tests/test_embedding_providers.py
+
+  postgres-ledger:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: branchpoint
+          POSTGRES_PASSWORD: branchpoint
+          POSTGRES_DB: branchpoint
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U branchpoint -d branchpoint"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      BRANCHPOINT_TEST_POSTGRES_DSN: postgresql://branchpoint:branchpoint@127.0.0.1:5432/branchpoint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PostgreSQL execution backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[postgres,dev]"
+      - name: Run distributed execution-ledger contract
+        run: pytest -q tests/test_postgres_execution_ledger.py
