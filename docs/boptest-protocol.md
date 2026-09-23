@@ -166,3 +166,54 @@ This is an ablation of **decision arbitration**, not a claim that the shared
 temperature-band proposer is an optimal controller. The next evidence step is
 to predeclare several seeds and compare paired KPI deltas with the bootstrap
 procedure above.
+
+
+## Preregistered BESTEST Air regime study
+
+The first external arbitration study is checked in before execution as
+`examples/boptest_bestest_air_arbitration_study.json`.
+
+It intentionally does **not** use forecast-uncertainty seeds as repeated
+episodes. The temperature-band proposer only consumes the current zone
+temperature, not BOPTEST forecasts, so changing forecast seeds would not create
+a meaningful independent environment variation for this controller.
+
+Instead, the plan evaluates the same two controller arms over five distinct
+BESTEST Air operating regimes. The selected day is the center day of each
+official two-week BOPTEST period:
+
+| Regime | Official period | Study day |
+| --- | --- | ---: |
+| Peak heating | day 334–348 | 341 |
+| Typical heating | day 44–58 | 51 |
+| Peak cooling | day 282–296 | 289 |
+| Typical cooling | day 146–160 | 153 |
+| Mixed heating/cooling | day 14–28 | 21 |
+
+Each paired episode uses a seven-day warmup, a 15-minute control step, and a
+24-hour evaluation horizon. The proposal policy and runtime policy parameters
+are frozen in the study JSON before the live run.
+
+The checked-in plan currently represents a **high-risk override ablation**:
+the shared proposer puts a temperature-setpoint override first when the room is
+outside the comfort band, while Branchpoint is allowed to reject that proposal
+using the canonical risk/cost metadata. This tests the effect of arbitration
+under an explicit risk assumption; it is not evidence that the assigned risk
+value is physically calibrated.
+
+Run the frozen study locally:
+
+```bash
+python examples/boptest_branchpoint_regime_study.py \
+  examples/boptest_bestest_air_arbitration_study.json \
+  --output boptest_bestest_air_arbitration_study_result.json
+```
+
+Or manually run the GitHub Actions workflow `boptest-evidence`. It executes
+the same checked-in plan against the public BOPTEST service and uploads the
+complete JSON artifact.
+
+The bootstrap interval over the five regimes is recorded as a descriptive
+robustness summary only. These regimes are purposively selected benchmark
+conditions rather than a random sample from a population, so the interval must
+not be presented as an inferential population confidence interval.
