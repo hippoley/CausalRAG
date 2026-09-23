@@ -85,6 +85,24 @@ class BOPTESTScenarioManifest:
                 f"unsupported protocol_version {self.protocol_version!r}"
             )
 
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "BOPTESTScenarioManifest":
+        data = dict(payload)
+        scenario = dict(data.pop("scenario", {}) or {})
+        data.pop("steps", None)
+        for key in (
+            "electricity_price",
+            "temperature_uncertainty",
+            "solar_uncertainty",
+            "seed",
+        ):
+            if key not in data and key in scenario:
+                data[key] = scenario[key]
+        for key in ("controlled_inputs", "measurement_points", "required_kpis"):
+            if key in data:
+                data[key] = tuple(data[key] or ())
+        return cls(**data)
+
     @property
     def steps(self) -> int:
         return int(round(float(self.horizon_seconds) / float(self.step_seconds)))
@@ -378,7 +396,7 @@ def run_boptest_episode(
             testcase_name=testcase_name,
             input_metadata=input_metadata,
             measurement_metadata=measurement_metadata,
-            initial_observation=initial,
+            initial_observation=observation if not trajectory else _select_observation(initial, manifest.measurement_points),
             trajectory=tuple(trajectory),
             kpis=kpis,
             scenario_state=scenario_state,
