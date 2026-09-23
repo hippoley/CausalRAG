@@ -127,3 +127,40 @@ The runtime deliberately does not convert an interval into a winner,
 "significance" label, or product claim. KPI direction, multiple-comparison
 policy, seed selection, and minimum sample size belong to the benchmark
 protocol and should be frozen before final tuning.
+
+
+## Seeded evidence and uncertainty
+
+Use `expand_seeded_manifests` to create a predeclared set of otherwise-identical
+manifests whose BOPTEST scenario seed differs. After running the paired
+comparison, `bootstrap_paired_kpi_intervals` computes a manifest-level paired
+percentile bootstrap interval over `controller - reference` KPI deltas.
+
+```python
+from branchpoint.benchmarks import (
+    bootstrap_paired_kpi_intervals,
+    expand_seeded_manifests,
+)
+
+manifests = expand_seeded_manifests(base_manifest, [11, 12, 13, 14, 15])
+comparison = run_boptest_comparison(
+    manifests,
+    controllers,
+    reference_controller_id="embedded",
+)
+uncertainty = bootstrap_paired_kpi_intervals(
+    comparison,
+    confidence=0.95,
+    resamples=5000,
+    seed=20260923,
+)
+```
+
+The bootstrap artifact records the reference controller, exact manifest hashes,
+master seed, per-controller/KPI derived bootstrap seed, sample count and interval.
+If fewer than the configured minimum number of paired episodes exist, the
+interval is omitted and marked `insufficient_pairs`.
+
+This layer intentionally does not produce significance labels, rankings, or a
+winner. KPI direction, multiplicity corrections, minimum sample size and claim
+thresholds must be fixed by the study protocol before interpreting the results.
