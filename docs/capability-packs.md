@@ -103,7 +103,7 @@ After registration:
 - the Live Workbench scenario selector discovers it automatically;
 - sessions, Human Gate, trace, export, comparison, and evaluation reuse the existing runtime surface.
 
-The builder must return `ProbeScenarioRuntime`. CausalRAG deliberately does not require custom frontend code for each domain.
+The builder must return `ProbeScenarioRuntime`. Branchpoint deliberately does not require custom frontend code for each domain.
 
 ## 1. World state
 
@@ -253,7 +253,7 @@ A pack that ignores timing should not claim causal attribution for delayed syste
 
 Human approval is a runtime branch, not a special comment channel.
 
-A pack can rely on CausalRAG's Human Gate protocol to:
+A pack can rely on Branchpoint's Human Gate protocol to:
 
 - approve the runtime-selected candidate;
 - select another runtime-valid candidate;
@@ -330,7 +330,7 @@ Before registering a pack, verify:
 
 ## Good pack ideas
 
-CausalRAG is especially useful when the next step is a bounded software decision under uncertainty:
+Branchpoint is especially useful when the next step is a bounded software decision under uncertainty:
 
 - incident triage;
 - deployment diagnosis;
