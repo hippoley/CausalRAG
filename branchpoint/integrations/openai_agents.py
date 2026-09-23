@@ -378,11 +378,8 @@ class OpenAIAgentsApprovalAdapter:
         except ImportError as exc:
             raise RuntimeError(
                 "OpenAI Agents integration requires the optional SDK. "
-                "Install this repository with: pip install -e "
-                "".[openai-agents]""
+                "Install this repository with: pip install -e \".[openai-agents]\""
             ) from exc
-
-        self._branchpoint_execution_tools.add(normalized)
 
         async def on_invoke_tool(run_context: Any, raw_arguments: str) -> Any:
             synthetic = _SyntheticApprovalItem(
@@ -430,7 +427,7 @@ class OpenAIAgentsApprovalAdapter:
                 authorization_context=context,
             )
 
-        return FunctionTool(
+        function_tool = FunctionTool(
             name=normalized,
             description=tool.description,
             params_json_schema=schema,
@@ -441,6 +438,8 @@ class OpenAIAgentsApprovalAdapter:
                 authorization_context=authorization_context,
             ),
         )
+        self._branchpoint_execution_tools.add(normalized)
+        return function_tool
 
     def needs_approval(
         self,
