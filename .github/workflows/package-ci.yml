@@ -28,6 +28,8 @@ on:
       - '.github/workflows/package-ci.yml'
       - '.github/workflows/release.yml'
       - 'scripts/verify_distribution.py'
+      - 'scripts/build_release_evidence.py'
+      - 'tests/test_release_evidence.py'
 
 jobs:
   build-wheel:
