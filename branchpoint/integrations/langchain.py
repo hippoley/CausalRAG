@@ -74,15 +74,15 @@ class LangChainBranchpointMiddleware(AgentMiddleware):
         if unknown_tool_policy not in {"deny", "passthrough"}:
             raise ValueError("unknown_tool_policy must be 'deny' or 'passthrough'")
 
-        self.tools = tools if isinstance(tools, ToolRegistry) else ToolRegistry(tools)
-        registry_policy = self.tools.authorization_policy
+        self.registry = tools if isinstance(tools, ToolRegistry) else ToolRegistry(tools)
+        registry_policy = self.registry.authorization_policy
         self.authorization_policy = (
             authorization_policy
             or registry_policy
             or CapabilityAuthorizationPolicy()
         )
         if authorization_policy is not None or registry_policy is None:
-            self.tools.authorization_policy = self.authorization_policy
+            self.registry.authorization_policy = self.authorization_policy
 
         self.authorization_context = authorization_context
         self.authorization_resolver = authorization_resolver
@@ -127,7 +127,7 @@ class LangChainBranchpointMiddleware(AgentMiddleware):
         return self.authorization_context
 
     def _registered(self, name: str) -> bool:
-        return name in self.tools.specs()
+        return name in self.registry.specs()
 
     @staticmethod
     def _effect_id(tool: ToolSpec, name: str, call_id: str) -> Optional[str]:
@@ -202,9 +202,9 @@ class LangChainBranchpointMiddleware(AgentMiddleware):
                 f"No canonical Branchpoint ToolSpec is registered for {name!r}"
             )
 
-        tool = self.tools.get(name)
+        tool = self.registry.get(name)
         effect_id = self._effect_id(tool, name, call_id)
-        ledger = self.tools.execution_ledger
+        ledger = self.registry.execution_ledger
         prior = ledger.get(effect_id) if effect_id is not None and ledger is not None else None
         replayed = bool(prior is not None and prior.status == "succeeded")
         context = self._context(
@@ -214,7 +214,7 @@ class LangChainBranchpointMiddleware(AgentMiddleware):
             call_id=call_id,
         )
 
-        result = self.tools.execute(
+        result = self.registry.execute(
             name,
             arguments,
             effect_id=effect_id,
@@ -245,9 +245,9 @@ class LangChainBranchpointMiddleware(AgentMiddleware):
                 f"No canonical Branchpoint ToolSpec is registered for {name!r}"
             )
 
-        tool = self.tools.get(name)
+        tool = self.registry.get(name)
         effect_id = self._effect_id(tool, name, call_id)
-        ledger = self.tools.execution_ledger
+        ledger = self.registry.execution_ledger
         prior = (
             await asyncio.to_thread(ledger.get, effect_id)
             if effect_id is not None and ledger is not None
@@ -261,7 +261,7 @@ class LangChainBranchpointMiddleware(AgentMiddleware):
             call_id=call_id,
         )
 
-        result = await self.tools.execute_async(
+        result = await self.registry.execute_async(
             name,
             arguments,
             effect_id=effect_id,
