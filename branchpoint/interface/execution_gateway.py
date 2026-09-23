@@ -102,17 +102,23 @@ def create_execution_gateway_app(
 
     async def current_principal(request: Request) -> Optional[AuthorizationContext]:
         try:
-            return await _resolve(principal_resolver(request))
+            principal = await _resolve(principal_resolver(request))
         except HTTPException:
             raise
         except Exception as exc:
             raise HTTPException(
                 status_code=401,
-                detail={
-                    "code": "principal_resolution_failed",
-                    "message": str(exc),
-                },
+                detail={"code": "principal_resolution_failed"},
             ) from exc
+        if principal is not None and not isinstance(
+            principal,
+            AuthorizationContext,
+        ):
+            raise HTTPException(
+                status_code=500,
+                detail={"code": "invalid_principal_resolver_result"},
+            )
+        return principal
 
     @app.post("/v1/preview")
     async def preview(payload: GatewayPreviewRequest, request: Request):
@@ -197,7 +203,6 @@ def create_execution_gateway_app(
                     status_code=403,
                     detail={
                         "code": "approval_validation_failed",
-                        "message": str(exc),
                         "decision": decision.to_dict(),
                     },
                 ) from exc
