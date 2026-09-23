@@ -341,7 +341,7 @@ A useful starting point is **Browser action guard** because the first divergence
 ```text
 proposer order:  submit_form → inspect_submission_state
 plain loop:      submit_form → wrong external action
-CausalRAG:      inspect_submission_state → reauthenticate → success
+Branchpoint:     inspect_submission_state → reauthenticate → success
 ```
 
 Same goal. Same hidden state. Same candidates. Different execution authority.
@@ -672,7 +672,7 @@ If that resonates, try the examples, break a capability pack, add a strange envi
 
 **The easiest way to contribute is to bring a failure.**
 
-If an ordinary agent loop takes the wrong branch, open a [Failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml). If you already have a reproducible world + tools + hypotheses, propose a [Capability pack](https://github.com/hippoley/CausalRAG/issues/new?template=capability-pack.yml). If you built something public with CausalRAG, share it through the [Showcase](https://github.com/hippoley/CausalRAG/issues/new?template=showcase.yml).
+If an ordinary agent loop takes the wrong branch, open a [Failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml). If you already have a reproducible world + tools + hypotheses, propose a [Capability pack](https://github.com/hippoley/CausalRAG/issues/new?template=capability-pack.yml). If you built something public with Branchpoint, share it through the [Showcase](https://github.com/hippoley/CausalRAG/issues/new?template=showcase.yml).
 
 Small, falsifiable contributions are preferred over large speculative rewrites.
 
