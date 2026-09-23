@@ -14,6 +14,7 @@ __all__ = [
     "LangChainBranchpointMiddleware",
     "langchain_branchpoint_stack",
     "langchain_human_in_the_loop",
+    "langchain_tool_schema",
 ]
 
 
@@ -22,6 +23,7 @@ _LANGCHAIN_EXPORTS = {
     "LangChainBranchpointMiddleware",
     "langchain_branchpoint_stack",
     "langchain_human_in_the_loop",
+    "langchain_tool_schema",
 }
 
 
@@ -32,6 +34,7 @@ def __getattr__(name):
             LangChainBranchpointMiddleware,
             langchain_branchpoint_stack,
             langchain_human_in_the_loop,
+            langchain_tool_schema,
         )
 
         return {
@@ -39,5 +42,6 @@ def __getattr__(name):
             "LangChainBranchpointMiddleware": LangChainBranchpointMiddleware,
             "langchain_branchpoint_stack": langchain_branchpoint_stack,
             "langchain_human_in_the_loop": langchain_human_in_the_loop,
+            "langchain_tool_schema": langchain_tool_schema,
         }[name]
     raise AttributeError(f"module 'branchpoint.integrations' has no attribute {name!r}")
