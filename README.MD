@@ -31,6 +31,7 @@
 | **see three real decision trajectories** | [Verified examples](https://hippoley.github.io/CausalRAG/examples.html) |
 | **run it locally without an API key** | [60-second quickstart](#60-second-quickstart) |
 | **drop one decision boundary into my code** | [Minimal Python example](#put-one-decision-point-into-existing-code) |
+| **plug into an OpenAI Agents approval flow** | [OpenAI Agents adapter](docs/openai-agents.md) |
 | **bring my own domain** | [Capability packs](docs/capability-packs.md) |
 | **try to break the runtime** | [Open a failure case](https://github.com/hippoley/CausalRAG/issues/new?template=failure-case.yml) |
 
