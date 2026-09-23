@@ -3,10 +3,12 @@
 Branchpoint can sit on the OpenAI Agents SDK pre-execution approval boundary
 without replacing the SDK's agent loop.
 
-This integration is tested against the `openai-agents 0.22.x` API.
+This integration is tested against the `openai-agents 0.22.x` API. Until the first public PyPI release, install it from this repository as shown below.
 
 ```bash
-pip install "branchpoint[openai-agents]"
+git clone https://github.com/hippoley/CausalRAG.git
+cd CausalRAG
+pip install -e ".[openai-agents]"
 ```
 
 ## What it owns
