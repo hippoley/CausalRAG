@@ -367,6 +367,13 @@ class OpenAIAgentsApprovalAdapter:
         if not normalized:
             raise ValueError("tool_name must be non-empty")
         tool = self.tools.get(normalized)
+        if tool.require_durable_receipt and self.tools.execution_ledger is None:
+            from branchpoint.execution import ExecutionBoundaryError
+
+            raise ExecutionBoundaryError(
+                f"Tool {normalized!r} requires a durable execution receipt, "
+                "but no execution_ledger is configured."
+            )
         if inspect.iscoroutinefunction(tool.handler):
             raise TypeError(
                 "OpenAI Agents Branchpoint-bound tools currently require a "
