@@ -256,11 +256,14 @@ class OpenAIAgentsApprovalAdapter:
                 reason=authorization.reason,
                 required_permissions=authorization.required_permissions,
                 missing_permissions=authorization.missing_permissions,
-                risk=tool_risk,
+                risk=None,
                 reversible=bool(tool.reversible),
             )
 
-        tool_risk = float(tool.risk)
+        try:
+            tool_risk = float(tool.risk)
+        except (TypeError, ValueError):
+            tool_risk = float("nan")
         if not math.isfinite(tool_risk) or tool_risk < 0.0:
             return OpenAIAgentsToolDecision(
                 ApprovalOutcome.REQUIRE_HUMAN,
