@@ -11,6 +11,7 @@ on:
       - 'LICENSE'
       - 'tests/test_release_version.py'
       - '.github/workflows/package-ci.yml'
+      - '.github/workflows/release.yml'
   push:
     branches: [main]
     paths:
@@ -22,6 +23,7 @@ on:
       - 'LICENSE'
       - 'tests/test_release_version.py'
       - '.github/workflows/package-ci.yml'
+      - '.github/workflows/release.yml'
 
 jobs:
   build-wheel:

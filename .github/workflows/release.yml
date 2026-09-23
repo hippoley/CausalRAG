@@ -1,0 +1,140 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build release distributions
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Verify version matches tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          python - <<'PY'
+          import pathlib
+          import re
+          import os
+
+          init_py = pathlib.Path("branchpoint/__init__.py").read_text(encoding="utf-8")
+          match = re.search(r'^__version__ = ["\']([^"\']+)["\']', init_py, re.MULTILINE)
+          if not match:
+              raise SystemExit("Could not read branchpoint.__version__")
+
+          package_version = match.group(1)
+          tag_version = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          if package_version != tag_version:
+              raise SystemExit(
+                  f"Tag/package version mismatch: tag={tag_version}, package={package_version}"
+              )
+          PY
+
+      - name: Install wheel in clean target
+        run: |
+          python -m venv /tmp/branchpoint-release-smoke
+          /tmp/branchpoint-release-smoke/bin/python -m pip install --upgrade pip
+          /tmp/branchpoint-release-smoke/bin/python -m pip install dist/*.whl
+          /tmp/branchpoint-release-smoke/bin/python - <<'PY'
+          import branchpoint
+          from branchpoint import AuthorizationContext, SQLiteExecutionLedger, decide
+
+          print("branchpoint", branchpoint.__version__)
+          assert AuthorizationContext
+          assert SQLiteExecutionLedger
+          assert decide
+          PY
+          /tmp/branchpoint-release-smoke/bin/branchpoint --version
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
+
+  attest:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Attest release distributions
+        uses: actions/attest@v4
+        with:
+          subject-path: "dist/*"
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - build
+      - attest
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/branchpoint
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/*.whl \
+            dist/*.tar.gz \
+            dist/SHA256SUMS \
+            --verify-tag \
+            --generate-notes \
+            --title "Branchpoint $GITHUB_REF_NAME"
