@@ -52,6 +52,7 @@ on:
       - 'tests/test_probe_access.py'
       - 'tests/test_cli_embedding_options.py'
       - 'tests/test_probe_archive.py'
+      - 'tests/test_semantic_replay.py'
       - '.github/workflows/probe-ci.yml'
 
 jobs:
