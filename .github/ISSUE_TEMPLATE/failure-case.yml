@@ -42,4 +42,4 @@ body:
     id: evidence
     attributes:
       label: Expected invariant
-      description: What testable behavior should CausalRAG guarantee after this is fixed?
+      description: What testable behavior should Branchpoint guarantee after this is fixed?
