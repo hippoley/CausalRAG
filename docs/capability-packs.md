@@ -1,6 +1,6 @@
 # Capability Packs
 
-A **capability pack** turns a domain into a decision environment that CausalRAG can run, inspect, evaluate, and replay.
+A **capability pack** turns a domain into a decision environment that Branchpoint can run, inspect, evaluate, and replay.
 
 It is intentionally smaller than an application and more explicit than a prompt.
 
@@ -44,7 +44,7 @@ All six use the same session, trace, human-gate, comparison, and Workbench surfa
 
 The first three are good templates for application developers. The last three are good templates for deeper runtime behavior.
 
-## Register a pack without editing CausalRAG core
+## Register a pack without editing Branchpoint core
 
 Capability packs are registry-backed. A complete runnable external pack is included at:
 
