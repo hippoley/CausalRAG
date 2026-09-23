@@ -396,7 +396,7 @@ def run_boptest_episode(
             testcase_name=testcase_name,
             input_metadata=input_metadata,
             measurement_metadata=measurement_metadata,
-            initial_observation=observation if not trajectory else _select_observation(initial, manifest.measurement_points),
+            initial_observation=_select_observation(initial, manifest.measurement_points),
             trajectory=tuple(trajectory),
             kpis=kpis,
             scenario_state=scenario_state,
