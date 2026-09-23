@@ -13,6 +13,7 @@ REQUIRED_WHEEL_ENTRIES = {
     "branchpoint/postgres_execution.py",
     "branchpoint/integrations/__init__.py",
     "branchpoint/integrations/openai_agents.py",
+    "branchpoint/integrations/mcp.py",
     "branchpoint/jev.py",
     "branchpoint/templates/probe_landing.html",
     "branchpoint/templates/agent_workbench.html",
@@ -26,6 +27,7 @@ REQUIRED_EXTRAS = {
     "faiss",
     "full",
     "local-embeddings",
+    "mcp",
     "observability",
     "openai-agents",
     "postgres",
@@ -33,6 +35,7 @@ REQUIRED_EXTRAS = {
 }
 
 REQUIRED_OPTIONAL_DEPENDENCIES = {
+    "mcp": "mcp",
     "openai-agents": "openai-agents",
     "postgres": "psycopg",
 }
