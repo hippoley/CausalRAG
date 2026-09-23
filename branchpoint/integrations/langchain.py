@@ -340,3 +340,31 @@ def langchain_human_in_the_loop(
         interrupt_on=interrupt_on,
         edit_notice=None,
     )
+
+
+def langchain_branchpoint_stack(
+    tools: ToolRegistry | Iterable[ToolSpec],
+    *,
+    auto_approve_max_risk: float = 0.0,
+    allow_irreversible_auto_approval: bool = False,
+    authorization_policy: Optional[CapabilityAuthorizationPolicy] = None,
+    authorization_context: Optional[AuthorizationContext] = None,
+    authorization_resolver: Optional[AuthorizationResolver] = None,
+    unknown_tool_policy: str = "deny",
+):
+    """Return LangChain middleware in safe human-gate -> execution order."""
+
+    registry = tools if isinstance(tools, ToolRegistry) else ToolRegistry(tools)
+    hitl = langchain_human_in_the_loop(
+        registry,
+        auto_approve_max_risk=auto_approve_max_risk,
+        allow_irreversible_auto_approval=allow_irreversible_auto_approval,
+    )
+    execution = LangChainBranchpointMiddleware(
+        registry,
+        authorization_policy=authorization_policy,
+        authorization_context=authorization_context,
+        authorization_resolver=authorization_resolver,
+        unknown_tool_policy=unknown_tool_policy,
+    )
+    return (hitl, execution)
