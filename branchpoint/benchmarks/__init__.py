@@ -1,9 +1,13 @@
 from .boptest_comparison import (
+    BOPTESTBootstrapInterval,
+    BOPTESTBootstrapReport,
     BOPTESTComparisonError,
     BOPTESTComparisonReport,
     BOPTESTControllerSpec,
     BOPTESTPairedEpisode,
+    bootstrap_paired_kpi_intervals,
     constant_controller,
+    expand_seeded_manifests,
     run_boptest_comparison,
 )
 from .boptest_protocol import (
@@ -64,11 +68,15 @@ from .temporal_suite import (
 )
 
 __all__ = [
+    "BOPTESTBootstrapInterval",
+    "BOPTESTBootstrapReport",
     "BOPTESTComparisonError",
     "BOPTESTComparisonReport",
     "BOPTESTControllerSpec",
     "BOPTESTPairedEpisode",
+    "bootstrap_paired_kpi_intervals",
     "constant_controller",
+    "expand_seeded_manifests",
     "run_boptest_comparison",
     "BOPTESTControlContext",
     "BOPTESTControlError",
