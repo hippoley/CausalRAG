@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
 from branchpoint.agent.actions import ActionKind, CandidateAction
@@ -11,7 +11,11 @@ from branchpoint.tools import ToolSpec
 from branchpoint.world_model import CausalWorldModel
 
 from .boptest_comparison import BOPTESTControllerSpec
-from .boptest_protocol import BOPTESTControlContext, Controller
+from .boptest_protocol import (
+    BOPTESTControlContext,
+    BOPTESTControlDecision,
+    Controller,
+)
 
 
 class BOPTESTDecisionAdapterError(RuntimeError):
@@ -35,7 +39,7 @@ ProposalProvider = Callable[[BOPTESTControlContext], Sequence[BOPTESTControlCand
 
 
 @dataclass(frozen=True)
-class BOPTESTControlDecision:
+class BOPTESTArbitrationRecord:
     step_index: int
     mode: str
     proposer_first: str
@@ -74,23 +78,25 @@ class ProposalOrderBOPTESTController:
 
     def __init__(self, proposal_provider: ProposalProvider) -> None:
         self.proposal_provider = proposal_provider
-        self.decisions: list[BOPTESTControlDecision] = []
+        self.decisions: list[BOPTESTArbitrationRecord] = []
 
-    def __call__(self, context: BOPTESTControlContext) -> Mapping[str, Any]:
+    def __call__(self, context: BOPTESTControlContext) -> BOPTESTControlDecision:
         plans = _plans_for_context(self.proposal_provider, context)
         selected = plans[0]
         controls = dict(selected.controls)
-        self.decisions.append(
-            BOPTESTControlDecision(
-                step_index=context.step_index,
-                mode="proposal_order",
-                proposer_first=selected.candidate.name,
-                selected=selected.candidate.name,
-                changed_proposer_order=False,
-                controls=controls,
-            )
+        record = BOPTESTArbitrationRecord(
+            step_index=context.step_index,
+            mode="proposal_order",
+            proposer_first=selected.candidate.name,
+            selected=selected.candidate.name,
+            changed_proposer_order=False,
+            controls=controls,
         )
-        return controls
+        self.decisions.append(record)
+        return BOPTESTControlDecision(
+            controls=controls,
+            metadata=record.to_dict(),
+        )
 
 
 class BranchpointBOPTESTController:
@@ -106,9 +112,9 @@ class BranchpointBOPTESTController:
         self.proposal_provider = proposal_provider
         self.world_model = world_model
         self.capabilities = capabilities
-        self.decisions: list[BOPTESTControlDecision] = []
+        self.decisions: list[BOPTESTArbitrationRecord] = []
 
-    def __call__(self, context: BOPTESTControlContext) -> Mapping[str, Any]:
+    def __call__(self, context: BOPTESTControlContext) -> BOPTESTControlDecision:
         plans = _plans_for_context(self.proposal_provider, context)
         candidates = [plan.candidate for plan in plans]
         tools = [plan.tool for plan in plans if plan.tool is not None]
@@ -126,18 +132,44 @@ class BranchpointBOPTESTController:
                 "Branchpoint selected a candidate outside the proposal set"
             ) from exc
         controls = dict(selected.controls)
-        self.decisions.append(
-            BOPTESTControlDecision(
-                step_index=context.step_index,
-                mode="branchpoint",
-                proposer_first=result.proposer_first.name,
-                selected=result.selected.name,
-                changed_proposer_order=result.changed_proposer_order,
-                controls=controls,
-                scores=tuple(asdict(score) for score in result.scores),
-            )
+        scores = tuple(
+            {
+                "candidate_index": int(score.candidate_index),
+                "action_name": score.action_name,
+                "action_kind": score.action_kind.value,
+                "total_utility": float(score.total_utility),
+                "goal_gain": float(score.goal_gain),
+                "information_gain": float(score.information_gain),
+                "information_source": score.information_source,
+                "model_information_gain": float(score.model_information_gain),
+                "discrimination_score": score.discrimination_score,
+                "bayesian_information_gain": score.bayesian_information_gain,
+                "cost": float(score.cost),
+                "risk": float(score.risk),
+                "irreversibility": float(score.irreversibility),
+                "decision_value": score.decision_value,
+                "decision_value_source": score.decision_value_source,
+                "expected_value_of_sample_information": (
+                    score.expected_value_of_sample_information
+                ),
+                "net_value_of_sampling": score.net_value_of_sampling,
+            }
+            for score in result.scores
         )
-        return controls
+        record = BOPTESTArbitrationRecord(
+            step_index=context.step_index,
+            mode="branchpoint",
+            proposer_first=result.proposer_first.name,
+            selected=result.selected.name,
+            changed_proposer_order=result.changed_proposer_order,
+            controls=controls,
+            scores=scores,
+        )
+        self.decisions.append(record)
+        return BOPTESTControlDecision(
+            controls=controls,
+            metadata=record.to_dict(),
+        )
 
 
 @dataclass(frozen=True)
