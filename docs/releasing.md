@@ -107,8 +107,10 @@ build distributions
 → verify tag commit is on main
 → verify tag == package version
 → clean-wheel install smoke
-→ upload GitHub artifact
-→ artifact attestation
+→ branchpoint doctor --json
+→ bind doctor + wheel/sdist hashes into release evidence
+→ upload GitHub artifacts
+→ artifact attestation for distributions + evidence
 → PyPI Trusted Publishing
 → SHA256SUMS
 → GitHub Release
@@ -119,6 +121,49 @@ The GitHub Release is created only after PyPI publishing succeeds.
 The workflow refuses a release tag whose commit is not an ancestor of
 `origin/main`, and refuses a tag whose version does not exactly match
 `branchpoint.__version__`.
+
+
+
+## Release evidence
+
+Every packaging run creates machine-readable proof from the **installed wheel**,
+not from the editable repository checkout.
+
+`branchpoint doctor --json` first proves the three required core invariants:
+
+- runtime arbitration can diverge from proposer order under canonical policy;
+- authorization denies an unprivileged principal before the handler runs;
+- a repeated durable effect id replays the stored result and executes the
+  external handler once.
+
+`scripts/build_release_evidence.py` then binds that doctor result to:
+
+- the Branchpoint package version;
+- the GitHub commit and ref when available;
+- the Python implementation/version used for the check;
+- the exact wheel and source-distribution filenames;
+- SHA-256 and byte length for both distribution artifacts.
+
+The resulting envelope uses
+`branchpoint.release-evidence.v1`.
+
+Package CI uploads separate evidence artifacts for Python 3.10 and 3.12. A
+tagged release generates the Python 3.12 release envelope, attests both the
+distribution files and evidence JSON through GitHub artifact attestations, and
+attaches these files to the GitHub Release:
+
+```text
+branchpoint-<version>-*.whl
+branchpoint-<version>.tar.gz
+SHA256SUMS
+release-evidence.json
+doctor.json
+```
+
+The release evidence intentionally proves Branchpoint's local execution
+invariants. It does not claim that optional providers such as PostgreSQL or the
+OpenAI Agents SDK are installed in the release smoke environment; those have
+their own dedicated CI jobs.
 
 ## Dry run without publishing
 
