@@ -35,5 +35,5 @@ body:
     attributes:
       label: Permission
       options:
-        - label: This material is public and may be linked from CausalRAG documentation.
+        - label: This material is public and may be linked from Branchpoint documentation.
           required: true
