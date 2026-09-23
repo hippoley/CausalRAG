@@ -79,22 +79,30 @@ def build_release_evidence(
             f"doctor={doctor.get('branchpoint_version')} source={version}"
         )
 
-    artifacts = []
-    for path in sorted(dist_dir.iterdir()):
-        if not path.is_file():
-            continue
-        if path.suffix == ".whl" or path.name.endswith(".tar.gz"):
-            artifacts.append(
-                {
-                    "name": path.name,
-                    "sha256": _sha256(path),
-                    "bytes": path.stat().st_size,
-                }
-            )
-    if len(artifacts) != 2:
+    wheels = sorted(dist_dir.glob("branchpoint-*.whl"))
+    sdists = sorted(dist_dir.glob("branchpoint-*.tar.gz"))
+    if len(wheels) != 1 or len(sdists) != 1:
         raise SystemExit(
-            f"Expected wheel + sdist in {dist_dir}, found {len(artifacts)} artifacts"
+            "Expected exactly one Branchpoint wheel and one source distribution "
+            f"in {dist_dir}; found wheels={len(wheels)} sdists={len(sdists)}"
         )
+
+    expected_prefix = f"branchpoint-{version}"
+    for path in (wheels[0], sdists[0]):
+        if not path.name.startswith(expected_prefix):
+            raise SystemExit(
+                f"Distribution filename/version mismatch: {path.name} "
+                f"does not start with {expected_prefix!r}"
+            )
+
+    artifacts = [
+        {
+            "name": path.name,
+            "sha256": _sha256(path),
+            "bytes": path.stat().st_size,
+        }
+        for path in (wheels[0], sdists[0])
+    ]
 
     return {
         "schema_version": SCHEMA_VERSION,
