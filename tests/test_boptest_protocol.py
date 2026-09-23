@@ -1,6 +1,7 @@
 import pytest
 
 from branchpoint.benchmarks.boptest_protocol import (
+    BOPTESTControlDecision,
     BOPTESTControlError,
     BOPTESTExperimentError,
     BOPTESTManifestError,
@@ -200,3 +201,41 @@ def test_controller_failure_still_releases_boptest_worker():
         )
     assert client.testid is None
     assert client.calls[-1][0] == "stop"
+
+
+def test_structured_controller_decision_is_recorded_in_episode_artifact():
+    client = FakeBOPTESTClient()
+
+    def controller(context):
+        return BOPTESTControlDecision(
+            controls={"oveHea_u": 0.25, "oveHea_activate": 1},
+            metadata={
+                "mode": "branchpoint",
+                "step_index": context.step_index,
+                "selected": "heat-quarter",
+            },
+        )
+
+    result = run_boptest_episode(
+        _manifest(),
+        controller,
+        controller_id="branchpoint",
+        client=client,
+        sleep=lambda _seconds: None,
+    )
+
+    assert len(result.trajectory) == 3
+    assert result.trajectory[0].controller_metadata == {
+        "mode": "branchpoint",
+        "step_index": 0,
+        "selected": "heat-quarter",
+    }
+    assert result.to_dict()["trajectory"][0]["controller_metadata"]["selected"] == "heat-quarter"
+
+
+def test_structured_controller_metadata_must_be_json_serializable():
+    with pytest.raises(BOPTESTControlError, match="JSON-serializable"):
+        BOPTESTControlDecision(
+            controls={},
+            metadata={"bad": object()},
+        )
