@@ -29,7 +29,7 @@ jobs:
       - name: Run preregistered BOPTEST study
         run: |
           mkdir -p artifacts
-          python examples/boptest_branchpoint_seeded_study.py             examples/boptest_bestest_air_arbitration_study.json             --output artifacts/boptest_bestest_air_arbitration_study_result.json
+          python examples/boptest_branchpoint_regime_study.py             examples/boptest_bestest_air_arbitration_study.json             --output artifacts/boptest_bestest_air_arbitration_study_result.json
 
       - name: Upload evidence artifact
         uses: actions/upload-artifact@v4
