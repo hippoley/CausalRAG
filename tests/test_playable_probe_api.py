@@ -798,3 +798,127 @@ def test_probe_session_export_api_returns_replay_schema_and_ledger():
     assert all("proposer" in row and "proposer_attempts" in row for row in body["episode_ledger"])
     assert body["proposer_traces"]
     assert all(row["kind"] == "deterministic" for row in body["proposer_traces"])
+
+
+def test_probe_semantic_replay_keeps_replanned_preview_that_never_executed():
+    created = client.post(
+        "/api/sessions",
+        json={
+            "hidden_hypothesis": "H2",
+            "outcome_mode": "deterministic",
+            "seed": 0,
+            "proposer_family": "deterministic",
+        },
+    )
+    assert created.status_code == 200
+    session_id = created.json()["session_id"]
+
+    deadline = time.time() + 6.0
+    first_gate = None
+    first_step = None
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        if snap["status"] == "waiting_for_human":
+            first_gate = snap["pending_decision"]["gate_id"]
+            first_step = snap["pending_decision"]["step"]
+            break
+        time.sleep(0.01)
+    assert first_gate is not None
+
+    added = client.post(
+        f"/api/sessions/{session_id}/hypotheses",
+        json={
+            "hypothesis_id": "H_REPLAY",
+            "statement": "Human suspects a mechanism omitted by the first preview.",
+            "probability": 0.2,
+        },
+    )
+    assert added.status_code == 200
+
+    message = client.post(
+        f"/api/sessions/{session_id}/messages",
+        json={
+            "message": "Reframe around the newly added mechanism.",
+            "replan": True,
+        },
+    )
+    assert message.status_code == 200
+
+    deadline = time.time() + 6.0
+    second_gate = None
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        pending = snap.get("pending_decision")
+        if (
+            snap["status"] == "waiting_for_human"
+            and pending
+            and pending["gate_id"] != first_gate
+        ):
+            second_gate = pending["gate_id"]
+            replay = snap["semantic_replay"]
+            discarded = next(
+                row for row in replay["frames"]
+                if row["gate_id"] == first_gate
+            )
+            assert discarded["step"] == first_step
+            assert discarded["outcome"] == "discarded_before_execution"
+            assert discarded["executed"] is False
+            assert discarded["observation"] is None
+            assert any(
+                row.get("hypothesis_id") == "H_REPLAY"
+                for row in discarded["human_hypothesis_events"]
+            )
+            assert any(
+                row.get("message") == "Reframe around the newly added mechanism."
+                for row in discarded["operator_messages"]
+            )
+            assert any(
+                (row.get("id") or row.get("hypothesis_id")) == "H_REPLAY"
+                for row in discarded["world_after_gate"]["hypotheses"]
+            )
+            break
+        time.sleep(0.01)
+    assert second_gate is not None
+
+    # Let the new trajectory complete. Every subsequent gate is real runtime
+    # state; approve it without manufacturing any replay frames client-side.
+    deadline = time.time() + 10.0
+    while time.time() < deadline:
+        snap = client.get(f"/api/sessions/{session_id}").json()
+        if snap["status"] == "waiting_for_human":
+            approved = client.post(
+                f"/api/sessions/{session_id}/decision",
+                json={"action": "approve"},
+            )
+            assert approved.status_code == 200
+        elif snap["status"] == "completed":
+            break
+        elif snap["status"] == "failed":
+            raise AssertionError(snap["error"])
+        time.sleep(0.01)
+    else:
+        raise AssertionError("replanned session did not complete")
+
+    exported = client.get(f"/api/sessions/{session_id}/export")
+    assert exported.status_code == 200
+    body = exported.json()
+    replay = body["semantic_replay"]
+    assert replay["schema_version"] == "branchpoint.semantic-replay.v1"
+    assert replay["discarded_count"] >= 1
+    assert replay["executed_count"] == len(body["episode_ledger"])
+    assert replay["frame_count"] > len(body["episode_ledger"])
+
+    discarded = next(
+        row for row in replay["frames"]
+        if row["gate_id"] == first_gate
+    )
+    assert discarded["outcome"] == "discarded_before_execution"
+    assert discarded["canonical_episode"] if "canonical_episode" in discarded else True
+    assert discarded["observation"] is None
+
+    executed_same_step = [
+        row for row in replay["frames"]
+        if row["step"] == first_step and row["outcome"] == "executed"
+    ]
+    assert executed_same_step
+    assert all(row["gate_id"] != first_gate for row in executed_same_step)
