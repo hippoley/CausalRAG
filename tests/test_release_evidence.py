@@ -1,15 +1,22 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 
 import pytest
 
-from scripts.build_release_evidence import build_release_evidence
-
 
 ROOT = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location(
+    "branchpoint_release_evidence",
+    ROOT / "scripts" / "build_release_evidence.py",
+)
+assert SPEC is not None and SPEC.loader is not None
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+build_release_evidence = MODULE.build_release_evidence
 
 
 def _doctor(path: Path, *, ok: bool = True, version: str = "0.3.0") -> Path:
