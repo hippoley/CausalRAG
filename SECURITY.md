@@ -2,7 +2,7 @@
 
 ## Scope
 
-CausalRAG sits on the execution boundary between model proposals and real tools, so security issues can have consequences beyond incorrect text.
+Branchpoint sits on the execution boundary between model proposals and real tools, so security issues can have consequences beyond incorrect text.
 
 Please treat the following as security-sensitive:
 
