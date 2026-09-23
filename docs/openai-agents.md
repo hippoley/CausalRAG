@@ -282,3 +282,50 @@ compatibility test explicitly verifies that `to_input_item()` does not include
 The audit payload intentionally omits tool arguments, tool output content, and
 principal identity. Those remain application-owned data rather than default
 trace content.
+
+
+## Zero-key Runner lifecycle proof
+
+The repository also verifies the complete SDK lifecycle, not only direct
+`FunctionTool.on_invoke_tool(...)` calls.
+
+```bash
+python examples/openai_agents_runner_e2e.py
+```
+
+The example uses the Agents SDK's public `ScriptedModel`, so it requires no
+model API key. The flow is:
+
+```text
+ScriptedModel proposes charge_card
+        ↓
+OpenAI Agents evaluates needs_approval
+        ↓
+run pauses with ToolApprovalItem
+        ↓
+Branchpoint: require_human / risk_threshold
+        ↓
+human approves on RunState
+        ↓
+Runner resumes original run
+        ↓
+Branchpoint rechecks authority
+        ↓
+durable receipt claim
+        ↓
+async external handler executes once
+        ↓
+receipt succeeds
+        ↓
+model receives tool output
+        ↓
+final assistant message
+```
+
+The test asserts that no receipt exists and no external handler has run before
+approval. After resume, exactly one external call exists and the receipt is
+`succeeded`.
+
+This matters because the integration proof now exercises the same
+`Runner.run(agent, result.to_state())` pause/resume lifecycle that an
+application uses in production, while remaining deterministic and zero-key.
