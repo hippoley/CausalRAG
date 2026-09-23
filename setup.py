@@ -47,6 +47,7 @@ extra_requirements = {
     "observability": observability_requirements,
     "postgres": ["psycopg[binary]>=3.1,<4"],
     "openai-agents": ["openai-agents>=0.22.0,<0.23.0"],
+    "langchain": ["langchain>=1.4.2,<1.5.0"],
     "evaluation": ["pandas>=1.3.0"],
     "dev": [
         "pytest>=7.0",
@@ -65,7 +66,7 @@ extra_requirements["full"] = sorted(
     {
         req
         for key, reqs in extra_requirements.items()
-        if key not in {"dev", "full", "local-embeddings", "faiss", "postgres", "openai-agents"}
+        if key not in {"dev", "full", "local-embeddings", "faiss", "postgres", "openai-agents", "langchain"}
         for req in reqs
     }
 )
