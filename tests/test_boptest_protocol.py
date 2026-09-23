@@ -103,6 +103,16 @@ def test_manifest_hash_is_stable_and_protocol_is_explicit():
     assert first.to_dict()["protocol_version"] == "branchpoint.boptest.v1"
 
 
+def test_manifest_round_trip_preserves_experiment_identity():
+    original = _manifest(
+        electricity_price="dynamic",
+        temperature_uncertainty="medium",
+    )
+    restored = BOPTESTScenarioManifest.from_dict(original.to_dict())
+    assert restored == original
+    assert restored.manifest_hash == original.manifest_hash
+
+
 def test_manifest_rejects_fractional_control_horizon():
     with pytest.raises(BOPTESTManifestError, match="integer multiple"):
         _manifest(horizon_seconds=1000)
