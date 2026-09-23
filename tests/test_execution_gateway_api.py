@@ -276,3 +276,23 @@ def test_high_risk_execute_requires_a_matching_preview_hash(tmp_path):
     assert response.json()["detail"]["code"] == "preview_required_for_approval"
     assert registry.execution_ledger.get("no-preview-1") is None
     assert calls == []
+
+
+def test_invalid_principal_resolver_result_fails_closed(tmp_path):
+    registry = ToolRegistry(
+        [ToolSpec("read", "read", lambda: {"ok": True})],
+        execution_ledger=SQLiteExecutionLedger(tmp_path / "invalid-principal.sqlite3"),
+    )
+    app = create_execution_gateway_app(
+        registry,
+        principal_resolver=lambda _request: {"principal_id": "forged"},
+    )
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/preview",
+        json={"tool_name": "read", "arguments": {}},
+    )
+
+    assert response.status_code == 500
+    assert response.json()["detail"]["code"] == "invalid_principal_resolver_result"
