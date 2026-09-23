@@ -199,20 +199,21 @@ class ToolRegistry:
 
         try:
             result = self._invoke(tool, call_arguments, attributes)
-            ledger.complete(effect_id, result)
-            if self.telemetry is not None:
-                self.telemetry.event(
-                    "branchpoint.execution.completed",
-                    {
-                        "branchpoint.execution.effect_id": effect_id,
-                        "branchpoint.execution.effect_hash": receipt.effect_hash,
-                        "gen_ai.tool.name": tool.name,
-                    },
-                )
-            return result
         except Exception as exc:
             ledger.fail(effect_id, exc)
             raise
+
+        ledger.complete(effect_id, result)
+        if self.telemetry is not None:
+            self.telemetry.event(
+                "branchpoint.execution.completed",
+                {
+                    "branchpoint.execution.effect_id": effect_id,
+                    "branchpoint.execution.effect_hash": receipt.effect_hash,
+                    "gen_ai.tool.name": tool.name,
+                },
+            )
+        return result
 
     async def _invoke_async(
         self,
@@ -365,17 +366,18 @@ class ToolRegistry:
 
         try:
             result = await self._invoke_async(tool, call_arguments, attributes)
-            await asyncio.to_thread(ledger.complete, effect_id, result)
-            if self.telemetry is not None:
-                self.telemetry.event(
-                    "branchpoint.execution.completed",
-                    {
-                        "branchpoint.execution.effect_id": effect_id,
-                        "branchpoint.execution.effect_hash": receipt.effect_hash,
-                        "gen_ai.tool.name": tool.name,
-                    },
-                )
-            return result
         except Exception as exc:
             await asyncio.to_thread(ledger.fail, effect_id, exc)
             raise
+
+        await asyncio.to_thread(ledger.complete, effect_id, result)
+        if self.telemetry is not None:
+            self.telemetry.event(
+                "branchpoint.execution.completed",
+                {
+                    "branchpoint.execution.effect_id": effect_id,
+                    "branchpoint.execution.effect_hash": receipt.effect_hash,
+                    "gen_ai.tool.name": tool.name,
+                },
+            )
+        return result
