@@ -13,6 +13,8 @@ on:
       - '.github/workflows/package-ci.yml'
       - '.github/workflows/release.yml'
       - 'scripts/verify_distribution.py'
+      - 'scripts/build_release_evidence.py'
+      - 'tests/test_release_evidence.py'
   push:
     branches: [main]
     paths:
@@ -124,3 +126,19 @@ jobs:
           assert calls == ["e-1"]
           print("installed wheel smoke passed")
           PY
+
+      - name: Build installed-wheel release evidence
+        run: |
+          mkdir -p evidence
+          /tmp/branchpoint-wheel/bin/branchpoint doctor --json > evidence/doctor-${{ matrix.python-version }}.json
+          python scripts/build_release_evidence.py \
+            --dist-dir dist \
+            --doctor evidence/doctor-${{ matrix.python-version }}.json \
+            --output evidence/release-evidence-${{ matrix.python-version }}.json
+
+      - name: Upload installed-wheel evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: branchpoint-release-evidence-py${{ matrix.python-version }}
+          path: evidence/*.json
+          if-no-files-found: error
