@@ -43,9 +43,9 @@ def test_same_proposer_first_action_is_executed_by_proposal_order_baseline():
     provider = temperature_band_proposal_provider(config)
     baseline = ProposalOrderBOPTESTController(provider)
 
-    controls = baseline(_context(300.0))
+    decision_output = baseline(_context(300.0))
 
-    assert controls == {
+    assert decision_output.controls == {
         "con_oveTSetHea_u": 294.15,
         "con_oveTSetHea_activate": 1,
         "con_oveTSetCoo_u": 297.15,
@@ -67,9 +67,9 @@ def test_branchpoint_can_override_same_proposal_from_canonical_tool_risk():
     provider = temperature_band_proposal_provider(config)
     controller = BranchpointBOPTESTController(provider)
 
-    controls = controller(_context(300.0))
+    decision_output = controller(_context(300.0))
 
-    assert controls == {
+    assert decision_output.controls == {
         "con_oveTSetHea_activate": 0,
         "con_oveTSetCoo_activate": 0,
     }
@@ -93,9 +93,9 @@ def test_branchpoint_keeps_intervention_when_canonical_risk_is_low():
     provider = temperature_band_proposal_provider(config)
     controller = BranchpointBOPTESTController(provider)
 
-    controls = controller(_context(300.0))
+    decision_output = controller(_context(300.0))
 
-    assert controls["con_oveTSetCoo_activate"] == 1
+    assert decision_output.controls["con_oveTSetCoo_activate"] == 1
     assert controller.decisions[0].selected == "apply_temperature_band"
     assert controller.decisions[0].changed_proposer_order is False
 
@@ -134,3 +134,30 @@ def test_missing_temperature_measurement_fails_closed():
 def test_invalid_temperature_band_is_rejected():
     with pytest.raises(ValueError, match="lower < upper"):
         TemperatureBandProposalConfig(lower_kelvin=300.0, upper_kelvin=295.0)
+
+
+def test_protocol_decision_metadata_carries_branchpoint_arbitration():
+    config = TemperatureBandProposalConfig(
+        lower_kelvin=294.15,
+        upper_kelvin=297.15,
+        intervention_goal_gain=0.70,
+        embedded_goal_gain=0.20,
+        intervention_risk=0.90,
+        intervention_cost=0.02,
+    )
+    controller = BranchpointBOPTESTController(
+        temperature_band_proposal_provider(config)
+    )
+
+    decision_output = controller(_context(300.0))
+
+    assert decision_output.metadata["mode"] == "branchpoint"
+    assert decision_output.metadata["proposer_first"] == "apply_temperature_band"
+    assert decision_output.metadata["selected"] == "embedded_control"
+    assert decision_output.metadata["changed_proposer_order"] is True
+    score_by_name = {
+        row["action_name"]: row
+        for row in decision_output.metadata["scores"]
+    }
+    assert score_by_name["apply_temperature_band"]["action_kind"] == "intervene"
+    assert score_by_name["apply_temperature_band"]["risk"] == pytest.approx(0.90)
