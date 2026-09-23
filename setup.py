@@ -46,6 +46,7 @@ extra_requirements = {
     "api": api_requirements,
     "observability": observability_requirements,
     "postgres": ["psycopg[binary]>=3.1,<4"],
+    "openai-agents": ["openai-agents>=0.22.0,<0.23.0"],
     "evaluation": ["pandas>=1.3.0"],
     "dev": [
         "pytest>=7.0",
@@ -59,12 +60,12 @@ extra_requirements = {
     "anthropic": ["anthropic>=0.25.0"],
     "visualization": ["matplotlib>=3.4.0", "plotly>=5.3.0", "pyvis>=0.2.0"],
 }
-# "full" stays portable: local ML runtimes, FAISS, and database drivers remain explicit choices.
+# "full" stays portable: local ML runtimes, database drivers, and framework adapters remain explicit choices.
 extra_requirements["full"] = sorted(
     {
         req
         for key, reqs in extra_requirements.items()
-        if key not in {"dev", "full", "local-embeddings", "faiss", "postgres"}
+        if key not in {"dev", "full", "local-embeddings", "faiss", "postgres", "openai-agents"}
         for req in reqs
     }
 )
