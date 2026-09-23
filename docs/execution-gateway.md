@@ -22,6 +22,8 @@ uvicorn examples.execution_gateway_app:app --reload
 The reference app uses SQLite. A multi-instance deployment can provide
 `PostgresExecutionLedger` instead.
 
+The `x-principal` / `x-permissions` headers in the reference app are **demo-only**. Do not trust identity headers sent directly by an Internet client. In production, resolve identity from a verified session/JWT, mTLS, or headers injected by an authenticated proxy you control.
+
 ## Preview
 
 ```bash
