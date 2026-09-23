@@ -69,11 +69,13 @@ jobs:
               AuthorizationContext,
               AuthorizationDenied,
               SQLiteExecutionLedger,
+              ToolExecutionGate,
               ToolRegistry,
               ToolSpec,
           )
 
           assert branchpoint.__version__ == "0.3.0"
+          assert ToolExecutionGate
 
           db = Path(tempfile.mkdtemp()) / "effects.sqlite3"
           calls = []
