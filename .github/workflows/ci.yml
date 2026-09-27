@@ -35,10 +35,11 @@ jobs:
           assert absent('faiss')
           assert absent('torch')
           assert absent('opentelemetry.sdk')
+          assert absent('langchain')
           PY
       - name: Compile runtime
         run: |
-          python -m py_compile branchpoint/__init__.py branchpoint/authorization.py branchpoint/execution.py branchpoint/postgres_execution.py branchpoint/integrations/openai_agents.py branchpoint/decision.py branchpoint/decision_io.py branchpoint/cli.py branchpoint/agent/temporal.py branchpoint/environments/boptest.py branchpoint/observability/telemetry.py branchpoint/benchmarks/temporal_hidden_world.py branchpoint/benchmarks/temporal_suite.py branchpoint/benchmarks/boptest_protocol.py branchpoint/benchmarks/boptest_comparison.py branchpoint/benchmarks/boptest_branchpoint.py branchpoint/benchmarks/boptest_study.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/browser_action_guard_demo.py examples/production_execution_boundary.py examples/tool_routing_demo.py examples/incident_triage_demo.py examples/custom_capability_pack.py examples/boptest_live_smoke.py examples/boptest_protocol_run.py examples/boptest_branchpoint_vs_proposer.py examples/boptest_branchpoint_regime_study.py examples/openai_agents_durable_tool.py
+          python -m py_compile branchpoint/__init__.py branchpoint/authorization.py branchpoint/execution.py branchpoint/postgres_execution.py branchpoint/integrations/openai_agents.py branchpoint/integrations/langchain.py branchpoint/decision.py branchpoint/decision_io.py branchpoint/cli.py branchpoint/agent/temporal.py branchpoint/environments/boptest.py branchpoint/observability/telemetry.py branchpoint/benchmarks/temporal_hidden_world.py branchpoint/benchmarks/temporal_suite.py branchpoint/benchmarks/boptest_protocol.py branchpoint/benchmarks/boptest_comparison.py branchpoint/benchmarks/boptest_branchpoint.py branchpoint/benchmarks/boptest_study.py examples/hypothesis_falsification_demo.py examples/bayesian_experiment_demo.py examples/decision_preferences_demo.py examples/hidden_world_demo.py examples/hidden_world_suite_demo.py examples/hidden_world_policy_comparison.py examples/hidden_world_risk_sweep.py examples/temporal_hidden_world_demo.py examples/temporal_suite_demo.py examples/open_world_mismatch_demo.py examples/browser_action_guard_demo.py examples/production_execution_boundary.py examples/tool_routing_demo.py examples/incident_triage_demo.py examples/custom_capability_pack.py examples/boptest_live_smoke.py examples/boptest_protocol_run.py examples/boptest_branchpoint_vs_proposer.py examples/boptest_branchpoint_regime_study.py examples/openai_agents_durable_tool.py
           python -m compileall -q branchpoint/agent branchpoint/world_model branchpoint/reasoning branchpoint/experiments branchpoint/environments branchpoint/observability branchpoint/benchmarks branchpoint/tools branchpoint/generator branchpoint/utils
       - name: Core import and CLI smoke
         run: |
@@ -220,3 +221,28 @@ jobs:
           grep -q "external_calls_before_approval: 0" /tmp/openai-agents-runner-e2e.txt
           grep -q "external_calls_after_resume: 1" /tmp/openai-agents-runner-e2e.txt
           grep -q "receipt_status: succeeded" /tmp/openai-agents-runner-e2e.txt
+
+
+  langchain-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tested LangChain integration
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[langchain,dev]"
+      - name: Verify LangChain execution middleware contract
+        run: |
+          python -c "import langchain; from branchpoint.integrations import LangChainBranchpointMiddleware, langchain_branchpoint_stack, langchain_tool_schema; print('langchain', langchain.__version__)"
+          pytest -q tests/test_langchain_integration.py
+      - name: Run durable LangChain middleware example
+        run: |
+          python examples/langchain_branchpoint_middleware.py > /tmp/langchain-branchpoint.txt
+          cat /tmp/langchain-branchpoint.txt
+          grep -q "external_calls: 1" /tmp/langchain-branchpoint.txt
+          grep -q "receipt_status: succeeded" /tmp/langchain-branchpoint.txt
+          grep -q "first_replayed: False" /tmp/langchain-branchpoint.txt
+          grep -q "replay_replayed: True" /tmp/langchain-branchpoint.txt
