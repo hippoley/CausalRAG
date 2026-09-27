@@ -375,6 +375,11 @@ def parse_args():
         help="Print machine-readable capability-pack metadata.",
     )
     packs_parser.add_argument(
+        "--check",
+        metavar="SCENARIO_ID",
+        help="Inspect one registered pack for real-run readiness without executing tool handlers.",
+    )
+    packs_parser.add_argument(
         "--load-pack",
         action="append",
         default=[],
@@ -502,6 +507,23 @@ def main():
             logger.error(str(exc))
             return 2
         from branchpoint.probe import available_probe_config
+
+        if args.check:
+            from branchpoint.pack_readiness import inspect_capability_pack
+
+            try:
+                report = inspect_capability_pack(args.check)
+            except ValueError as exc:
+                logger.error(str(exc))
+                return 2
+            if args.json:
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+            else:
+                overall = "READY" if report["ready"] else "NOT READY"
+                print(f"{args.check}: {overall}")
+                for row in report["checks"]:
+                    print(f"  {row['status'].upper():<8} {row['name']}: {row['detail']}")
+            return 0 if report["ready"] else 1
 
         rows = available_probe_config()["scenarios"]
         if args.json:
