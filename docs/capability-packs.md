@@ -67,7 +67,18 @@ branchpoint packs \
   --load-pack examples/custom_capability_pack.py:register_pack
 ```
 
-Or load it into the real Workbench:
+Before loading a pack into the real Workbench, inspect its promotion boundary without executing any tool handler:
+
+```bash
+branchpoint packs \
+  --load-pack examples/custom_capability_pack.py:register_pack \
+  --check queue_incident_demo \
+  --json
+```
+
+The readiness report separates **blockers** from **warnings**. It constructs the registered runtime, checks the world model and tools, detects generated `_not_connected` handlers, and reports missing Experiment/Intervention contracts. It never calls a tool handler, so checking a device-control or browser-action pack cannot itself create an external effect.
+
+Then load a ready pack into the Workbench:
 
 ```bash
 branchpoint probe \
@@ -326,6 +337,7 @@ Before registering a pack, verify:
 - [ ] Success is machine-checkable.
 - [ ] A deterministic test reproduces one meaningful failure.
 - [ ] The pack appears in `/api/config`.
+- [ ] `branchpoint packs --check <id>` reports `READY`.
 - [ ] The workbench can launch it without custom frontend code.
 
 ## Good pack ideas
