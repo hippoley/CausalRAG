@@ -556,6 +556,11 @@ def main():
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(source, encoding="utf-8")
             print(f"Wrote capability-pack starter to {destination}")
+            print(
+                "Next: connect real handlers + goal, then verify with "
+                f"branchpoint packs --load-pack {destination}:register_pack "
+                f"--check {args.pack_id}"
+            )
         else:
             print(source, end="")
         return 0
