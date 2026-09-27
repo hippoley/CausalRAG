@@ -254,7 +254,9 @@ jobs:
       - name: Verify LangChain execution middleware contract
         run: |
           python -c "import langchain; from branchpoint.integrations import LangChainBranchpointMiddleware, langchain_branchpoint_stack, langchain_tool_schema; print('langchain', langchain.__version__)"
-          pytest -q tests/test_langchain_integration.py
+          pytest -q \
+            tests/test_langchain_integration.py \
+            tests/test_langchain_agent_e2e.py
       - name: Run durable LangChain middleware example
         run: |
           python examples/langchain_branchpoint_middleware.py > /tmp/langchain-branchpoint.txt
@@ -263,3 +265,12 @@ jobs:
           grep -q "receipt_status: succeeded" /tmp/langchain-branchpoint.txt
           grep -q "first_replayed: False" /tmp/langchain-branchpoint.txt
           grep -q "replay_replayed: True" /tmp/langchain-branchpoint.txt
+      - name: Run full LangChain create_agent HITL proof
+        run: |
+          python examples/langchain_agent_hitl_e2e.py > /tmp/langchain-agent-e2e.txt
+          cat /tmp/langchain-agent-e2e.txt
+          grep -q "paused: True" /tmp/langchain-agent-e2e.txt
+          grep -q "external_calls_before_approval: 0" /tmp/langchain-agent-e2e.txt
+          grep -q "receipt_before_approval: None" /tmp/langchain-agent-e2e.txt
+          grep -q "external_calls_after_resume: 1" /tmp/langchain-agent-e2e.txt
+          grep -q "receipt_status: succeeded" /tmp/langchain-agent-e2e.txt
