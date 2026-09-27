@@ -32,6 +32,7 @@
 | **run it locally without an API key** | [60-second quickstart](#60-second-quickstart) |
 | **drop one decision boundary into my code** | [Minimal Python example](#put-one-decision-point-into-existing-code) |
 | **plug into an OpenAI Agents approval flow** | [OpenAI Agents adapter](docs/openai-agents.md) |
+| **govern LangChain / LangGraph tool execution** | [LangChain / LangGraph adapter](docs/langchain.md) |
 | **protect any framework over HTTP** | [Execution gateway](docs/execution-gateway.md) |
 | **expose the boundary to MCP hosts** | [MCP execution boundary](docs/mcp.md) |
 | **bring my own domain** | [Capability packs](docs/capability-packs.md) |
@@ -647,6 +648,7 @@ Optional surfaces:
 ```bash
 pip install -e ".[api]"               # FastAPI workbench
 pip install -e ".[observability]"     # OTLP export
+pip install -e ".[langchain]"             # LangChain / LangGraph execution middleware
 pip install -e ".[postgres]"          # multi-instance durable receipts
 pip install -e ".[openai-agents]"     # OpenAI Agents approval/execution adapter
 pip install -e ".[mcp]"               # MCP v2 consequence boundary
